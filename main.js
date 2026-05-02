@@ -199,15 +199,41 @@ const BINL_MAGIC = Buffer.from([0x45, 0x76, 0x4D, 0x73, 0x67]);
 // .ard магічна сигнатура (KGR + NUL) — контейнер, не редагується напряму
 const ARD_MAGIC = Buffer.from([0x4B, 0x47, 0x52, 0x00]);
 
+const { parsePair: parseMesOfs, composePair: composeMesOfs, isMesOfsName, pairedDataName } = require('./tools/lib/mes-ofs');
+const { parseEv, composeEv, isEvName } = require('./tools/lib/ev-format');
+
 // Класифікація:
 //  - 'binl'    — структурований .binl з EvMsg-заголовком (header=11, footer=5)
 //  - 'rawbin'  — сирий .bin із KH1-кодованим текстом, без заголовка
 //                (наприклад btltbl.bin/UK_AbilityName.bin тощо)
+//  - 'mesofs'  — парний формат *_mes_ofs.bin + *_mes_data.bin
 //  - 'unknown' — байткод/контейнер/інше — не чіпати
 function classifyFile(absPath, ext) {
   let kind = 'unknown';
   let magic = '';
   let extractOpts = null;
+  // Спочатку перевіряємо парний формат за іменем — це найдешевша перевірка.
+  const baseName = path.basename(absPath);
+  if (isMesOfsName(baseName)) {
+    // Перевіряємо чи поряд лежить data-файл.
+    const dataPath = path.join(path.dirname(absPath), pairedDataName(baseName));
+    if (fsSync.existsSync(dataPath)) {
+      return { kind: 'mesofs', magic: 'mes_ofs', extractOpts: { dataPath }, isTranslatable: true };
+    }
+  }
+  // Парний *_mes_data.bin розпізнаємо як неперекладний (його не редагують
+  // напряму — переклад йде через _mes_ofs.bin).
+  if (/_mes_data\.bin$/i.test(baseName)) {
+    return { kind: 'mesdata', magic: 'mes_data', extractOpts: null, isTranslatable: false };
+  }
+  // .ev / .evdl — event-script container.
+  // ⚠ ВИМКНЕНО: навіть cell-preserving режим з identical round-trip ламає
+  // гру при будь-яких змінах. Можлива game-side checksum або specific byte
+  // pattern requirement що не очевидний з аналізу. Парсер у tools/lib/ev-format.js
+  // залишається для майбутньої roboти. Поки .ev файли пропускаються у Safe Mode.
+  if (isEvName(baseName)) {
+    return { kind: 'ev', magic: 'ev_evdl', extractOpts: null, isTranslatable: false };
+  }
   try {
     const fd = fsSync.openSync(absPath, 'r');
     const buf = Buffer.alloc(256);
@@ -268,6 +294,9 @@ function walkDirSync(root) {
         try { size = fsSync.statSync(abs).size; } catch (_) {}
         const ext = path.extname(e.name).toLowerCase();
         const cls = classifyFile(abs, ext);
+        // Не додаємо до списку *_mes_data.bin — він auxiliary до _mes_ofs.bin
+        // і записується разом з ним. Інакше у Safe-mode tovaste «1 заблоковано».
+        if (cls.kind === 'mesdata') continue;
         out.push({
           rel: rel.split(path.sep).join('/'),
           size,
@@ -313,6 +342,85 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
   const rusPath = payload && payload.rusPath;
   if (!engPath || !rusPath) return { error: 'Не вказано шляхи' };
   try {
+    // Спеціальна гілка: парний формат *_mes_ofs.bin + *_mes_data.bin.
+    const ext = path.extname(engPath).toLowerCase();
+    const cls = classifyFile(engPath, ext);
+    if (cls.kind === 'ev') {
+      const codec = require('./shared/codec');
+      const ofsBuf = await fs.readFile(engPath);
+      const parsed = parseEv(ofsBuf, codec);
+      // Показуємо UI лише translatable слоти (без padding-{eol}-байтів).
+      const visible = parsed.slots.filter(s => s.translatable);
+      const uiSlots = visible.map((s, idx) => ({
+        index: idx,
+        offset: s.offset,           // відносно textOffset
+        absOffset: s.absOffset,     // абсолютна позиція в файлі (для compose lookup)
+        byteLen: s.byteLen,
+        english: s.english,
+        ukText: ''
+      }));
+      return {
+        slots: uiSlots,
+        stats: {
+          ev: true,
+          totalSlots: parsed.slots.length,
+          translatableSlots: visible.length,
+          textOffset: parsed.textOffset,
+          footerOffset: parsed.footerOffset,
+          fileSize: parsed.fileSize
+        },
+        engSize: ofsBuf.length,
+        rusSize: 0
+      };
+    }
+    if (cls.kind === 'mesofs') {
+      const codec = require('./shared/codec');
+      const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
+      if (!dataPath || !fsSync.existsSync(dataPath)) {
+        return { error: 'Не знайдено пару _mes_data.bin для ' + path.basename(engPath) };
+      }
+      const ofsBuf = await fs.readFile(engPath);
+      const dataBuf = await fs.readFile(dataPath);
+      const parsed = parseMesOfs(ofsBuf, dataBuf, codec);
+      // Збираємо унікальні offsets із linkedCount, у тому ж порядку,
+      // в якому пойнтери першого разу зустрічаються в ofs (зручно для UI).
+      const offsetSeen = new Map();
+      for (const s of parsed.slots) {
+        if (!offsetSeen.has(s.offset)) {
+          offsetSeen.set(s.offset, { count: 1, firstIdx: s.index, byteLen: s.byteLen, english: s.english });
+        } else {
+          offsetSeen.get(s.offset).count++;
+        }
+      }
+      const sortedByFirst = [...offsetSeen.entries()].sort((a, b) => a[1].firstIdx - b[1].firstIdx);
+      const uiSlots = sortedByFirst.map(([off, info], idx) => ({
+        index: idx,
+        offset: off,
+        byteLen: parsed.cellLengthByOffset.get(off) || info.byteLen,
+        english: info.english,
+        ukText: '',
+        linkedCount: info.count
+      }));
+      // Зберігаємо meta для compose-step:
+      mesOfsMetaCache.set(engPath, {
+        ofsLength: ofsBuf.length,
+        dataLength: dataBuf.length,
+        cellLengthByOffset: parsed.cellLengthByOffset
+      });
+      return {
+        slots: uiSlots,
+        stats: {
+          mesofs: true,
+          pointerCount: parsed.pointerCount,
+          uniqueStrings: parsed.uniqueStrings,
+          ofsPadding: parsed.ofsPadding,
+          dataPadding: parsed.dataPadding
+        },
+        engSize: ofsBuf.length + dataBuf.length,
+        rusSize: 0
+      };
+    }
+    // Звичайна гілка: extract через worker.
     const eng = await fs.readFile(engPath);
     const rus = await fs.readFile(rusPath);
     const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
@@ -328,12 +436,87 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
   }
 });
 
+// Кеш мета-даних *_mes_ofs.bin парсів для подальшого compose
+// (зберігаємо ofsLength/dataLength/cellLengthByOffset, щоб не парсити двічі).
+const mesOfsMetaCache = new Map();
+
 ipcMain.handle('translate:compose', async (_e, payload) => {
   const engPath = payload && payload.engPath;
   const replacements = (payload && payload.replacements) || [];
   const outPath = payload && payload.outPath;
   if (!engPath || !outPath) return { error: 'Не вказано шляхи' };
   try {
+    // Спеціальна гілка: mesofs парне записування ofs+data.
+    const ext = path.extname(engPath).toLowerCase();
+    const cls = classifyFile(engPath, ext);
+    if (cls.kind === 'ev') {
+      const codec = require('./shared/codec');
+      const evBuf = await fs.readFile(engPath);
+      const parsed = parseEv(evBuf, codec);
+      // Replacements мапляться по slot.offset (relative to textOffset).
+      const ukByOffset = new Map();
+      for (const r of replacements) {
+        if (r && typeof r.offset === 'number' && r.ukText && r.ukText.length) {
+          ukByOffset.set(r.offset, r.ukText);
+        }
+      }
+      // Compose використовує ВСІ слоти (translatable + padding) для round-trip.
+      const slotsForCompose = parsed.slots.map(s => ({
+        offset: s.offset,
+        english: s.english,
+        ukText: ukByOffset.has(s.offset) ? ukByOffset.get(s.offset) : s.english
+      }));
+      const composed = composeEv(evBuf, slotsForCompose, codec);
+      await fs.mkdir(path.dirname(outPath), { recursive: true });
+      await fs.writeFile(outPath, composed.buf);
+      return {
+        ok: true,
+        outPath,
+        byteLength: composed.buf.length,
+        applied: ukByOffset.size,
+        skipped: parsed.slots.filter(s => s.translatable).length - ukByOffset.size,
+        errors: [],
+        ev: { sizeDiff: composed.sizeDiff, relocCount: composed.relocCount }
+      };
+    }
+    if (cls.kind === 'mesofs') {
+      const codec = require('./shared/codec');
+      const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
+      const ofsBuf = await fs.readFile(engPath);
+      const dataBuf = await fs.readFile(dataPath);
+      const parsed = parseMesOfs(ofsBuf, dataBuf, codec);
+      // Застосовуємо replacements: для кожного slot з заданим UK — записуємо.
+      const ukByOffset = new Map();
+      for (const r of replacements) {
+        if (r && typeof r.offset === 'number' && r.ukText && r.ukText.length) {
+          ukByOffset.set(r.offset, r.ukText);
+        }
+      }
+      const slotsForCompose = parsed.slots.map(s => ({
+        offset: s.offset,
+        english: s.english,
+        ukText: ukByOffset.has(s.offset) ? ukByOffset.get(s.offset) : s.english
+      }));
+      const composed = composeMesOfs(slotsForCompose, {
+        ofsLength: ofsBuf.length,
+        dataLength: dataBuf.length,
+        cellLengthByOffset: parsed.cellLengthByOffset
+      }, codec);
+      // Виводимо ofs у outPath, data — у пару (заміна в імені).
+      const outDataPath = path.join(path.dirname(outPath), pairedDataName(path.basename(outPath)));
+      await fs.mkdir(path.dirname(outPath), { recursive: true });
+      await fs.writeFile(outPath, composed.ofsBuf);
+      await fs.writeFile(outDataPath, composed.dataBuf);
+      return {
+        ok: true,
+        outPath,
+        byteLength: composed.ofsBuf.length + composed.dataBuf.length,
+        applied: ukByOffset.size,
+        skipped: parsed.uniqueStrings - ukByOffset.size,
+        errors: [],
+        mesofs: { layout: composed.layout, dataPath: outDataPath }
+      };
+    }
     const eng = await fs.readFile(engPath);
     const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
     const r = await runWorker({ op: 'compose', eng: engAb, replacements }, [engAb]);
@@ -737,8 +920,10 @@ ipcMain.handle('translate:tsvExists', async (_e, tsvPath) => {
 // Kerning editor: завантаження/збереження .knj + auto-find .dds
 // =====================================================================
 ipcMain.handle('kerning:openKnj', async () => {
+  const settings = loadSettings();
   const r = await dialog.showOpenDialog(mainWindow, {
     title: 'Завантажити .knj',
+    defaultPath: settings.lastKnjPath || undefined,
     properties: ['openFile'],
     filters: [
       { name: 'Kanji файли (*.knj)', extensions: ['knj'] },
@@ -749,9 +934,23 @@ ipcMain.handle('kerning:openKnj', async () => {
   try {
     const buf = await fs.readFile(r.filePaths[0]);
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    saveSettings(Object.assign(loadSettings(), { lastKnjPath: r.filePaths[0] }));
     return { ok: true, filePath: r.filePaths[0], data: ab };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
+  }
+});
+
+ipcMain.handle('kerning:loadKnjFromPath', async (_e, knjPath) => {
+  // Безмовне завантаження за збереженим шляхом (для авто-load на старті).
+  if (!knjPath) return { ok: false };
+  try {
+    if (!fsSync.existsSync(knjPath)) return { ok: false, error: 'not_found' };
+    const buf = await fs.readFile(knjPath);
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    return { ok: true, filePath: knjPath, data: ab };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || String(e) };
   }
 });
 

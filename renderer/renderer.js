@@ -60,7 +60,16 @@ const gBuild = document.getElementById('g-build');
 const gImport = document.getElementById('g-import');
 const gSearch = document.getElementById('g-search');
 const gFilterMode = document.getElementById('g-filter-mode');
+const gSortMode = document.getElementById('g-sort-mode');
 const gStat = document.getElementById('g-stat');
+const gDashboard = document.getElementById('g-dashboard');
+const gDashDone = document.getElementById('g-dash-done');
+const gDashTotal = document.getElementById('g-dash-total');
+const gDashPct = document.getElementById('g-dash-pct');
+const gDashBarFill = document.getElementById('g-dash-bar-fill');
+const gDashUntrans = document.getElementById('g-dash-untrans');
+const gDashSameEn = document.getElementById('g-dash-sameen');
+const gDashIssues = document.getElementById('g-dash-issues');
 const gSave = document.getElementById('g-save');
 const gComposeAll = document.getElementById('g-compose-all');
 const gRows = document.getElementById('g-rows');
@@ -70,6 +79,9 @@ const repOverlay = document.getElementById('replace-overlay');
 const repFind = document.getElementById('rep-find');
 const repReplace = document.getElementById('rep-replace');
 const repCase = document.getElementById('rep-case');
+const repWholeWord = document.getElementById('rep-whole-word');
+const repRegex = document.getElementById('rep-regex');
+const repPreview = document.getElementById('rep-preview');
 const repStat = document.getElementById('rep-stat');
 const repApply = document.getElementById('rep-apply');
 const repCancel = document.getElementById('rep-cancel');
@@ -1220,6 +1232,25 @@ async function buildGlossary() {
   }
 }
 
+function getGlossaryRenderOrder() {
+  const sort = (gState.filter && gState.filter.sort) || 'default';
+  const idxs = gState.entries.map((_, i) => i);
+  if (sort === 'en-len-desc') {
+    idxs.sort((a, b) => gState.entries[b].english.length - gState.entries[a].english.length);
+  } else if (sort === 'en-len-asc') {
+    idxs.sort((a, b) => gState.entries[a].english.length - gState.entries[b].english.length);
+  } else if (sort === 'uk-len-desc') {
+    idxs.sort((a, b) => {
+      const ukA = gState.translations[gState.entries[a].english] || '';
+      const ukB = gState.translations[gState.entries[b].english] || '';
+      return ukB.length - ukA.length;
+    });
+  } else if (sort === 'count-desc') {
+    idxs.sort((a, b) => (gState.entries[b].count || 0) - (gState.entries[a].count || 0));
+  }
+  return idxs;
+}
+
 function renderGlossaryRows() {
   while (gRows.firstChild) gRows.removeChild(gRows.firstChild);
   if (!gState.entries.length) {
@@ -1233,7 +1264,8 @@ function renderGlossaryRows() {
   }
 
   const frag = document.createDocumentFragment();
-  for (let i = 0; i < gState.entries.length; i++) {
+  const order = getGlossaryRenderOrder();
+  for (const i of order) {
     const entry = gState.entries[i];
     const ukText = gState.translations[entry.english] || '';
 
@@ -1278,28 +1310,55 @@ function applyGlossaryFilter() {
   const search = (gState.filter.search || '').toLowerCase();
   const mode = gState.filter.mode || 'all';
   const rowEls = gRows.querySelectorAll('.t-row');
-  for (let i = 0; i < rowEls.length; i++) {
-    const entry = gState.entries[i];
+  for (const rowEl of rowEls) {
+    const idx = parseInt(rowEl.dataset.gidx, 10);
+    const entry = gState.entries[idx];
     if (!entry) continue;
     const uk = gState.translations[entry.english] || '';
     let hide = false;
     if (search && entry.english.toLowerCase().indexOf(search) === -1) hide = true;
     if (mode === 'untranslated' && uk) hide = true;
     if (mode === 'translated' && !uk) hide = true;
-    rowEls[i].classList.toggle('hidden', hide);
+    if (mode === 'same-as-en' && uk !== entry.english) hide = true;
+    if (mode === 'token-issues') {
+      if (!uk || validateTokens(entry.english, uk).ok) hide = true;
+    }
+    rowEl.classList.toggle('hidden', hide);
   }
 }
 
 function refreshGlossaryProgress() {
   const total = gState.entries.length;
-  const done = gState.entries.filter(e => {
+  let done = 0, sameEn = 0, tokenIssues = 0;
+  for (const e of gState.entries) {
     const uk = gState.translations[e.english];
-    return uk && uk.trim();
-  }).length;
+    if (uk && uk.trim()) {
+      done++;
+      if (uk === e.english) sameEn++;
+      if (!validateTokens(e.english, uk).ok) tokenIssues++;
+    }
+  }
+  const untrans = total - done;
   const pct = total > 0 ? Math.round(100 * done / total) : 0;
   gStat.textContent = total > 0
     ? done + ' / ' + total + ' (' + pct + '%)'
     : '—';
+
+  // Dashboard
+  if (gDashboard) {
+    if (total > 0) {
+      gDashboard.removeAttribute('hidden');
+      if (gDashDone) gDashDone.textContent = String(done);
+      if (gDashTotal) gDashTotal.textContent = String(total);
+      if (gDashPct) gDashPct.textContent = pct + '%';
+      if (gDashBarFill) gDashBarFill.style.width = pct + '%';
+      if (gDashUntrans) gDashUntrans.textContent = String(untrans);
+      if (gDashSameEn) gDashSameEn.textContent = String(sameEn);
+      if (gDashIssues) gDashIssues.textContent = String(tokenIssues);
+    } else {
+      gDashboard.setAttribute('hidden', 'hidden');
+    }
+  }
 
   if (tState.subtab === 'glossary') {
     tProgress.textContent = gStat.textContent;
@@ -1848,18 +1907,32 @@ window.kh1.translate.onProgress((p) => {
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-function countOcc(haystack, needle, caseSensitive) {
-  if (!needle) return 0;
-  let h = caseSensitive ? haystack : String(haystack).toLowerCase();
-  let n = caseSensitive ? needle : String(needle).toLowerCase();
-  let count = 0, pos = 0;
-  while ((pos = h.indexOf(n, pos)) !== -1) { count++; pos += n.length; }
-  return count;
+// Будує regex з опціями. Повертає null якщо вираз невалідний (для regex-режиму).
+function buildSearchRegex(find, opts) {
+  if (!find) return null;
+  const caseSensitive = !!(opts && opts.caseSensitive);
+  const wholeWord = !!(opts && opts.wholeWord);
+  const isRegex = !!(opts && opts.regex);
+  let pattern = isRegex ? find : escapeRegex(find);
+  if (wholeWord) pattern = '\\b(?:' + pattern + ')\\b';
+  try {
+    return new RegExp(pattern, 'g' + (caseSensitive ? '' : 'i'));
+  } catch (_) { return null; }
 }
-function replaceAll(text, find, repl, caseSensitive) {
-  if (!find) return text;
-  if (caseSensitive) return String(text).split(find).join(repl);
-  return String(text).replace(new RegExp(escapeRegex(find), 'g' + 'i'), repl);
+function countOcc(haystack, needle, opts) {
+  // backward-compat: opts може бути boolean (старий caseSensitive flag)
+  const o = (typeof opts === 'boolean') ? { caseSensitive: opts } : (opts || {});
+  if (!needle || !haystack) return 0;
+  const re = buildSearchRegex(needle, o);
+  if (!re) return 0;
+  return (String(haystack).match(re) || []).length;
+}
+function replaceAll(text, find, repl, opts) {
+  const o = (typeof opts === 'boolean') ? { caseSensitive: opts } : (opts || {});
+  if (!find || !text) return text;
+  const re = buildSearchRegex(find, o);
+  if (!re) return text;
+  return String(text).replace(re, repl);
 }
 
 function showReplace() {
@@ -1873,30 +1946,64 @@ function hideReplace() {
   repOverlay.setAttribute('aria-hidden', 'true');
 }
 
+function getReplaceOpts() {
+  return {
+    caseSensitive: repCase.checked,
+    wholeWord: repWholeWord && repWholeWord.checked,
+    regex: repRegex && repRegex.checked
+  };
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
 function updateReplaceStat() {
   const find = repFind.value;
-  const cs = repCase.checked;
+  const repl = repReplace.value;
+  const opts = getReplaceOpts();
   if (!find) {
     repStat.textContent = 'Введіть текст для пошуку...';
     repApply.disabled = true;
     repApply.textContent = 'Замінити';
+    if (repPreview) repPreview.classList.add('hidden');
+    return;
+  }
+  // Validate regex
+  const testRe = buildSearchRegex(find, opts);
+  if (!testRe) {
+    repStat.textContent = '⚠ Невалідний regex';
+    repApply.disabled = true;
+    if (repPreview) repPreview.classList.add('hidden');
     return;
   }
   let totalOcc = 0, entries = 0;
-  for (const v of Object.values(gState.translations || {})) {
-    const o = countOcc(v, find, cs);
-    if (o > 0) { totalOcc += o; entries++; }
+  const previewItems = [];
+  for (const en of Object.keys(gState.translations || {})) {
+    const v = gState.translations[en];
+    const o = countOcc(v, find, opts);
+    if (o > 0) {
+      totalOcc += o;
+      entries++;
+      if (previewItems.length < 5) {
+        const newV = replaceAll(v, find, repl, opts);
+        previewItems.push({ en, oldUk: v, newUk: newV });
+      }
+    }
   }
   let openSlots = 0;
   if (tState.currentRel && tState.slots && tState.slots.length) {
     for (const slot of tState.slots) {
-      if (isRealTranslation(slot) && countOcc(slot.ukText, find, cs) > 0) openSlots++;
+      if (isRealTranslation(slot) && countOcc(slot.ukText, find, opts) > 0) openSlots++;
     }
   }
   if (totalOcc === 0 && openSlots === 0) {
     repStat.textContent = 'Не знайдено в глосарії або відкритому файлі.';
     repApply.disabled = true;
     repApply.textContent = 'Замінити';
+    if (repPreview) repPreview.classList.add('hidden');
     return;
   }
   const parts = [];
@@ -1905,12 +2012,28 @@ function updateReplaceStat() {
   repStat.textContent = 'Знайдено ' + parts.join(', ');
   repApply.disabled = false;
   repApply.textContent = 'Замінити в ' + (entries + openSlots) + ' місцях';
+
+  // Preview перших 5 змін
+  if (repPreview && previewItems.length) {
+    let html = '';
+    for (const it of previewItems) {
+      html += '<div class="rep-row">'
+            + '<div class="rep-old">- ' + escapeHtml(it.oldUk.slice(0, 200)) + '</div>'
+            + '<div class="rep-new">+ ' + escapeHtml(it.newUk.slice(0, 200)) + '</div>'
+            + '</div>';
+    }
+    if (entries > 5) html += '<div class="rep-row" style="text-align:center;color:var(--text-muted)">…ще ' + (entries - 5) + '</div>';
+    repPreview.innerHTML = html;
+    repPreview.classList.remove('hidden');
+  } else if (repPreview) {
+    repPreview.classList.add('hidden');
+  }
 }
 
 async function doReplaceAll() {
   const find = repFind.value;
   const repl = repReplace.value;
-  const cs = repCase.checked;
+  const opts = getReplaceOpts();
   if (!find) return;
   if (!window.confirm('Замінити "' + find + '" → "' + repl + '" у глосарії та відкритому файлі?')) return;
 
@@ -1918,8 +2041,8 @@ async function doReplaceAll() {
   for (const en of Object.keys(gState.translations || {})) {
     const old = gState.translations[en];
     if (!old) continue;
-    if (countOcc(old, find, cs) === 0) continue;
-    gState.translations[en] = replaceAll(old, find, repl, cs);
+    if (countOcc(old, find, opts) === 0) continue;
+    gState.translations[en] = replaceAll(old, find, repl, opts);
     changedGloss++;
   }
 
@@ -1927,8 +2050,8 @@ async function doReplaceAll() {
   if (tState.currentRel && tState.slots && tState.slots.length) {
     for (const slot of tState.slots) {
       if (!isRealTranslation(slot)) continue;
-      if (countOcc(slot.ukText, find, cs) === 0) continue;
-      slot.ukText = replaceAll(slot.ukText, find, repl, cs);
+      if (countOcc(slot.ukText, find, opts) === 0) continue;
+      slot.ukText = replaceAll(slot.ukText, find, repl, opts);
       changedSlots++;
     }
   }
@@ -1954,6 +2077,11 @@ async function doReplaceAll() {
 repFind.addEventListener('input', updateReplaceStat);
 repReplace.addEventListener('input', updateReplaceStat);
 repCase.addEventListener('change', updateReplaceStat);
+if (repWholeWord) repWholeWord.addEventListener('change', updateReplaceStat);
+if (repRegex) repRegex.addEventListener('change', updateReplaceStat);
+
+const gFindReplaceBtn = document.getElementById('g-find-replace');
+if (gFindReplaceBtn) gFindReplaceBtn.addEventListener('click', showReplace);
 repApply.addEventListener('click', doReplaceAll);
 repCancel.addEventListener('click', hideReplace);
 repOverlay.addEventListener('click', (e) => { if (e.target === repOverlay) hideReplace(); });
@@ -2059,6 +2187,12 @@ gFilterMode.addEventListener('change', (e) => {
   gState.filter.mode = e.target.value;
   applyGlossaryFilter();
 });
+if (gSortMode) {
+  gSortMode.addEventListener('change', (e) => {
+    gState.filter.sort = e.target.value;
+    renderGlossaryRows(); // re-render у новому порядку
+  });
+}
 gSave.addEventListener('click', () => saveGlossary(false));
 gComposeAll.addEventListener('click', composeAllFiles);
 
@@ -2098,10 +2232,18 @@ async function autoWrapGlossary() {
   try {
     const r = await window.kh1.translate.autoWrapAdaptive({ pairs, knjData, minWidth, tolerance: 0 });
     if (r.error) { toast(window.i18n.t('toastError', {msg: r.error}), 'error', 6000); return; }
-    let changed = 0, addedLfs = 0;
+    let changed = 0, addedLfs = 0, structureFixed = 0;
     for (let i = 0; i < entries.length; i++) {
       const [en, before] = entries[i];
-      const after = r.wrapped[i];
+      let after = r.wrapped[i];
+      // Post-fix: Auto-wrap використовує splitPrefSuf, який може загубити токени
+      // що стоять В СЕРЕДИНІ body (між літерами). Прогоняємо через
+      // autoFixStructure щоб відновити повну EN-структуру (всі токени, крапки,
+      // пробіли) в результаті.
+      if (after) {
+        const fixed = autoFixStructure(en, after);
+        if (fixed && fixed !== after) { after = fixed; structureFixed++; }
+      }
       if (after && after !== before) {
         gState.translations[en] = after;
         changed++;
@@ -2174,6 +2316,350 @@ if (gCleanBrokenBtn) {
     refreshGlossaryProgress();
     scheduleGlossaryAutoSave();
     toast(window.i18n.t('toastCleanBrokenDone', { n: broken.length }), 'success', 5000);
+  });
+}
+
+// =====================================================================
+// Glossary TXT export/import — людино-читабельний формат для роботи поза
+// програмою. Блок-структура:
+//   [#N]
+//   --- EN ---
+//   <ключ> (з реальними переносами, {lf} перетворюється на \n)
+//   --- UK ---
+//   <переклад>
+//   === END ===
+// На імпорт реальні переноси у UK-секції зворотно конвертуються в {lf}
+// (якщо користувач не залишив {lf} власноруч).
+// =====================================================================
+function buildGlossaryTxt() {
+  const out = [];
+  const entries = Object.entries(gState.translations).filter(([_, uk]) => uk && uk.trim());
+  out.push('# KH1 Glossary Export');
+  out.push('# Total: ' + entries.length + ' entries');
+  out.push('# ');
+  out.push('# Інструкція:');
+  out.push('#  • Редагуй ЛИШЕ блоки --- UK ---. EN — це ключ, не змінювати.');
+  out.push('#  • Багаторядковий UK — пиши як є, реальні переноси конвертуються у {lf}.');
+  out.push('#  • Токени типу {0x04}, {VarItem}, {ColorRed}, {0x06,0x3C} лишай як є.');
+  out.push('#  • Якщо UK порожній — запис пропускається при імпорті.');
+  out.push('# ============================================================');
+  out.push('');
+  for (let i = 0; i < entries.length; i++) {
+    const [en, uk] = entries[i];
+    out.push('[#' + (i + 1) + ']');
+    out.push('--- EN ---');
+    out.push(en.replace(/\{lf\}/g, '\n'));
+    out.push('--- UK ---');
+    out.push(uk.replace(/\{lf\}/g, '\n'));
+    out.push('=== END ===');
+    out.push('');
+  }
+  return out.join('\n');
+}
+
+function parseGlossaryTxt(content) {
+  // Повертає { pairs: [{en, uk}], errors: [...] }
+  const pairs = [];
+  const errors = [];
+  const lines = content.split(/\r?\n/);
+
+  let blockOpen = false;
+  let section = null; // 'en' | 'uk'
+  let enLines = [];
+  let ukLines = [];
+
+  function commitBlock() {
+    if (!blockOpen) return;
+    // НЕ трімимо взагалі — повністю довіряємо TXT-вмісту. Бо trailing space
+    // перед {lf} (типу "Tired? {lf}{0x0B}") — це РЕАЛЬНА частина оригіналу
+    // гри, і будь-який trim його з'їсть. А export → import має бути lossless.
+    let en = enLines.join('\n');
+    let uk = ukLines.join('\n');
+    // Реальні переноси → {lf} (якщо користувач не лишив {lf} вручну)
+    if (en && !en.includes('{lf}') && en.includes('\n')) en = en.replace(/\r?\n/g, '{lf}');
+    if (uk && !uk.includes('{lf}') && uk.includes('\n')) uk = uk.replace(/\r?\n/g, '{lf}');
+    if (en && uk) pairs.push({ en, uk });
+    blockOpen = false;
+    section = null;
+    enLines = [];
+    ukLines = [];
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    if (ln.startsWith('#') && !blockOpen) continue; // коментарі поза блоками
+
+    if (/^\[#\d+\]\s*$/.test(ln)) {
+      commitBlock();
+      blockOpen = true;
+      continue;
+    }
+    if (ln.trim() === '--- EN ---') { section = 'en'; continue; }
+    if (ln.trim() === '--- UK ---') { section = 'uk'; continue; }
+    if (ln.trim() === '=== END ===') { commitBlock(); continue; }
+
+    if (section === 'en') enLines.push(ln);
+    else if (section === 'uk') ukLines.push(ln);
+  }
+  commitBlock(); // на випадок якщо файл закінчується без === END ===
+  return { pairs, errors };
+}
+
+// =====================================================================
+// Auto-fix structure — реконструює UK з EN-skeleton'у.
+//
+// ПРИНЦИП: гра очікує ВСЕ окрім англ. тексту 1:1 з EN (всі {...}-токени,
+// `{lf}`, контрольні байти, whitespace-padding). Перекладач замінює лише
+// «реальний» текст (з літерами); решта — структурна.
+//
+// АЛГОРИТМ:
+// 1. Розбиваємо EN та UK на сегменти: TOKEN (`{...}`) і TEXT (решта).
+// 2. EN-skeleton = всі токени + whitespace-only-text сегменти у тій же
+//    послідовності. Цей skeleton копіюємо буквально.
+// 3. Реальний текст (real-text = TEXT з не-whitespace символами) — беремо
+//    з UK по позиції (по індексу у списку real-texts).
+//    Edge-whitespace кожного EN-real-text сегмента переноситься у результат.
+// 4. Якщо real-text count в EN ≠ в UK → auto-fix не може чесно мапити
+//    (перекладач злив/розщепив текст). Повертаємо null — потрібен manual fix.
+// =====================================================================
+function segmentByTokens(text) {
+  const out = [];
+  let i = 0;
+  let lastTextStart = 0;
+  while (i < text.length) {
+    if (text[i] === '{') {
+      const close = text.indexOf('}', i);
+      if (close < 0) { i++; continue; }
+      if (i > lastTextStart) {
+        out.push({ type: 'text', value: text.slice(lastTextStart, i) });
+      }
+      out.push({ type: 'token', value: text.slice(i, close + 1) });
+      i = close + 1;
+      lastTextStart = i;
+    } else {
+      i++;
+    }
+  }
+  if (text.length > lastTextStart) {
+    out.push({ type: 'text', value: text.slice(lastTextStart) });
+  }
+  return out;
+}
+
+// Регекс для «літер» — кириллиця + латиниця. Якщо в text-сегменті є хоч 1
+// літера — це «контентний» текст (перекладається). Інакше це punctuation /
+// digits / whitespace — частина skeleton-у, копіюємо з EN.
+const LETTER_RE = /[a-zA-Zа-яА-ЯёЁїЇіІєЄґҐ]/;
+
+function autoFixStructure(en, uk) {
+  if (!en || !uk) return null;
+  const enSeg = segmentByTokens(en);
+  const ukSeg = segmentByTokens(uk);
+  // «Літерні» text-сегменти — ті, що містять літери (їх перекладає людина).
+  const enLetters = enSeg.filter(s => s.type === 'text' && LETTER_RE.test(s.value));
+  const ukLetters = ukSeg.filter(s => s.type === 'text' && LETTER_RE.test(s.value));
+
+  // UK НЕ МОЖЕ мати БІЛЬШЕ letter-сегментів ніж EN — translator додав
+  // текст де його не повинно бути, не fixable.
+  if (ukLetters.length > enLetters.length) return null;
+  // Якщо UK letter count МЕНШЕ ніж EN AND > 0 — translator злив сегменти,
+  // не вгадаємо куди підкласти (Ethers-кейс).
+  if (ukLetters.length > 0 && ukLetters.length < enLetters.length) return null;
+  // Лишається: UK letters == EN letters (1:1) АБО UK letters == 0.
+
+  let result = '';
+  let letterIdx = 0;
+  for (const seg of enSeg) {
+    if (seg.type === 'token') {
+      result += seg.value;
+    } else if (LETTER_RE.test(seg.value)) {
+      // Літерний text-сегмент: беремо UK по позиції. Якщо UK не має —
+      // skip (translator залишив порожнечу, ми НЕ підставляємо англ.).
+      if (letterIdx < ukLetters.length) {
+        const enText = seg.value;
+        const ukText = ukLetters[letterIdx++].value;
+        const enLead = (enText.match(/^[ \t]+/) || [''])[0];
+        const enTrail = (enText.match(/[ \t]+$/) || [''])[0];
+        const ukCore = ukText.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '');
+        result += enLead + ukCore + enTrail;
+      }
+    } else {
+      // Non-letter (punctuation/whitespace/digits): копіюємо з EN буквально.
+      // Це фіксить випадок коли translator випадково видалив `.`, `,`,
+      // leading/trailing пробіли тощо.
+      result += seg.value;
+    }
+  }
+  return result;
+}
+
+// =====================================================================
+// Sync padding from EN — копіює leading/trailing/post-{lf} whitespace з EN
+// у UK для записів де UK його втратив (типово після HTML-імпорту).
+// Корисно для меню в exchange/ файлах де пробіли = візуальне центрування.
+// =====================================================================
+function syncPaddingFromEn(en, uk) {
+  const enLines = en.split('{lf}');
+  const ukLines = uk.split('{lf}');
+  // Якщо line-counts різні, наша наївна per-line padding-логіка дасть
+  // некоректний результат (типу trailing space у самому кінці UK після
+  // всіх токенів). У такому разі краще нічого не робити — користувач
+  // мусить спочатку запустити 📐 Auto-wrap (за EN) щоб структура
+  // вирівнялась, і вже тоді padding застосовувався би коректно.
+  if (enLines.length !== ukLines.length) return null;
+  let changed = false;
+  for (let i = 0; i < Math.min(enLines.length, ukLines.length); i++) {
+    const enLine = enLines[i];
+    let ukLine = ukLines[i];
+    // Leading whitespace
+    const enLead = (enLine.match(/^[ \t]+/) || [''])[0];
+    if (enLead && !/^[ \t]/.test(ukLine)) { ukLine = enLead + ukLine; changed = true; }
+    // Trailing whitespace
+    const enTrail = (enLine.match(/[ \t]+$/) || [''])[0];
+    if (enTrail && !/[ \t]$/.test(ukLine)) { ukLine = ukLine + enTrail; changed = true; }
+    ukLines[i] = ukLine;
+  }
+  return changed ? ukLines.join('{lf}') : null;
+}
+
+const gFixStructureBtn = document.getElementById('g-fix-structure');
+if (gFixStructureBtn) {
+  gFixStructureBtn.addEventListener('click', () => {
+    if (!Object.keys(gState.translations).length) {
+      toast(window.i18n.t('toastEmptyGlossary'), 'info'); return;
+    }
+    const fixable = [];
+    let unfixable = 0;
+    for (const en of Object.keys(gState.translations)) {
+      const uk = gState.translations[en];
+      if (!uk) continue;
+      const fixed = autoFixStructure(en, uk);
+      if (fixed === null) {
+        // Перевіряємо чи воно потребує виправлення (інакше unfixable не лічимо).
+        if (!validateTokens(en, uk).ok) unfixable++;
+      } else if (fixed !== uk) {
+        fixable.push({ en, oldUk: uk, newUk: fixed });
+      }
+    }
+    if (!fixable.length && !unfixable) {
+      toast(window.i18n.t('toastFixStructureNothing'), 'info', 4000);
+      return;
+    }
+    const sample = fixable.slice(0, 3).map(c => '• ' + c.en.slice(0, 50) + (c.en.length > 50 ? '…' : ''));
+    let msg = window.i18n.t('confirmFixStructure', { n: fixable.length });
+    if (sample.length) msg += '\n\n' + sample.join('\n') + (fixable.length > 3 ? '\n…' : '');
+    if (unfixable) msg += '\n\n' + window.i18n.t('confirmFixStructureUnfixable', { n: unfixable });
+    if (!fixable.length) {
+      // Тільки unfixable — повідомляємо без confirm.
+      toast(window.i18n.t('toastFixStructureUnfixable', { n: unfixable }), 'error', 6000);
+      return;
+    }
+    if (!confirm(msg)) return;
+    for (const c of fixable) gState.translations[c.en] = c.newUk;
+    gState.dirty = true;
+    renderGlossaryRows();
+    refreshGlossaryProgress();
+    scheduleGlossaryAutoSave();
+    let toastMsg = window.i18n.t('toastFixStructureDone', { n: fixable.length });
+    if (unfixable) toastMsg += ' · ' + window.i18n.t('toastFixStructureRemaining', { n: unfixable });
+    toast(toastMsg, 'success', 6000);
+  });
+}
+
+const gSyncPaddingBtn = document.getElementById('g-sync-padding');
+if (gSyncPaddingBtn) {
+  gSyncPaddingBtn.addEventListener('click', () => {
+    if (!Object.keys(gState.translations).length) {
+      toast(window.i18n.t('toastEmptyGlossary'), 'info'); return;
+    }
+    const candidates = [];
+    for (const en of Object.keys(gState.translations)) {
+      const uk = gState.translations[en];
+      if (!uk) continue;
+      const fixed = syncPaddingFromEn(en, uk);
+      if (fixed && fixed !== uk) candidates.push({ en, oldUk: uk, newUk: fixed });
+    }
+    if (!candidates.length) {
+      toast(window.i18n.t('toastSyncPaddingNothing'), 'info', 4000);
+      return;
+    }
+    const sample = candidates.slice(0, 3).map(c => '• ' + c.en.slice(0, 50) + (c.en.length > 50 ? '…' : ''));
+    const msg = window.i18n.t('confirmSyncPadding', { n: candidates.length }) +
+      '\n\n' + sample.join('\n') +
+      (candidates.length > 3 ? '\n…' : '');
+    if (!confirm(msg)) return;
+    for (const c of candidates) gState.translations[c.en] = c.newUk;
+    gState.dirty = true;
+    renderGlossaryRows();
+    refreshGlossaryProgress();
+    scheduleGlossaryAutoSave();
+    toast(window.i18n.t('toastSyncPaddingDone', { n: candidates.length }), 'success', 5000);
+  });
+}
+
+const gExportTxtBtn = document.getElementById('g-export-txt');
+const gImportTxtBtn = document.getElementById('g-import-txt');
+
+if (gExportTxtBtn) {
+  gExportTxtBtn.addEventListener('click', async () => {
+    if (!Object.keys(gState.translations).length) {
+      toast(window.i18n.t('toastEmptyGlossary'), 'info'); return;
+    }
+    const content = buildGlossaryTxt();
+    try {
+      const r = await window.kh1.translate.exportFileTxt({
+        defaultName: 'kh1_glossary.txt',
+        content
+      });
+      if (r.canceled) return;
+      if (r.error) { toast(window.i18n.t('toastExportError', {msg: r.error}), 'error', 6000); return; }
+      toast(window.i18n.t('toastExportedTxt', {path: r.filePath, n: r.byteLength}), 'success', 5000);
+    } catch (e) {
+      toast(window.i18n.t('toastError', {msg: e.message}), 'error', 6000);
+    }
+  });
+}
+
+if (gImportTxtBtn) {
+  gImportTxtBtn.addEventListener('click', async () => {
+    try {
+      const r = await window.kh1.translate.importFileTxt();
+      if (r.canceled) return;
+      if (r.error) { toast(window.i18n.t('toastImportError', {msg: r.error}), 'error', 6000); return; }
+      const parsed = parseGlossaryTxt(r.content);
+      if (!parsed.pairs.length) {
+        toast(window.i18n.t('toastNoValidPairs'), 'error'); return;
+      }
+      // Застосовуємо з token-guard (як HTML-імпорт): пропускаємо пари з втратою
+      // не-{lf} токенів, щоб не переписати глосарій сміттям з помилок перекладача.
+      let added = 0, updated = 0, unchanged = 0, tokensBroken = 0;
+      for (const p of parsed.pairs) {
+        if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; }
+        const cur = gState.translations[p.en];
+        if (cur === p.uk) { unchanged++; continue; }
+        if (cur === undefined || cur === null || cur === '') {
+          gState.translations[p.en] = p.uk;
+          added++;
+        } else {
+          gState.translations[p.en] = p.uk;
+          updated++;
+        }
+      }
+      if (added || updated) {
+        gState.dirty = true;
+        renderGlossaryRows();
+        refreshGlossaryProgress();
+        scheduleGlossaryAutoSave();
+      }
+      const parts = [];
+      if (added) parts.push(window.i18n.t('toastTxtImportAdded', { n: added }));
+      if (updated) parts.push(window.i18n.t('toastTxtImportUpdated', { n: updated }));
+      if (unchanged) parts.push(window.i18n.t('toastTxtImportUnchanged', { n: unchanged }));
+      if (tokensBroken) parts.push(window.i18n.t('toastTxtImportTokensBroken', { n: tokensBroken }));
+      toast(parts.join(' · ') || window.i18n.t('toastTxtImportEmpty'), 'success', 6500);
+    } catch (e) {
+      toast(window.i18n.t('toastError', {msg: e.message}), 'error', 6000);
+    }
   });
 }
 
@@ -2584,35 +3070,57 @@ function kRefreshStatus() {
   if (kAutoFitBtn) kAutoFitBtn.disabled = !kState.knjBuf || !kState.atlasPx;
 }
 
+async function kApplyKnjLoaded(r, opts) {
+  // Спільний код: оновити kState, перерендерити, запустити auto-find DDS.
+  // opts.silent=true — без toast'у про завантажений knj (для авто-load на старті).
+  kState.knjPath = r.filePath;
+  kState.knjBuf = new Uint8Array(r.data);
+  kState.dirty = false;
+  kBuildGlyphList();
+  kRenderGrid();
+  kRefreshStatus();
+  if (typeof kSchedulePreview === 'function') kSchedulePreview();
+  if (!opts || !opts.silent) {
+    toast(window.i18n.t('toastKnjLoaded', {file: kFilenameFromPath(r.filePath), n: r.data.byteLength}), 'success');
+  }
+  // Auto-find DDS поряд
+  try {
+    const a = await window.kh1.kerning.autoFindDds(r.filePath);
+    if (a.ok) {
+      kState.ddsPath = a.filePath;
+      kState.atlasPx = decodeDds(a.data);
+      kRenderGrid();
+      kRefreshStatus();
+      if (!opts || !opts.silent) {
+        toast(window.i18n.t('toastKnjAutoDds', {file: kFilenameFromPath(a.filePath)}), 'info', 4000);
+      }
+    }
+  } catch (e) {
+    toast(window.i18n.t('toastKnjDdsFoundFail', {msg: e.message}), 'error', 6000);
+  }
+}
+
 async function kLoadKnj() {
   try {
     const r = await window.kh1.kerning.openKnj();
     if (r.canceled) return;
     if (r.error || !r.ok) { toast(window.i18n.t('toastError', {msg: r.error || '?'}), 'error'); return; }
-    kState.knjPath = r.filePath;
-    kState.knjBuf = new Uint8Array(r.data);
-    kState.dirty = false;
-    kBuildGlyphList();
-    kRenderGrid();
-    kRefreshStatus();
-    if (typeof kSchedulePreview === 'function') kSchedulePreview();
-    toast(window.i18n.t('toastKnjLoaded', {file: kFilenameFromPath(r.filePath), n: r.data.byteLength}), 'success');
-    // Auto-find DDS поряд
-    try {
-      const a = await window.kh1.kerning.autoFindDds(r.filePath);
-      if (a.ok) {
-        kState.ddsPath = a.filePath;
-        kState.atlasPx = decodeDds(a.data);
-        kRenderGrid();
-        kRefreshStatus();
-        toast(window.i18n.t('toastKnjAutoDds', {file: kFilenameFromPath(a.filePath)}), 'info', 4000);
-      }
-    } catch (e) {
-      toast(window.i18n.t('toastKnjDdsFoundFail', {msg: e.message}), 'error', 6000);
-    }
+    await kApplyKnjLoaded(r);
   } catch (e) {
     toast(window.i18n.t('toastLoadError', {msg: e.message}), 'error');
   }
+}
+
+// Авто-завантаження останнього .knj зі settings (lastKnjPath) на старті.
+async function kAutoLoadKnjOnBoot() {
+  try {
+    const settings = await window.kh1.translate.getSettings();
+    if (!settings || !settings.lastKnjPath) return;
+    const r = await window.kh1.kerning.loadKnjFromPath(settings.lastKnjPath);
+    if (r && r.ok) {
+      await kApplyKnjLoaded(r, { silent: false });
+    }
+  } catch (_) { /* тихо ігноруємо — користувач сам завантажить вручну */ }
 }
 
 async function kLoadDds() {
@@ -2921,6 +3429,85 @@ document.addEventListener('keydown', (e) => {
     if (!settingsOverlay.classList.contains('hidden')) { hideSettings(); return; }
     if (!importOverlay.classList.contains('hidden')) { hideImport(); return; }
   }
+  // Ctrl+E / Ctrl+I — Експорт/Імпорт TXT (тільки коли в Глосарії та поза input'ами)
+  const tag = e.target && e.target.tagName;
+  const inField = (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable));
+  if (state.mode === 'translate' && tState.subtab === 'glossary' && e.ctrlKey && !e.shiftKey && !e.altKey) {
+    if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      if (gExportTxtBtn) gExportTxtBtn.click();
+      return;
+    }
+    if (e.key === 'i' || e.key === 'I') {
+      e.preventDefault();
+      if (gImportTxtBtn) gImportTxtBtn.click();
+      return;
+    }
+  }
+  // Ctrl+→ / Ctrl+← — наступний/попередній файл у Translate (Files subtab)
+  if (state.mode === 'translate' && tState.subtab !== 'glossary' && e.ctrlKey && !inField) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const fileSel = document.getElementById('t-file-select');
+      if (fileSel && fileSel.options.length > 1) {
+        e.preventDefault();
+        const dir = e.key === 'ArrowRight' ? 1 : -1;
+        const cur = fileSel.selectedIndex;
+        const next = Math.max(0, Math.min(fileSel.options.length - 1, cur + dir));
+        if (next !== cur) {
+          fileSel.selectedIndex = next;
+          fileSel.dispatchEvent(new Event('change'));
+        }
+      }
+    }
+  }
+});
+
+// =====================================================================
+// Drag-drop файлів на вікно: автоматично маршрутизуємо за розширенням
+//   .knj / .dds → завантажити у Kerning-режим
+//   .txt       → запропонувати імпорт у Глосарій
+// =====================================================================
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+});
+window.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const files = e.dataTransfer && e.dataTransfer.files;
+  if (!files || !files.length) return;
+  for (const f of files) {
+    const path = f.path || f.name;
+    const ext = (path.match(/\.([a-z0-9]+)$/i) || [,''])[1].toLowerCase();
+    if (ext === 'knj') {
+      setMode('kerning');
+      try {
+        const r = await window.kh1.kerning.loadKnjFromPath(path);
+        if (r && r.ok) await kApplyKnjLoaded(r);
+      } catch (err) {
+        toast(window.i18n.t('toastError', {msg: err.message}), 'error');
+      }
+    } else if (ext === 'dds') {
+      // Якщо .knj вже завантажений — апдейтимо атлас
+      try {
+        const buf = await f.arrayBuffer();
+        kState.ddsPath = path;
+        kState.atlasPx = decodeDds(buf);
+        if (state.mode !== 'kerning') setMode('kerning');
+        kRenderGrid();
+        kRefreshStatus();
+        toast('DDS завантажено: ' + (path.split(/[/\\]/).pop()), 'success');
+      } catch (err) {
+        toast(window.i18n.t('toastError', {msg: err.message}), 'error');
+      }
+    } else if (ext === 'txt') {
+      // Підказка про імпорт в глосарій
+      if (confirm('Імпортувати "' + (path.split(/[/\\]/).pop()) + '" у Глосарій?')) {
+        setMode('translate');
+        setSubtab('glossary');
+        if (gImportTxtBtn) gImportTxtBtn.click();
+      }
+    }
+  }
 });
 
 // Menu handlers — context-aware Ctrl+S
@@ -2929,11 +3516,19 @@ window.kh1.onMenu('menu:open', () => {
 });
 window.kh1.onMenu('menu:save', () => {
   if (state.mode === 'editor') doSave();
-  else if (state.mode === 'translate') saveTsvProgress();
+  else if (state.mode === 'translate') {
+    // У глосарії — зберігаємо саме глосарій (а не TSV конкретного файлу)
+    if (tState.subtab === 'glossary') saveGlossary(false);
+    else saveTsvProgress();
+  }
 });
 window.kh1.onMenu('menu:find', () => {
   if (state.mode === 'editor' && !btnFind.disabled) showFind();
-  else if (state.mode === 'translate') { tSearchInput.focus(); tSearchInput.select(); }
+  else if (state.mode === 'translate') {
+    // У глосарії — фокус на g-search; інакше на t-search
+    if (tState.subtab === 'glossary' && gSearch) { gSearch.focus(); gSearch.select(); }
+    else { tSearchInput.focus(); tSearchInput.select(); }
+  }
 });
 window.kh1.onMenu('menu:find-next', () => {
   if (state.mode === 'editor' && !btnFind.disabled) findNextFromShortcut();
@@ -2971,6 +3566,7 @@ if (langSelect) {
 }
 
 initLanguage();
+kAutoLoadKnjOnBoot();
 
 // =====================================================================
 // Auto-update wiring (toast notifications + download/install dialogs)

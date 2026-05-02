@@ -26,7 +26,7 @@
           <option value="uk">🇺🇦 UA</option>
           <option value="en">🇬🇧 EN</option>
         </select>
-        <div class="version">v2.18.10 · {lf}-mismatch не блокує імпорт</div>
+        <div class="version">v2.19.5 · .ev знову вимкнено (game-side magic)</div>
       </div>
     </header>
 
@@ -133,20 +133,40 @@
 
       <!-- ===== Glossary subtab ===== -->
       <div id="t-subview-glossary" class="t-subview hidden">
+        <!-- ROW 1: основні дії + пошук/фільтр -->
         <section class="toolbar">
           <button id="g-build" class="kh-btn kh-btn-primary" type="button">
             <span class="icon" aria-hidden="true">🔨</span><span data-i18n="glossaryBuild">Побудувати/Оновити</span>
           </button>
           <button id="g-import" class="kh-btn" type="button" data-i18n-title="glossaryImportTitle" title="Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)">
-            <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImport">Імпорт</span>
+            <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImport">Імпорт HTML</span>
           </button>
           <input id="g-search" class="kh-input" type="search" data-i18n-placeholder="glossarySearch" placeholder="🔎 пошук в англійській...">
           <select id="g-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
             <option value="all" data-i18n="filterAll">Усі</option>
             <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
             <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
+            <option value="same-as-en" data-i18n="filterSameAsEn">UK == EN (нетронуте)</option>
+            <option value="token-issues" data-i18n="filterTokenIssues">З проблемами токенів</option>
+          </select>
+          <select id="g-sort-mode" class="kh-select kh-select-narrow" aria-label="Sort">
+            <option value="default" data-i18n="sortDefault">↕ За замовчуванням</option>
+            <option value="en-len-desc" data-i18n="sortEnLenDesc">↓ EN найдовші</option>
+            <option value="en-len-asc" data-i18n="sortEnLenAsc">↑ EN найкоротші</option>
+            <option value="uk-len-desc" data-i18n="sortUkLenDesc">↓ UK найдовші</option>
+            <option value="count-desc" data-i18n="sortCountDesc">↓ Найчастіші</option>
           </select>
           <span id="g-stat" class="t-progress">—</span>
+          <span class="toolbar-spacer"></span>
+          <button id="g-save" class="kh-btn" type="button" disabled>
+            <span class="icon" aria-hidden="true">💾</span><span data-i18n="glossarySave">Зберегти</span>
+          </button>
+          <button id="g-compose-all" class="kh-btn kh-btn-primary" type="button" disabled>
+            <span class="icon" aria-hidden="true">⚡</span><span data-i18n="glossaryComposeAll">Зібрати ВСІ файли</span>
+          </button>
+        </section>
+        <!-- ROW 2: інструменти (валідація, очистка, пошук-заміна, авто-wrap, txt I/O) -->
+        <section class="toolbar toolbar-tools">
           <button id="g-validate" class="kh-btn" type="button"
                   data-i18n-title="validateTokensTitle"
                   title="Перевірити що в UK-перекладах присутні всі токени з EN ({Color X}, {VarItem}, {lf} тощо). Втрачений токен = краш гри.">
@@ -157,22 +177,62 @@
                   title="Видалити з глосарію всі записи, де UK-переклад не зберігає {…}-токени з EN. Зазвичай це сміттєві фрагменти, що з'явилися від {lf}-сплітінгу при HTML-імпорті ще до v2.18.6.">
             <span class="icon" aria-hidden="true">🧹</span><span data-i18n="cleanBroken">Видалити поламані</span>
           </button>
+          <button id="g-sync-padding" class="kh-btn" type="button"
+                  data-i18n-title="syncPaddingTitle"
+                  title="Скопіювати з EN у UK leading/trailing/post-{lf} пробіли — для візуального padding (центрування меню в exchange/ файлах). Не торкає UK, які вже мають свій padding.">
+            <span class="icon" aria-hidden="true">📐</span><span data-i18n="syncPadding">Pad з EN</span>
+          </button>
+          <button id="g-fix-structure" class="kh-btn" type="button"
+                  data-i18n-title="fixStructureTitle"
+                  title="Реконструює UK з EN-skeleton'у (всі {…}-токени, контрольні байти, whitespace, пунктуацію — копіює з EN). Літерний контент UK залишається. Виправляє НЕструктуроване UK 1:1 з EN.">
+            <span class="icon" aria-hidden="true">🩹</span><span data-i18n="fixStructure">Авто-фікс структури</span>
+          </button>
+          <button id="g-find-replace" class="kh-btn" type="button"
+                  data-i18n-title="glossaryFindReplaceTitle"
+                  title="Знайти і замінити в усіх UK-перекладах + у відкритому файлі (Ctrl+H). Підтримує: case-sensitive, whole word, regex.">
+            <span class="icon" aria-hidden="true">🔄</span><span data-i18n="glossaryFindReplace">Find/Replace</span>
+          </button>
+          <button id="g-autowrap" class="kh-btn" type="button"
+                  data-i18n-title="autoWrapAdaptiveTitle"
+                  title="Адаптивно розбити глосарій: для кожного перекладу maxWidth береться з ширини EN-оригіналу. UA вкладеться в ту саму рамку що й ENG.">
+            <span class="icon" aria-hidden="true">📐</span><span data-i18n="autoWrapAdaptive">Auto-wrap</span>
+          </button>
           <label class="checkbox compact" data-i18n-title="wrapMinWidthTitle"
                  title="Мінімальна ширина рядка для дуже коротких EN-фраз. Зазвичай 250 — щоб коротке слово не розбивалось.">
             <span data-i18n="wrapMinWidth">min-px</span>
             <input id="g-maxwidth" type="number" min="100" max="900" value="250" class="k-threshold-input">
           </label>
-          <button id="g-autowrap" class="kh-btn" type="button"
-                  data-i18n-title="autoWrapAdaptiveTitle"
-                  title="Адаптивно розбити глосарій: для кожного перекладу maxWidth береться з ширини EN-оригіналу. UA вкладеться в ту саму рамку що й ENG.">
-            <span class="icon" aria-hidden="true">📐</span><span data-i18n="autoWrapAdaptive">Auto-wrap (за EN)</span>
+          <span class="toolbar-spacer"></span>
+          <button id="g-export-txt" class="kh-btn" type="button"
+                  data-i18n-title="glossaryExportTxtTitle"
+                  title="Експортувати весь глосарій у .txt-файл (формат із блоками --- EN --- / --- UK ---). Для роботи поза програмою.">
+            <span class="icon" aria-hidden="true">📤</span><span data-i18n="glossaryExportTxt">Експорт .txt</span>
           </button>
-          <button id="g-save" class="kh-btn" type="button" disabled>
-            <span class="icon" aria-hidden="true">💾</span><span data-i18n="glossarySave">Зберегти глосарій</span>
+          <button id="g-import-txt" class="kh-btn" type="button"
+                  data-i18n-title="glossaryImportTxtTitle"
+                  title="Імпортувати переклади з .txt (того самого формату що експорт). Існуючі ключі оновлюються, нові — додаються.">
+            <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImportTxt">Імпорт .txt</span>
           </button>
-          <button id="g-compose-all" class="kh-btn kh-btn-primary" type="button" disabled>
-            <span class="icon" aria-hidden="true">⚡</span><span data-i18n="glossaryComposeAll">Зібрати ВСІ файли</span>
-          </button>
+        </section>
+
+        <section id="g-dashboard" class="g-dash" hidden>
+          <div class="g-dash-cell">
+            <div class="g-dash-label" data-i18n="dashProgress">Прогрес</div>
+            <div class="g-dash-bar"><div class="g-dash-bar-fill" id="g-dash-bar-fill"></div></div>
+            <div class="g-dash-value"><span id="g-dash-done">0</span> / <span id="g-dash-total">0</span> · <span id="g-dash-pct">0%</span></div>
+          </div>
+          <div class="g-dash-cell">
+            <div class="g-dash-label" data-i18n="dashUntranslated">Не перекладено</div>
+            <div class="g-dash-value" id="g-dash-untrans">0</div>
+          </div>
+          <div class="g-dash-cell">
+            <div class="g-dash-label" data-i18n="dashSameAsEn">UK == EN</div>
+            <div class="g-dash-value" id="g-dash-sameen">0</div>
+          </div>
+          <div class="g-dash-cell warn-cell">
+            <div class="g-dash-label" data-i18n="dashIssues">Token issues</div>
+            <div class="g-dash-value" id="g-dash-issues">0</div>
+          </div>
         </section>
 
         <section id="g-rows" class="t-rows" tabindex="0">
@@ -342,11 +402,22 @@
         <label for="rep-replace" data-i18n="replaceLabel">Замінити на:</label>
         <input id="rep-replace" type="text" data-i18n-placeholder="replaceInputPlaceholder" placeholder="новий текст (порожньо = видалити)" autocomplete="off">
       </div>
-      <label class="checkbox compact">
-        <input id="rep-case" type="checkbox">
-        <span data-i18n="matchCase">Враховувати регістр</span>
-      </label>
+      <div class="rep-options">
+        <label class="checkbox compact">
+          <input id="rep-case" type="checkbox">
+          <span data-i18n="matchCase">Враховувати регістр</span>
+        </label>
+        <label class="checkbox compact">
+          <input id="rep-whole-word" type="checkbox">
+          <span data-i18n="matchWholeWord">Ціле слово</span>
+        </label>
+        <label class="checkbox compact">
+          <input id="rep-regex" type="checkbox">
+          <span data-i18n="matchRegex">Regex</span>
+        </label>
+      </div>
       <p class="setting-hint" id="rep-stat" data-i18n="replaceHint">Введіть текст для пошуку...</p>
+      <div id="rep-preview" class="rep-preview hidden"></div>
       <div class="modal-actions">
         <button id="rep-apply" class="kh-btn kh-btn-primary" type="button" disabled data-i18n="replaceApply">Замінити</button>
         <button id="rep-cancel" class="kh-btn" type="button" data-i18n="cancel">Скасувати</button>

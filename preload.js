@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('kh1', {
   },
   kerning: {
     openKnj: () => ipcRenderer.invoke('kerning:openKnj'),
+    loadKnjFromPath: (knjPath) => ipcRenderer.invoke('kerning:loadKnjFromPath', knjPath),
     openDds: (suggestedDir) => ipcRenderer.invoke('kerning:openDds', suggestedDir),
     autoFindDds: (knjPath) => ipcRenderer.invoke('kerning:autoFindDds', knjPath),
     saveKnj: (payload) => ipcRenderer.invoke('kerning:saveKnj', payload),
