@@ -1,0 +1,43 @@
+{
+  "_comment": "Двобайтові керуючі токени KH1. Перший байт (0x09 / 0x0C / 0x0E) — префікс. Декодер при зустрічі префіксу читає наступний байт і шукає пару тут. Енкодер впізнає токени через {імʼя} і пише обидва байти. encodeAliases — додаткові імена тільки для encode (Pro100luk-style з пробілами).",
+
+  "{Cross}":       [9, 200],
+  "{Circle}":      [9, 201],
+  "{Square}":      [9, 0],
+  "{Triangle}":    [9, 1],
+  "{Analog}":      [9, 4],
+  "{DPad}":        [9, 5],
+  "{L1}":          [9, 6],
+  "{L2}":          [9, 7],
+  "{R1}":          [9, 207],
+  "{R2}":          [9, 9],
+
+  "{ColorRed}":    [12, 2],
+  "{ColorViolet}": [12, 3],
+  "{ColorGreen}":  [12, 4],
+  "{ColorBase}":   [12, 255],
+
+  "{VarItem}":     [14, 1],
+  "{VarSpell}":    [14, 32],
+  "{VarSpellNew}": [14, 33],
+  "{VarValue}":    [14, 23],
+  "{VarNum1}":     [14, 16],
+  "{VarNum2}":     [14, 17],
+  "{VarNum3}":     [14, 18],
+
+  "encodeAliases": {
+    "{Color Red}":         [12, 2],
+    "{Color Violet}":      [12, 3],
+    "{Color Green}":       [12, 4],
+    "{Base Color}":        [12, 255],
+    "{Variable Item}":     [14, 1],
+    "{Variable Spell}":    [14, 32],
+    "{Variable Spell New}": [14, 33],
+    "{Variable Value}":    [14, 23],
+    "{Variable Number 1}": [14, 16],
+    "{Variable Number 2}": [14, 17],
+    "{Variable Number 3}": [14, 18],
+    "{Variable Item 2}":   [14, 1],
+    "№":                   [82, 83, 104]
+  }
+}

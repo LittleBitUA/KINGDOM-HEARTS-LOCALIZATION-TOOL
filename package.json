@@ -1,0 +1,90 @@
+{
+  "name": "kh1-text-editor",
+  "productName": "KH1 Text Editor",
+  "version": "2.18.10",
+  "description": "Редактор текстових файлів Kingdom Hearts 1 (.bin/.binl/.ard) на Electron",
+  "main": "main.js",
+  "private": true,
+  "author": {
+    "name": "GuidingHeart"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "build": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis",
+    "build:all": "electron-builder --win portable nsis",
+    "extract": "node tools/diff-extract.js",
+    "extract:batch": "node tools/batch-extract.js",
+    "compose": "node tools/diff-build.js"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "build": {
+    "appId": "com.guidingheart.kh1-text-editor",
+    "productName": "KH1 Text Editor",
+    "copyright": "Copyright © 2026 GuidingHeart",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LittleBitUA",
+        "repo": "KH1-Localization-tool"
+      }
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "workers/**/*",
+      "shared/**/*",
+      "data/**/*",
+      "renderer/**/*",
+      "tools/lib/**/*",
+      "package.json",
+      "!**/.DS_Store",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/.bin",
+      "!**/*.{md,markdown}",
+      "!**/.{eslintrc,eslintignore,prettierrc,editorconfig,gitignore,gitattributes}"
+    ],
+    "asar": true,
+    "compression": "maximum",
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        },
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "KH1-Text-Editor-${version}-${arch}-${target}.${ext}"
+    },
+    "portable": {
+      "artifactName": "KH1-Text-Editor-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "KH1 Text Editor",
+      "installerLanguages": ["uk_UA", "en_US"],
+      "language": "1058",
+      "artifactName": "KH1-Text-Editor-${version}-setup.exe"
+    }
+  }
+}

@@ -1,0 +1,436 @@
+'use strict';
+
+// =====================================================================
+// i18n: Ukrainian + English dictionary for the renderer process.
+// Use window.i18n.t('key') everywhere. Use data-i18n / data-i18n-title
+// attributes in HTML for static text. Call window.i18n.apply() after
+// loading or changing language.
+// =====================================================================
+
+const DICT = {
+  uk: {
+    // Top bar
+    appTitle: 'KH1 EDITOR',
+    modeEditor: 'Редактор',
+    modeTranslate: 'Переклад',
+    modeKerning: 'Кернінг',
+
+    // Editor view
+    importBtn: 'Імпорт',
+    exportBtn: 'Експорт',
+    findBtn: 'Пошук',
+    fileNotLoaded: 'Файл не завантажено',
+    editorPlaceholder: 'Імпортуйте файл .bin / .binl / .ard, щоб почати редагування...',
+    cursorInfo: 'Рядок 1, Стовпець 1',
+    brand: 'Створено GuidingHeart · Перенесено на Electron',
+
+    // Translate toolbar
+    settings: 'Налаштування',
+    settingsBtnTitle: 'Налаштувати теки локалізації',
+    tabFiles: '📂 Файли',
+    tabGlossary: '📚 Глосарій',
+    safeMode: '🛡 Безпечно (.binl + .bin)',
+    safeModeTitle: 'Працювати лише з безпечними текстовими файлами: .binl з EvMsg-магією та сирі .bin (як btltbl.bin/UK_Word.bin тощо). .evdl та інші — це байткод/скрипти, переклад їх ламає гру.',
+
+    // Files subtab
+    selectFile: '— виберіть файл —',
+    reloadList: 'Оновити список файлів',
+    searchInFile: '🔎 пошук в цьому файлі (для всіх — вкладка Глосарій)',
+    filterAll: 'Усі',
+    filterUntranslated: 'Лише неперекладене',
+    filterTranslated: 'Лише перекладене',
+    saveProgress: 'Зберегти прогрес',
+    exportTxt: 'Експорт .txt',
+    exportTxtTitle: 'Експортувати поточний файл у читабельний .txt для перекладу в Notepad++/Word.',
+    importTxt: 'Імпорт .txt',
+    importTxtTitle: 'Імпортувати переклад з .txt назад у поточний файл (зіставлення за offset).',
+    composeCurrent: 'Зібрати поточний',
+    composeCurrentTitle: 'Скомпонувати лише поточний файл. Для масового збирання — вкладка Глосарій → "Зібрати ВСІ файли".',
+    autoWrap: 'Auto-wrap',
+    autoWrapTitle: 'Авто-розбити UK-переклади по словах щоб уміщались у max-px. Вимагає завантаженого .knj у режимі Кернінг.',
+    autoWrapGlossary: 'Auto-wrap глосарій',
+    autoWrapGlossaryTitle: 'Авто-розбити ВЕСЬ глосарій. Зміни автоматично застосуються до всіх файлів при наступному "Зібрати ВСІ файли".',
+    autoWrapAdaptive: 'Auto-wrap (за EN)',
+    autoWrapAdaptiveTitle: 'Адаптивно розбити глосарій: для кожного перекладу maxWidth береться з ширини EN-оригіналу. UA вкладеться в ту саму рамку що й ENG.',
+    wrapMinWidth: 'min-px',
+    wrapMinWidthTitle: 'Мінімальна ширина рядка для дуже коротких EN-фраз. Зазвичай 250 — щоб коротке слово не розбивалось.',
+    wrapMaxWidth: 'max-px',
+    wrapMaxWidthTitle: 'Максимальна ширина рядка в пікселях. ~380 безпечно для вузьких рамок діалогів, ~460 для широких.',
+    toastNeedKnj: 'Спершу відкрий режим Кернінг і завантаж .knj — для розрахунку реальної ширини літер',
+    toastAutoWrapDone: 'Auto-wrap: змінено {changed} перекладів, додано {lfs} переносів',
+    selectFileToTranslate: 'Виберіть файл для перекладу',
+    emptyFilesView: 'Налаштуйте теки і виберіть файл зі списку, щоб почати переклад.',
+
+    // Glossary subtab
+    glossaryBuild: 'Побудувати/Оновити',
+    glossaryImport: 'Імпорт',
+    glossaryImportTitle: 'Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)',
+    glossarySearch: '🔎 пошук в англійській...',
+    glossarySave: 'Зберегти глосарій',
+    glossaryComposeAll: 'Зібрати ВСІ файли',
+    glossaryEmpty: 'Натисніть "Побудувати/Оновити" щоб просканувати всі файли і витягнути унікальні рядки.',
+    validateTokens: 'Перевірити токени',
+    validateTokensTitle: 'Перевірити що в UK-перекладах присутні всі токени з EN ({Color X}, {VarItem}, {lf} тощо). Втрачений токен = краш гри.',
+    toastValidateClean: 'Усі переклади валідні · {n} перевірено',
+    toastValidateBad: '⚠ {n} перекладів з втраченими токенами (з {total})',
+    composeAllWarnTokens: '⚠ {n} перекладів у глосарії містять втрачені токени. Все одно зібрати?',
+    cleanBroken: 'Видалити поламані',
+    cleanBrokenTitle: 'Видалити з глосарію всі записи, де UK-переклад не зберігає {…}-токени з EN. Зазвичай це сміттєві фрагменти, що з\'явилися від {lf}-сплітінгу при HTML-імпорті ще до v2.18.6.',
+    confirmCleanBroken: 'Знайдено {n} записів з втраченими/зайвими токенами. Видалити?',
+    toastCleanBrokenDone: '🧹 Видалено {n} поламаних записів',
+
+    // Kerning view
+    knjLoad: 'Завантажити .knj',
+    ddsLoad: 'Завантажити .dds',
+    knjSave: 'Зберегти .knj',
+    knjReset: '↺ Скинути',
+    knjResetTitle: 'Скинути всі зміни до завантажених значень',
+    knjAutoFit: '✨ Auto-fit',
+    knjAutoFitTitle: 'Автоматично підібрати advance-width для всіх гліфів за непрозорим краєм у DDS-атласі',
+    knjThreshold: 'α-поріг',
+    knjThresholdTitle: 'Поріг прозорості: піксель вважається непрозорим якщо alpha ≥ цього значення (1-255). Більше = ігнорує тонкі тіні; менше = більш точно ловить край.',
+    toastUpdateChecking: 'Перевіряю наявність оновлень...',
+    toastUpdateNone: 'У вас остання версія',
+    toastUpdateAvailable: 'Доступне оновлення v{v}',
+    toastUpdatePortable: 'Доступне оновлення v{v} (portable — оновити вручну)',
+    toastUpdateError: 'Помилка перевірки оновлень: {msg}',
+    toastUpdateProgress: 'Завантаження: {percent}%',
+    toastUpdateWillInstall: 'Оновлення встановиться при наступному запуску',
+    updateDownloadConfirm: 'Завантажити оновлення v{v} (~5-10 МБ delta)?',
+    updateInstallConfirm: 'Оновлення v{v} готове. Перезапустити та встановити зараз?',
+    updateOpenReleasePage: 'Відкрити сторінку релізу v{v} в браузері для ручного завантаження?',
+    toastNeedAtlas: 'Спершу завантажте DDS-атлас',
+    toastAutoFitDone: 'Auto-fit: змінено {changed} · збережено {kept} · порожніх {empty}',
+    glyphFilterPlaceholder: '🔎 № гліфа (наприклад 0-50, 100, 120)',
+    knjEmpty: 'Завантажте .knj-файл (наприклад UA_kanji.knj). Якщо поряд є .dds-атлас — підтягнеться автоматично.',
+    knjHint: 'Тягни вертикальну червону лінію щоб встановити advance-width (відступ після літери). Значення зберігається як byte = pixel / 2, максимум 24 (= 48 px).',
+    previewPlaceholder: 'Live-preview: введіть текст українською/англійською...',
+    previewBgLabel: 'Темне тло',
+    previewInfo: 'Літер: {n} · ширина: {w} px',
+    previewEmpty: 'Введіть текст, щоб побачити як він виглядає в грі',
+    previewNoAtlas: 'Завантажте .dds-атлас для попереднього перегляду',
+
+    // Modals: Find
+    findTitle: 'Знайти текст',
+    findPlaceholder: 'Введіть текст для пошуку...',
+    matchCase: 'Враховувати регістр',
+    findNext: 'Знайти далі',
+    cancel: 'Скасувати',
+
+    // Modals: About
+    aboutTitle: 'Про програму',
+    close: 'Закрити',
+
+    // Modals: Settings (dirs)
+    dirsTitle: 'Теки локалізації',
+    engDirLabel: 'Тека ENG (оригінал):',
+    rusDirLabel: 'Тека RUS (оракул-локалізація):',
+    tsvDirLabel: 'Тека TSV (прогрес перекладу):',
+    outDirLabel: 'Тека UA (вихід для .binl):',
+    notSelected: 'не вибрано',
+    pick: 'Вибрати...',
+    dirsHint: 'RUS-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у TSV-теку, готовий .binl — в UA-теку.',
+
+    // Import preview modal
+    importPreviewTitle: 'Імпорт перекладів — попередній перегляд',
+    importHint: '¶ та переноси рядків автоматично перетворено на {lf}. "Збіги" = англійський з імпорту знайдений у глосарії й колонка українською порожня. "Конфлікти" = у глосарії вже є інший переклад. "Не знайдено" = англійського нема в глосарії (можливо, інший файл або відмінний токен).',
+    importApply: 'Застосувати збіги',
+    importOverwrite: 'Перезаписати ВСЕ (з конфліктами)',
+
+    // Find & Replace modal
+    replaceTitle: 'Знайти і замінити в глосарії',
+    findLabel: 'Знайти:',
+    replaceLabel: 'Замінити на:',
+    findInputPlaceholder: 'текст для пошуку...',
+    replaceInputPlaceholder: 'новий текст (порожньо = видалити)',
+    replaceHint: 'Введіть текст для пошуку...',
+    replaceApply: 'Замінити',
+
+    // Status / counters
+    safeStatus: 'Безпечних .binl + .bin: {safe} (приховано небезпечних: {unsafe})',
+    allStatus: 'Усього файлів: {all} · з них перекладні: {safe}',
+    glyphsCount: 'Гліфів: {n} · змінено: {m}',
+    knjStatus: '{file}{dirty} · DDS: {dds}',
+    notLoaded: 'не завантажено',
+    ddsNotLoaded: 'не завантажено',
+
+    // Common toasts
+    toastNoFile: 'Немає відкритого файлу',
+    toastNoOutDir: 'Налаштуйте UA-теку',
+    toastNoTranslations: 'Жодного реального перекладу для збирання',
+    toastImportError: 'Помилка імпорту: {msg}',
+    toastExportError: 'Помилка експорту: {msg}',
+    toastSaveError: 'Помилка збереження: {msg}',
+    toastLoadError: 'Помилка завантаження: {msg}',
+    toastDdsDecodeFail: 'Не вдалось декодувати DDS: {msg}',
+    toastResetDone: 'Зміни скинуто',
+    toastImportFirst: 'Спочатку імпортуйте файл.',
+    toastImported: 'Імпортовано: {file}',
+    toastExported: 'Експортовано: {file}',
+    toastAboutLoadFail: 'Не вдалося завантажити інформацію',
+    toastSavedKv: 'Збережено: {key} = {dir}',
+    toastReadRusFail: 'Не вдалося прочитати RUS-теку: {msg}',
+    toastConfigEng: 'Спершу виберіть ENG-теку в налаштуваннях',
+    toastExtractError: 'Помилка extract: {msg}',
+    toastAutoFilled: 'Авто-заповнено: {parts}',
+    toastConfigTsv: 'Налаштуйте TSV-теку',
+    toastError: 'Помилка: {msg}',
+    toastProgressSaved: 'Прогрес збережено',
+    toastComposeError: 'Помилка compose: {msg}',
+    toastExportedTxt: 'Експортовано: {path} ({n} Б)',
+    toastSavedKnj: 'Збережено .knj: {path} ({n} Б)',
+    toastSavedKnjWithBytes: 'Збережено .knj: {path} ({n} Б)',
+    toastNoRowsExport: 'Немає рядків для експорту',
+    toastOpenTargetFirst: 'Спершу відкрий файл, у який імпортувати',
+    toastNoRowsImport: 'Немає рядків — нічого імпортувати',
+    toastImportSummary: 'Імпорт: {applied} застосовано',
+    toastImportSummaryRest: ', {skipped} пропущено (порожнє/=EN)',
+    toastImportSummaryNotFound: ', {n} не знайдено за offset',
+    toastConfigEngRus: 'Спершу налаштуйте ENG та RUS теки',
+    toastEmptyFilesReload: 'Список файлів порожній — натисніть ↻ на вкладці Файли',
+    toastGlossarySaved: 'Глосарій збережено · {n} записів',
+    toastConfigEngRusUa: 'Налаштуйте ENG, RUS, UA теки',
+    toastEmptyFiles: 'Список файлів порожній',
+    toastEmptyGlossary: 'Глосарій порожній — нічого не вставимо',
+    toastReplaceCount: 'Замінено в {n} записах глосарія',
+    toastReplaceSlots: ' + {n} слотів у відкритому файлі',
+    toastBuildFirst: 'Спочатку побудуйте глосарій (натисніть "Побудувати/Оновити")',
+    toastParseError: 'Помилка парсингу: {msg}',
+    toastParseFilesError: 'Помилок парсингу файлів: {n} ({first})',
+    toastNoValidPairs: 'У вибраних файлах немає валідних пар (en|uk)',
+    toastKnjLoaded: 'Завантажено .knj: {file} ({n} Б)',
+    toastKnjAutoDds: 'Авто-завантажено DDS: {file}',
+    toastKnjDdsLoaded: 'Завантажено DDS: {file} ({w}×{h})',
+    toastKnjDdsFoundFail: 'DDS знайдений але не декодований: {msg}',
+
+    // Language picker
+    language: 'Мова',
+    langUk: 'Українська',
+    langEn: 'English'
+  },
+  en: {
+    appTitle: 'KH1 EDITOR',
+    modeEditor: 'Editor',
+    modeTranslate: 'Translate',
+    modeKerning: 'Kerning',
+
+    importBtn: 'Import',
+    exportBtn: 'Export',
+    findBtn: 'Find',
+    fileNotLoaded: 'No file loaded',
+    editorPlaceholder: 'Import a .bin / .binl / .ard file to start editing...',
+    cursorInfo: 'Line 1, Column 1',
+    brand: 'Created by GuidingHeart · Ported to Electron',
+
+    settings: 'Settings',
+    settingsBtnTitle: 'Configure localization folders',
+    tabFiles: '📂 Files',
+    tabGlossary: '📚 Glossary',
+    safeMode: '🛡 Safe (.binl + .bin)',
+    safeModeTitle: 'Work only with safe text files: .binl with EvMsg magic and raw .bin (like btltbl.bin/UK_Word.bin etc.). .evdl and others are bytecode/scripts — translating them breaks the game.',
+
+    selectFile: '— select file —',
+    reloadList: 'Reload file list',
+    searchInFile: '🔎 search in this file (for all files — Glossary tab)',
+    filterAll: 'All',
+    filterUntranslated: 'Untranslated only',
+    filterTranslated: 'Translated only',
+    saveProgress: 'Save progress',
+    exportTxt: 'Export .txt',
+    exportTxtTitle: 'Export current file as a readable .txt for editing in Notepad++/Word.',
+    importTxt: 'Import .txt',
+    importTxtTitle: 'Import translations from .txt back into the current file (matched by offset).',
+    composeCurrent: 'Compose current',
+    composeCurrentTitle: 'Compose only the current file. For batch — Glossary tab → "Compose ALL files".',
+    autoWrap: 'Auto-wrap',
+    autoWrapTitle: 'Auto-wrap UK translations by words so they fit max-px. Requires .knj loaded in Kerning view.',
+    autoWrapGlossary: 'Auto-wrap glossary',
+    autoWrapGlossaryTitle: 'Auto-wrap the entire glossary. Changes apply to all files on next "Compose ALL files".',
+    autoWrapAdaptive: 'Auto-wrap (by EN)',
+    autoWrapAdaptiveTitle: 'Adaptive wrap: for each translation maxWidth comes from EN-original width. UA fits the same dialog frame as ENG.',
+    wrapMinWidth: 'min-px',
+    wrapMinWidthTitle: 'Minimum line width for very short EN phrases. Usually 250 — so a short word does not get split.',
+    wrapMaxWidth: 'max-px',
+    wrapMaxWidthTitle: 'Max line width in pixels. ~380 is safe for narrow dialog frames, ~460 for wider ones.',
+    toastNeedKnj: 'Open Kerning view first and load .knj — needed to measure real letter widths',
+    toastAutoWrapDone: 'Auto-wrap: changed {changed} translations, added {lfs} line breaks',
+    selectFileToTranslate: 'Select a file to translate',
+    emptyFilesView: 'Configure folders and pick a file from the list to start translating.',
+
+    glossaryBuild: 'Build/Update',
+    glossaryImport: 'Import',
+    glossaryImportTitle: 'Import translations from HTML/CSV/TSV (e.g. Google Sheets)',
+    glossarySearch: '🔎 search in English...',
+    glossarySave: 'Save glossary',
+    glossaryComposeAll: 'Compose ALL files',
+    glossaryEmpty: 'Click "Build/Update" to scan all files and extract unique strings.',
+    validateTokens: 'Validate tokens',
+    validateTokensTitle: 'Check that UK translations preserve all EN tokens ({Color X}, {VarItem}, {lf} etc.). Missing token = game crash.',
+    toastValidateClean: 'All translations valid · {n} checked',
+    toastValidateBad: '⚠ {n} translations have lost tokens (out of {total})',
+    composeAllWarnTokens: '⚠ {n} glossary translations have lost tokens. Compose anyway?',
+    cleanBroken: 'Remove broken',
+    cleanBrokenTitle: 'Delete glossary entries where UK translation doesn\'t preserve {…}-tokens from EN. Usually these are junk fragments produced by {lf}-splitting during HTML import before v2.18.6.',
+    confirmCleanBroken: 'Found {n} entries with missing/extra tokens. Delete them?',
+    toastCleanBrokenDone: '🧹 Removed {n} broken entries',
+
+    knjLoad: 'Load .knj',
+    ddsLoad: 'Load .dds',
+    knjSave: 'Save .knj',
+    knjReset: '↺ Reset',
+    knjResetTitle: 'Reset all changes to loaded values',
+    knjAutoFit: '✨ Auto-fit',
+    knjAutoFitTitle: 'Auto-pick advance-width for all glyphs from DDS-atlas opaque edge',
+    knjThreshold: 'α-threshold',
+    knjThresholdTitle: 'Alpha threshold: a pixel counts as opaque if alpha ≥ this value (1-255). Higher = ignore faint shadows; lower = catch edges precisely.',
+    toastUpdateChecking: 'Checking for updates...',
+    toastUpdateNone: 'You have the latest version',
+    toastUpdateAvailable: 'Update available: v{v}',
+    toastUpdatePortable: 'Update available: v{v} (portable — manual update)',
+    toastUpdateError: 'Update check failed: {msg}',
+    toastUpdateProgress: 'Downloading: {percent}%',
+    toastUpdateWillInstall: 'Update will install on next launch',
+    updateDownloadConfirm: 'Download update v{v} (~5-10 MB delta)?',
+    updateInstallConfirm: 'Update v{v} is ready. Restart and install now?',
+    updateOpenReleasePage: 'Open release page for v{v} in browser to download manually?',
+    toastNeedAtlas: 'Load a DDS atlas first',
+    toastAutoFitDone: 'Auto-fit: changed {changed} · kept {kept} · empty {empty}',
+    glyphFilterPlaceholder: '🔎 glyph № (e.g. 0-50, 100, 120)',
+    knjEmpty: 'Load a .knj file (e.g. UA_kanji.knj). If a sibling .dds atlas exists — it will be loaded automatically.',
+    knjHint: 'Drag the red vertical line to set advance-width (offset after the letter). Value is stored as byte = pixel / 2, max 24 (= 48 px).',
+    previewPlaceholder: 'Live preview: type Ukrainian/English text...',
+    previewBgLabel: 'Dark background',
+    previewInfo: 'Letters: {n} · width: {w} px',
+    previewEmpty: 'Type some text to see how it looks in-game',
+    previewNoAtlas: 'Load a .dds atlas to enable preview',
+
+    findTitle: 'Find text',
+    findPlaceholder: 'Enter text to search...',
+    matchCase: 'Match case',
+    findNext: 'Find next',
+    cancel: 'Cancel',
+
+    aboutTitle: 'About',
+    close: 'Close',
+
+    dirsTitle: 'Localization folders',
+    engDirLabel: 'ENG folder (original):',
+    rusDirLabel: 'RUS folder (oracle translation):',
+    tsvDirLabel: 'TSV folder (translation progress):',
+    outDirLabel: 'UA folder (output for .binl):',
+    notSelected: 'not selected',
+    pick: 'Pick...',
+    dirsHint: 'RUS folder defines the file list. ENG folder must contain files with matching relative paths. Progress is saved into the TSV folder, finished .binl — into the UA folder.',
+
+    importPreviewTitle: 'Import translations — preview',
+    importHint: '¶ and line breaks are auto-converted to {lf}. "Matches" = English from import found in glossary, Ukrainian column empty. "Conflicts" = glossary already has a different translation. "Not found" = English not in glossary (perhaps another file or different token).',
+    importApply: 'Apply matches',
+    importOverwrite: 'Overwrite ALL (incl. conflicts)',
+
+    replaceTitle: 'Find and replace in glossary',
+    findLabel: 'Find:',
+    replaceLabel: 'Replace with:',
+    findInputPlaceholder: 'text to search...',
+    replaceInputPlaceholder: 'new text (empty = delete)',
+    replaceHint: 'Enter text to search...',
+    replaceApply: 'Replace',
+
+    safeStatus: 'Safe .binl + .bin: {safe} (hidden unsafe: {unsafe})',
+    allStatus: 'Total files: {all} · translatable: {safe}',
+    glyphsCount: 'Glyphs: {n} · changed: {m}',
+    knjStatus: '{file}{dirty} · DDS: {dds}',
+    notLoaded: 'not loaded',
+    ddsNotLoaded: 'not loaded',
+
+    toastNoFile: 'No file open',
+    toastNoOutDir: 'Configure the UA folder',
+    toastNoTranslations: 'No real translations to compose',
+    toastImportError: 'Import error: {msg}',
+    toastExportError: 'Export error: {msg}',
+    toastSaveError: 'Save error: {msg}',
+    toastLoadError: 'Load error: {msg}',
+    toastDdsDecodeFail: 'Failed to decode DDS: {msg}',
+    toastResetDone: 'Changes reset',
+    toastImportFirst: 'Import a file first.',
+    toastImported: 'Imported: {file}',
+    toastExported: 'Exported: {file}',
+    toastAboutLoadFail: 'Failed to load info',
+    toastSavedKv: 'Saved: {key} = {dir}',
+    toastReadRusFail: 'Failed to read RUS folder: {msg}',
+    toastConfigEng: 'Pick the ENG folder in settings first',
+    toastExtractError: 'Extract error: {msg}',
+    toastAutoFilled: 'Auto-filled: {parts}',
+    toastConfigTsv: 'Configure the TSV folder',
+    toastError: 'Error: {msg}',
+    toastProgressSaved: 'Progress saved',
+    toastComposeError: 'Compose error: {msg}',
+    toastExportedTxt: 'Exported: {path} ({n} B)',
+    toastSavedKnj: 'Saved .knj: {path} ({n} B)',
+    toastSavedKnjWithBytes: 'Saved .knj: {path} ({n} B)',
+    toastNoRowsExport: 'No rows to export',
+    toastOpenTargetFirst: 'Open the target file first',
+    toastNoRowsImport: 'No rows — nothing to import',
+    toastImportSummary: 'Import: {applied} applied',
+    toastImportSummaryRest: ', {skipped} skipped (empty/=EN)',
+    toastImportSummaryNotFound: ', {n} not matched by offset',
+    toastConfigEngRus: 'Configure ENG and RUS folders first',
+    toastEmptyFilesReload: 'File list empty — click ↻ on Files tab',
+    toastGlossarySaved: 'Glossary saved · {n} entries',
+    toastConfigEngRusUa: 'Configure ENG, RUS, UA folders',
+    toastEmptyFiles: 'File list is empty',
+    toastEmptyGlossary: 'Glossary is empty — nothing to apply',
+    toastReplaceCount: 'Replaced in {n} glossary entries',
+    toastReplaceSlots: ' + {n} slots in current file',
+    toastBuildFirst: 'Build the glossary first (click "Build/Update")',
+    toastParseError: 'Parsing error: {msg}',
+    toastParseFilesError: 'File parsing errors: {n} ({first})',
+    toastNoValidPairs: 'No valid (en|uk) pairs in selected files',
+    toastKnjLoaded: 'Loaded .knj: {file} ({n} B)',
+    toastKnjAutoDds: 'Auto-loaded DDS: {file}',
+    toastKnjDdsLoaded: 'Loaded DDS: {file} ({w}×{h})',
+    toastKnjDdsFoundFail: 'DDS found but not decoded: {msg}',
+
+    language: 'Language',
+    langUk: 'Українська',
+    langEn: 'English'
+  }
+};
+
+let _lang = 'uk';
+
+function t(key, vars) {
+  let s = (DICT[_lang] && DICT[_lang][key]) || (DICT.uk && DICT.uk[key]) || key;
+  if (vars && typeof s === 'string') {
+    for (const [k, v] of Object.entries(vars)) {
+      s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), v);
+    }
+  }
+  return s;
+}
+
+function setLang(lang) {
+  if (!DICT[lang]) lang = 'uk';
+  _lang = lang;
+  document.documentElement.lang = lang === 'uk' ? 'uk' : 'en';
+  apply();
+}
+
+function getLang() { return _lang; }
+
+function apply(root) {
+  const scope = root || document;
+  scope.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (k) el.textContent = t(k);
+  });
+  scope.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const k = el.getAttribute('data-i18n-title');
+    if (k) el.title = t(k);
+  });
+  scope.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.getAttribute('data-i18n-placeholder');
+    if (k) el.placeholder = t(k);
+  });
+}
+
+window.i18n = { t, setLang, getLang, apply };

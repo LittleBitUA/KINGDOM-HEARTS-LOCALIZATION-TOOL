@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <title>Редактор тексту Kingdom Hearts 1</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">
+        <div class="kh-pill" aria-label="Kingdom Hearts Editor">
+          <span class="crest" aria-hidden="true">♔</span>
+          <h1>KH1 EDITOR</h1>
+        </div>
+      </div>
+      <div class="mode-toggle" role="tablist">
+        <button id="mode-editor" class="mode-btn active" type="button" role="tab" data-i18n="modeEditor">Редактор</button>
+        <button id="mode-translate" class="mode-btn" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
+        <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
+      </div>
+      <div class="topbar-right">
+        <select id="lang-select" class="lang-select" aria-label="Language">
+          <option value="uk">🇺🇦 UA</option>
+          <option value="en">🇬🇧 EN</option>
+        </select>
+        <div class="version">v2.18.10 · {lf}-mismatch не блокує імпорт</div>
+      </div>
+    </header>
+
+    <!-- ============ EDITOR VIEW ============ -->
+    <div id="view-editor" class="view">
+      <section class="toolbar" role="toolbar" aria-label="Панель інструментів">
+        <button id="btn-open" class="kh-btn kh-btn-primary" type="button">
+          <span class="icon" aria-hidden="true">📂</span><span data-i18n="importBtn">Імпорт</span>
+        </button>
+        <button id="btn-save" class="kh-btn kh-btn-primary" type="button" disabled>
+          <span class="icon" aria-hidden="true">💾</span><span data-i18n="exportBtn">Експорт</span>
+        </button>
+        <button id="btn-find" class="kh-btn" type="button" disabled>
+          <span class="icon" aria-hidden="true">🔍</span><span data-i18n="findBtn">Пошук</span>
+        </button>
+        <div class="file-status" aria-live="polite">
+          <span id="file-status-text" data-i18n="fileNotLoaded">Файл не завантажено</span>
+        </div>
+      </section>
+
+      <section class="editor-wrap">
+        <textarea id="editor"
+                  spellcheck="false"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  data-i18n-placeholder="editorPlaceholder"
+                  placeholder="Імпортуйте файл .bin / .binl / .ard, щоб почати редагування..."></textarea>
+      </section>
+
+      <footer class="statusbar">
+        <span id="cursor-info" data-i18n="cursorInfo">Рядок 1, Стовпець 1</span>
+        <span id="byte-info"></span>
+        <span class="brand" data-i18n="brand">Створено GuidingHeart · Перенесено на Electron</span>
+      </footer>
+    </div>
+
+    <!-- ============ TRANSLATE VIEW ============ -->
+    <div id="view-translate" class="view hidden">
+      <section class="toolbar t-tabs-bar">
+        <button id="t-settings-btn" class="kh-btn" type="button" data-i18n-title="settingsBtnTitle" title="Налаштувати теки локалізації">
+          <span class="icon" aria-hidden="true">⚙</span><span data-i18n="settings">Налаштування</span>
+        </button>
+        <div class="t-subtabs" role="tablist">
+          <button id="tab-files" class="subtab-btn active" type="button" role="tab" data-i18n="tabFiles">📂 Файли</button>
+          <button id="tab-glossary" class="subtab-btn" type="button" role="tab" data-i18n="tabGlossary">📚 Глосарій</button>
+        </div>
+        <label class="checkbox compact" data-i18n-title="safeModeTitle" title="Працювати лише з безпечними текстовими файлами: .binl з EvMsg-магією та сирі .bin (як btltbl.bin/UK_Word.bin тощо). .evdl та інші — це байткод/скрипти, переклад їх ламає гру.">
+          <input id="t-safe-mode" type="checkbox" checked>
+          <span data-i18n="safeMode">🛡 Безпечно (.binl + .bin)</span>
+        </label>
+        <span class="spacer"></span>
+        <span id="t-progress" class="t-progress">—</span>
+      </section>
+
+      <!-- ===== Files subtab ===== -->
+      <div id="t-subview-files" class="t-subview">
+        <section class="toolbar">
+          <select id="t-file" class="kh-select" aria-label="Select file to translate">
+            <option value="" data-i18n="selectFile">— виберіть файл —</option>
+          </select>
+          <button id="t-reload" class="kh-btn" type="button" data-i18n-title="reloadList" title="Оновити список файлів">↻</button>
+          <input id="t-search" class="kh-input" type="search" data-i18n-placeholder="searchInFile" placeholder="🔎 пошук в цьому файлі (для всіх — вкладка Глосарій)">
+          <select id="t-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
+            <option value="all" data-i18n="filterAll">Усі</option>
+            <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
+            <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
+          </select>
+          <button id="t-save-tsv" class="kh-btn" type="button" disabled>
+            <span class="icon" aria-hidden="true">💾</span><span data-i18n="saveProgress">Зберегти прогрес</span>
+          </button>
+          <button id="t-export-txt" class="kh-btn" type="button" disabled
+                  data-i18n-title="exportTxtTitle"
+                  title="Експортувати поточний файл у читабельний .txt для перекладу в Notepad++/Word.">
+            <span class="icon" aria-hidden="true">📤</span><span data-i18n="exportTxt">Експорт .txt</span>
+          </button>
+          <button id="t-import-txt" class="kh-btn" type="button" disabled
+                  data-i18n-title="importTxtTitle"
+                  title="Імпортувати переклад з .txt назад у поточний файл (зіставлення за offset).">
+            <span class="icon" aria-hidden="true">📥</span><span data-i18n="importTxt">Імпорт .txt</span>
+          </button>
+          <label class="checkbox compact" data-i18n-title="wrapMaxWidthTitle"
+                 title="Максимальна ширина рядка в пікселях. ~380 безпечно для вузьких рамок діалогів, ~460 для широких.">
+            <span data-i18n="wrapMaxWidth">max-px</span>
+            <input id="t-maxwidth" type="number" min="100" max="900" value="380" class="k-threshold-input">
+          </label>
+          <button id="t-autowrap" class="kh-btn" type="button" disabled
+                  data-i18n-title="autoWrapTitle"
+                  title="Авто-розбити UK-переклади по словах щоб уміщались у max-px. Вимагає завантаженого .knj у режимі Кернінг.">
+            <span class="icon" aria-hidden="true">📏</span><span data-i18n="autoWrap">Auto-wrap</span>
+          </button>
+          <button id="t-compose" class="kh-btn kh-btn-primary" type="button" disabled
+                  data-i18n-title="composeCurrentTitle"
+                  title="Скомпонувати лише поточний файл. Для масового збирання — вкладка Глосарій → 'Зібрати ВСІ файли'.">
+            <span class="icon" aria-hidden="true">⚡</span><span data-i18n="composeCurrent">Зібрати поточний</span>
+          </button>
+        </section>
+
+        <section id="t-rows" class="t-rows" tabindex="0">
+          <div class="t-empty">
+            <p data-i18n="emptyFilesView">Налаштуйте теки і виберіть файл зі списку, щоб почати переклад.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== Glossary subtab ===== -->
+      <div id="t-subview-glossary" class="t-subview hidden">
+        <section class="toolbar">
+          <button id="g-build" class="kh-btn kh-btn-primary" type="button">
+            <span class="icon" aria-hidden="true">🔨</span><span data-i18n="glossaryBuild">Побудувати/Оновити</span>
+          </button>
+          <button id="g-import" class="kh-btn" type="button" data-i18n-title="glossaryImportTitle" title="Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)">
+            <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImport">Імпорт</span>
+          </button>
+          <input id="g-search" class="kh-input" type="search" data-i18n-placeholder="glossarySearch" placeholder="🔎 пошук в англійській...">
+          <select id="g-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
+            <option value="all" data-i18n="filterAll">Усі</option>
+            <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
+            <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
+          </select>
+          <span id="g-stat" class="t-progress">—</span>
+          <button id="g-validate" class="kh-btn" type="button"
+                  data-i18n-title="validateTokensTitle"
+                  title="Перевірити що в UK-перекладах присутні всі токени з EN ({Color X}, {VarItem}, {lf} тощо). Втрачений токен = краш гри.">
+            <span class="icon" aria-hidden="true">🔍</span><span data-i18n="validateTokens">Перевірити токени</span>
+          </button>
+          <button id="g-clean-broken" class="kh-btn" type="button"
+                  data-i18n-title="cleanBrokenTitle"
+                  title="Видалити з глосарію всі записи, де UK-переклад не зберігає {…}-токени з EN. Зазвичай це сміттєві фрагменти, що з'явилися від {lf}-сплітінгу при HTML-імпорті ще до v2.18.6.">
+            <span class="icon" aria-hidden="true">🧹</span><span data-i18n="cleanBroken">Видалити поламані</span>
+          </button>
+          <label class="checkbox compact" data-i18n-title="wrapMinWidthTitle"
+                 title="Мінімальна ширина рядка для дуже коротких EN-фраз. Зазвичай 250 — щоб коротке слово не розбивалось.">
+            <span data-i18n="wrapMinWidth">min-px</span>
+            <input id="g-maxwidth" type="number" min="100" max="900" value="250" class="k-threshold-input">
+          </label>
+          <button id="g-autowrap" class="kh-btn" type="button"
+                  data-i18n-title="autoWrapAdaptiveTitle"
+                  title="Адаптивно розбити глосарій: для кожного перекладу maxWidth береться з ширини EN-оригіналу. UA вкладеться в ту саму рамку що й ENG.">
+            <span class="icon" aria-hidden="true">📐</span><span data-i18n="autoWrapAdaptive">Auto-wrap (за EN)</span>
+          </button>
+          <button id="g-save" class="kh-btn" type="button" disabled>
+            <span class="icon" aria-hidden="true">💾</span><span data-i18n="glossarySave">Зберегти глосарій</span>
+          </button>
+          <button id="g-compose-all" class="kh-btn kh-btn-primary" type="button" disabled>
+            <span class="icon" aria-hidden="true">⚡</span><span data-i18n="glossaryComposeAll">Зібрати ВСІ файли</span>
+          </button>
+        </section>
+
+        <section id="g-rows" class="t-rows" tabindex="0">
+          <div class="t-empty">
+            <p data-i18n="glossaryEmpty">Натисніть "Побудувати/Оновити" щоб просканувати всі файли і витягнути унікальні рядки.</p>
+          </div>
+        </section>
+      </div>
+
+      <footer class="statusbar">
+        <span id="t-status" data-i18n="selectFileToTranslate">Виберіть файл для перекладу</span>
+      </footer>
+    </div>
+
+    <!-- ============ KERNING VIEW ============ -->
+    <div id="view-kerning" class="view hidden">
+      <section class="toolbar">
+        <button id="k-load-knj" class="kh-btn kh-btn-primary" type="button">
+          <span class="icon" aria-hidden="true">📂</span><span data-i18n="knjLoad">Завантажити .knj</span>
+        </button>
+        <button id="k-load-dds" class="kh-btn" type="button">
+          <span class="icon" aria-hidden="true">🖼</span><span data-i18n="ddsLoad">Завантажити .dds</span>
+        </button>
+        <input id="k-filter" class="kh-input" type="search" data-i18n-placeholder="glyphFilterPlaceholder" placeholder="🔎 № гліфа (наприклад 0-50, 100, 120)">
+        <span class="spacer"></span>
+        <label class="checkbox compact" data-i18n-title="knjThresholdTitle"
+               title="Поріг прозорості: піксель вважається непрозорим якщо alpha ≥ цього значення (1-255). Більше = ігнорує тонкі тіні; менше = більш точно ловить край.">
+          <span data-i18n="knjThreshold">α-поріг</span>
+          <input id="k-threshold" type="number" min="1" max="255" value="96" class="k-threshold-input">
+        </label>
+        <button id="k-autofit" class="kh-btn" type="button" disabled
+                data-i18n="knjAutoFit"
+                data-i18n-title="knjAutoFitTitle"
+                title="Автоматично підібрати advance-width для всіх гліфів за непрозорим краєм у DDS">✨ Auto-fit</button>
+        <button id="k-reset-changes" class="kh-btn" type="button" disabled
+                data-i18n="knjReset"
+                data-i18n-title="knjResetTitle"
+                title="Скинути всі зміни до завантажених значень">↺ Скинути</button>
+        <button id="k-save-knj" class="kh-btn kh-btn-primary" type="button" disabled>
+          <span class="icon" aria-hidden="true">💾</span><span data-i18n="knjSave">Зберегти .knj</span>
+        </button>
+      </section>
+
+      <section class="k-preview-wrap">
+        <div class="k-preview-toolbar">
+          <input id="k-preview-text" class="kh-input" type="text" data-i18n-placeholder="previewPlaceholder" placeholder="Live-preview: введіть текст українською/англійською...">
+          <label class="checkbox compact" title="Прозорий фон vs ігровий темно-синій">
+            <input id="k-preview-bg" type="checkbox">
+            <span data-i18n="previewBgLabel">Темне тло</span>
+          </label>
+          <span class="spacer"></span>
+          <span id="k-preview-info" class="t-progress">—</span>
+        </div>
+        <canvas id="k-preview-canvas" class="k-preview-canvas" width="1100" height="120"></canvas>
+      </section>
+
+      <section id="k-grid-wrap" class="k-grid-wrap" tabindex="0">
+        <div class="t-empty">
+          <p data-i18n="knjEmpty">Завантажте .knj-файл (наприклад UA_kanji.knj). Якщо поряд є .dds-атлас — підтягнеться автоматично.</p>
+          <p style="margin-top:10px; opacity:0.75;" data-i18n="knjHint">Тягни вертикальну червону лінію щоб встановити advance-width (відступ після літери). Значення зберігається як byte = pixel / 2, максимум 24 (= 48 px).</p>
+        </div>
+      </section>
+
+      <footer class="statusbar">
+        <span id="k-status" data-i18n="fileNotLoaded">Файл не завантажено</span>
+        <span id="k-info" class="brand"></span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Find dialog -->
+  <div id="find-overlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-labelledby="find-title" aria-modal="true">
+      <h2 id="find-title" data-i18n="findTitle">Знайти текст</h2>
+      <input id="find-input" type="text" data-i18n-placeholder="findPlaceholder" placeholder="Введіть текст для пошуку..." autocomplete="off">
+      <label class="checkbox">
+        <input id="find-case" type="checkbox">
+        <span data-i18n="matchCase">Враховувати регістр</span>
+      </label>
+      <div class="modal-actions">
+        <button id="find-next" class="kh-btn kh-btn-primary" type="button" data-i18n="findNext">Знайти далі</button>
+        <button id="find-cancel" class="kh-btn" type="button" data-i18n="cancel">Скасувати</button>
+      </div>
+      <div id="find-message" class="find-message" role="status"></div>
+    </div>
+  </div>
+
+  <!-- About dialog -->
+  <div id="about-overlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal" role="dialog" aria-labelledby="about-title" aria-modal="true">
+      <h2 id="about-title" data-i18n="aboutTitle">Про програму</h2>
+      <div id="about-body" class="about-body"></div>
+      <div class="modal-actions">
+        <button id="about-close" class="kh-btn kh-btn-primary" type="button" data-i18n="close">Закрити</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal (translate dirs) -->
+  <div id="settings-overlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal modal-wide" role="dialog" aria-labelledby="settings-title" aria-modal="true">
+      <h2 id="settings-title" data-i18n="dirsTitle">Теки локалізації</h2>
+      <div class="setting-row">
+        <label for="set-eng-dir" data-i18n="engDirLabel">Тека ENG (оригінал):</label>
+        <div class="dir-row">
+          <input id="set-eng-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
+          <button data-pick="engDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label for="set-rus-dir" data-i18n="rusDirLabel">Тека RUS (оракул-локалізація):</label>
+        <div class="dir-row">
+          <input id="set-rus-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
+          <button data-pick="rusDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label for="set-tsv-dir" data-i18n="tsvDirLabel">Тека TSV (прогрес перекладу):</label>
+        <div class="dir-row">
+          <input id="set-tsv-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
+          <button data-pick="tsvDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label for="set-out-dir" data-i18n="outDirLabel">Тека UA (вихід для .binl):</label>
+        <div class="dir-row">
+          <input id="set-out-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
+          <button data-pick="outDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
+        </div>
+      </div>
+      <p class="setting-hint" data-i18n="dirsHint">RUS-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у TSV-теку, готовий .binl — в UA-теку.</p>
+      <div class="modal-actions">
+        <button id="settings-close" class="kh-btn kh-btn-primary" type="button" data-i18n="close">Закрити</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import preview modal -->
+  <div id="import-overlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal modal-wide" role="dialog" aria-labelledby="import-title" aria-modal="true">
+      <h2 id="import-title" data-i18n="importPreviewTitle">Імпорт перекладів — попередній перегляд</h2>
+      <div id="import-summary" class="import-summary"></div>
+      <p class="setting-hint" data-i18n="importHint">
+        ¶ та переноси рядків автоматично перетворено на {lf}.
+        "Збіги" = англійський з імпорту знайдений у глосарії й колонка українською порожня.
+        "Конфлікти" = у глосарії вже є інший переклад. "Не знайдено" = англійського нема в глосарії
+        (можливо, інший файл або відмінний токен).
+      </p>
+      <div id="import-conflicts" class="import-conflicts"></div>
+      <div class="modal-actions">
+        <button id="import-apply" class="kh-btn kh-btn-primary" type="button" data-i18n="importApply">Застосувати збіги</button>
+        <button id="import-overwrite" class="kh-btn" type="button" data-i18n="importOverwrite">Перезаписати ВСЕ (з конфліктами)</button>
+        <button id="import-cancel" class="kh-btn" type="button" data-i18n="cancel">Скасувати</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Find & Replace modal (Ctrl+H) -->
+  <div id="replace-overlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal modal-wide" role="dialog" aria-labelledby="replace-title" aria-modal="true">
+      <h2 id="replace-title" data-i18n="replaceTitle">Знайти і замінити в глосарії</h2>
+      <div class="setting-row">
+        <label for="rep-find" data-i18n="findLabel">Знайти:</label>
+        <input id="rep-find" type="text" data-i18n-placeholder="findInputPlaceholder" placeholder="текст для пошуку..." autocomplete="off">
+      </div>
+      <div class="setting-row">
+        <label for="rep-replace" data-i18n="replaceLabel">Замінити на:</label>
+        <input id="rep-replace" type="text" data-i18n-placeholder="replaceInputPlaceholder" placeholder="новий текст (порожньо = видалити)" autocomplete="off">
+      </div>
+      <label class="checkbox compact">
+        <input id="rep-case" type="checkbox">
+        <span data-i18n="matchCase">Враховувати регістр</span>
+      </label>
+      <p class="setting-hint" id="rep-stat" data-i18n="replaceHint">Введіть текст для пошуку...</p>
+      <div class="modal-actions">
+        <button id="rep-apply" class="kh-btn kh-btn-primary" type="button" disabled data-i18n="replaceApply">Замінити</button>
+        <button id="rep-cancel" class="kh-btn" type="button" data-i18n="cancel">Скасувати</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="i18n.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

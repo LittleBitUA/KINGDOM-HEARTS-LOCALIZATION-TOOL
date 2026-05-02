@@ -1,0 +1,27 @@
+node_modules/
+dist/
+out/
+*.log
+.DS_Store
+Thumbs.db
+
+# Тимчасові скрипти/дампи (debug helpers)
+_tmp_*.js
+_dump_*.js
+_scratch/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Settings/cache локального юзера (electron user data можуть випадково потрапити)
+*.local.json
+electron-builder.env
