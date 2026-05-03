@@ -14,6 +14,15 @@ const DICT = {
     modeEditor: 'Редактор',
     modeTranslate: 'Переклад',
     modeKerning: 'Кернінг',
+    modeBbsFont: 'Шрифт BBS',
+    bfPickArc: 'Тека з FontEn.arc (unpack)',
+    bfPickHd: 'Тека HD-PNG (опц.)',
+    bfFontSelectPrompt: '— виберіть шрифт —',
+    bfPngNone: '— без HD PNG —',
+    bfReset: '↺ Скинути',
+    bfSave: '💾 Зберегти .cod',
+    bfEmpty: 'Виберіть теку розпакованого FontEn.arc → виберіть шрифт зі списку. Опційно вкажіть HD-теку (remastered) щоб бачити атлас.',
+    bfNoSelection: 'Виберіть гліф у атласі або зі списку нижче',
 
     // Editor view
     importBtn: 'Імпорт',
@@ -182,12 +191,12 @@ const DICT = {
 
     dirsTitle: 'Теки локалізації',
     engDirLabel: 'Тека ENG (оригінал):',
-    rusDirLabel: 'Тека RUS (оракул-локалізація):',
+    rusDirLabel: 'Тека MYFILES (мої референсні файли):',
     tsvDirLabel: 'Тека TSV (прогрес перекладу):',
-    outDirLabel: 'Тека UA (вихід для .binl):',
+    outDirLabel: 'Тека UA (вихідні файли):',
     notSelected: 'не вибрано',
     pick: 'Вибрати...',
-    dirsHint: 'RUS-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у TSV-теку, готовий .binl — в UA-теку.',
+    dirsHint: 'MYFILES-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у PROGRESS-теку, готові файли — у DONE-теку.',
 
     // Import preview modal
     importPreviewTitle: 'Імпорт перекладів — попередній перегляд',
@@ -271,6 +280,15 @@ const DICT = {
     modeEditor: 'Editor',
     modeTranslate: 'Translate',
     modeKerning: 'Kerning',
+    modeBbsFont: 'BBS Font',
+    bfPickArc: 'FontEn.arc unpack folder',
+    bfPickHd: 'HD-PNG folder (opt)',
+    bfFontSelectPrompt: '— select font —',
+    bfPngNone: '— no HD PNG —',
+    bfReset: '↺ Reset',
+    bfSave: '💾 Save .cod',
+    bfEmpty: 'Pick FontEn.arc-unpacked folder → select font. Optionally pick HD-folder (remastered) to see atlas.',
+    bfNoSelection: 'Pick a glyph on the atlas or from the list below',
 
     importBtn: 'Import',
     exportBtn: 'Export',
@@ -429,12 +447,12 @@ const DICT = {
 
     dirsTitle: 'Localization folders',
     engDirLabel: 'ENG folder (original):',
-    rusDirLabel: 'RUS folder (oracle translation):',
+    rusDirLabel: 'MYFILES folder (your reference files):',
     tsvDirLabel: 'TSV folder (translation progress):',
-    outDirLabel: 'UA folder (output for .binl):',
+    outDirLabel: 'UA folder (output):',
     notSelected: 'not selected',
     pick: 'Pick...',
-    dirsHint: 'RUS folder defines the file list. ENG folder must contain files with matching relative paths. Progress is saved into the TSV folder, finished .binl — into the UA folder.',
+    dirsHint: 'MYFILES folder defines the file list. ENG folder must contain files with the same relative paths. Progress is saved into the PROGRESS folder, finished files — into the DONE folder.',
 
     importPreviewTitle: 'Import translations — preview',
     importHint: '¶ and line breaks are auto-converted to {lf}. "Matches" = English from import found in glossary, Ukrainian column empty. "Conflicts" = glossary already has a different translation. "Not found" = English not in glossary (perhaps another file or different token).',

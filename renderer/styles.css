@@ -2098,3 +2098,93 @@ body.theme-light .game-card {
   .home-hero { margin-bottom: 28px; }
   .home-grid { gap: 18px; grid-template-columns: minmax(260px, 340px); }
 }
+
+/* === BBS Font Editor view === */
+.bf-main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 12px;
+  min-height: 0;
+}
+.bf-atlas-wrap {
+  background: var(--khn-bg-panel);
+  border: 1px solid var(--khn-gold-border);
+  border-radius: 12px;
+  padding: 8px;
+  overflow: auto;
+  min-height: 0;
+}
+.bf-atlas-wrap canvas {
+  display: block;
+  cursor: crosshair;
+}
+.bf-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+}
+.bf-zoom .kh-btn { padding: 4px 10px; min-width: 0; }
+.bf-zoom #bf-zoom-reset { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+.bf-side {
+  display: flex;
+  flex-direction: column;
+  background: var(--khn-bg-panel);
+  border: 1px solid var(--khn-gold-border);
+  border-radius: 12px;
+  padding: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+.bf-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  margin-bottom: 8px;
+}
+.bf-fields.hidden { display: none; }
+.bf-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--khn-text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.bf-fields input {
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid var(--khn-gold-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: var(--khn-text);
+  font-family: "Cascadia Code", monospace;
+  font-size: 12px;
+  outline: none;
+}
+.bf-fields input:focus {
+  border-color: var(--khn-gold-light);
+  box-shadow: 0 0 6px rgba(255, 215, 90, 0.4);
+}
+.bf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+.bf-list-item {
+  padding: 4px 8px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 11px;
+  color: var(--khn-text);
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.bf-list-item:hover { background: rgba(255, 179, 0, 0.08); }
+.bf-list-item.selected {
+  background: rgba(255, 179, 0, 0.18);
+  color: var(--khn-gold-light);
+  font-weight: 600;
+}

@@ -74,6 +74,7 @@
         <button id="mode-editor" class="mode-btn active" type="button" role="tab" data-i18n="modeEditor">Редактор</button>
         <button id="mode-translate" class="mode-btn" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
+        <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
       </div>
     </header>
 
@@ -347,6 +348,68 @@
         <span id="k-info" class="brand"></span>
       </footer>
     </div>
+
+    <!-- ============ BBS FONT VIEW ============ -->
+    <div id="view-bbs-font" class="view hidden">
+      <section class="toolbar">
+        <button id="bf-pick-arc" class="kh-btn kh-btn-primary" type="button">
+          <span class="icon" aria-hidden="true">📂</span><span data-i18n="bfPickArc">Тека з FontEn.arc (unpack)</span>
+        </button>
+        <button id="bf-pick-hd" class="kh-btn" type="button" disabled>
+          <span class="icon" aria-hidden="true">🖼</span><span data-i18n="bfPickHd">Тека HD-PNG (опц.)</span>
+        </button>
+        <select id="bf-font-sel" class="kh-select kh-select-narrow" disabled>
+          <option value="" data-i18n="bfFontSelectPrompt">— виберіть шрифт —</option>
+        </select>
+        <select id="bf-png-sel" class="kh-select kh-select-narrow" disabled title="HD PNG атлас">
+          <option value="" data-i18n="bfPngNone">— без HD PNG —</option>
+        </select>
+        <span class="spacer"></span>
+        <div class="bf-zoom" role="group" aria-label="Zoom">
+          <button id="bf-zoom-out" class="kh-btn kh-btn-icon" type="button" title="Зменшити (Ctrl+−)">−</button>
+          <button id="bf-zoom-reset" class="kh-btn" type="button" title="Скинути зум (Ctrl+0)">100%</button>
+          <button id="bf-zoom-in"  class="kh-btn kh-btn-icon" type="button" title="Збільшити (Ctrl++)">+</button>
+          <button id="bf-zoom-fit" class="kh-btn" type="button" title="Підігнати до ширини">⤢ Fit</button>
+        </div>
+        <button id="bf-export-overlay" class="kh-btn" type="button" disabled
+                title="Зберегти прозорий PNG лише з рамками гліфів (як guide-шар)">⬇ Рамки PNG</button>
+        <button id="bf-add" class="kh-btn" type="button" disabled
+                title="Додати новий COD-entry (для перемальованого гліфа)">+ Додати</button>
+        <button id="bf-del" class="kh-btn" type="button" disabled
+                title="Видалити вибраний COD-entry">✕ Видалити</button>
+        <button id="bf-reset" class="kh-btn" type="button" disabled
+                data-i18n="bfReset"
+                title="Скинути всі зміни до завантажених значень">↺ Скинути</button>
+        <button id="bf-save" class="kh-btn kh-btn-primary" type="button" disabled>
+          <span class="icon" aria-hidden="true">💾</span><span data-i18n="bfSave">Зберегти .cod</span>
+        </button>
+      </section>
+
+      <section class="bf-main">
+        <div class="bf-atlas-wrap" id="bf-atlas-wrap">
+          <div class="t-empty"><p data-i18n="bfEmpty">Виберіть теку розпакованого FontEn.arc → виберіть шрифт зі списку. Опційно вкажіть HD-теку (remastered) щоб бачити атлас.</p></div>
+        </div>
+        <aside class="bf-side" id="bf-side">
+          <h3 data-i18n="bfNoSelection" style="margin:0 0 10px; font-size:13px; color:var(--khn-text-muted);">Виберіть гліф у атласі або зі списку нижче</h3>
+          <div class="bf-fields hidden" id="bf-fields">
+            <label>Index <input id="bf-f-index" type="text" readonly></label>
+            <label>Char ID (hex) <input id="bf-f-id" type="text" placeholder="0x8266" title="Edit як 0xXXXX"></label>
+            <label>Char (preview) <input id="bf-f-char" type="text" readonly></label>
+            <label>Pos X (0-255) <input id="bf-f-x" type="number" min="0" max="255" step="1"></label>
+            <label>Pos Y (0-255) <input id="bf-f-y" type="number" min="0" max="255" step="1"></label>
+            <label>Palette <input id="bf-f-pal" type="number" min="0" max="255"></label>
+            <label>Width <input id="bf-f-width" type="number" min="0" max="255"></label>
+          </div>
+          <h4 style="margin:14px 0 6px; font-size:11px; color:var(--khn-text-muted); letter-spacing:1px;">ALL ENTRIES</h4>
+          <ul id="bf-list" class="bf-list"></ul>
+        </aside>
+      </section>
+
+      <footer class="statusbar">
+        <span id="bf-status" data-i18n="fileNotLoaded">Файл не завантажено</span>
+        <span id="bf-info" class="brand"></span>
+      </footer>
+    </div>
   </div>
 
   <!-- Find dialog -->
@@ -412,35 +475,35 @@
 
       <div class="setting-section">
         <h3 class="setting-section-title" data-i18n="dirsTitle">Теки локалізації</h3>
-      <div class="setting-row">
+      <div class="setting-row" data-dir-key="engDir">
         <label for="set-eng-dir" data-i18n="engDirLabel">Тека ENG (оригінал):</label>
         <div class="dir-row">
           <input id="set-eng-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="engDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <div class="setting-row">
-        <label for="set-rus-dir" data-i18n="rusDirLabel">Тека RUS (оракул-локалізація):</label>
+      <div class="setting-row" data-dir-key="rusDir">
+        <label for="set-rus-dir" data-i18n="rusDirLabel">Тека MYFILES (мої референсні файли):</label>
         <div class="dir-row">
           <input id="set-rus-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="rusDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <div class="setting-row">
+      <div class="setting-row" data-dir-key="tsvDir">
         <label for="set-tsv-dir" data-i18n="tsvDirLabel">Тека TSV (прогрес перекладу):</label>
         <div class="dir-row">
           <input id="set-tsv-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="tsvDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <div class="setting-row">
-        <label for="set-out-dir" data-i18n="outDirLabel">Тека UA (вихід для .binl):</label>
+      <div class="setting-row" data-dir-key="outDir">
+        <label for="set-out-dir" data-i18n="outDirLabel">Тека UA (вихідні файли):</label>
         <div class="dir-row">
           <input id="set-out-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="outDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <p class="setting-hint" data-i18n="dirsHint">RUS-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у TSV-теку, готовий .binl — в UA-теку.</p>
+      <p class="setting-hint" id="dirs-hint" data-i18n="dirsHint">MYFILES-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у PROGRESS-теку, готові файли — у DONE-теку.</p>
       </div>
 
       <div class="modal-actions">
