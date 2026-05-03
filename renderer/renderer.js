@@ -4416,17 +4416,19 @@ function bfRenderAtlas() {
   ctx.beginPath(); ctx.moveTo(halfPngW, 0); ctx.lineTo(halfPngW, pngH); ctx.stroke();
 
   // Cell-grid overlay. Block = palette index (0 → left half, 1 → right half).
+  // Рамка = повна клітина гліфа (charWidth × charHeight), не entry.width
+  // (entry.width — це advance/visible, редагується у side-panel).
+  const cellW = inf.charWidth  * scaleX;
+  const cellH = inf.charHeight * scaleY;
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
     const blockOffX = (e.palette === 1) ? halfPngW : 0;
     const px = e.posX * scaleX + blockOffX;
     const py = e.posY * scaleY;
-    const pw = (e.width || inf.charWidth) * scaleX;
-    const ph = inf.charHeight * scaleY;
     const isSel = (i === bfState.selected);
     ctx.strokeStyle = isSel ? 'rgba(255, 200, 0, 1)' : 'rgba(255, 215, 90, 0.25)';
     ctx.lineWidth = isSel ? 2 : 1;
-    ctx.strokeRect(px, py, pw, ph);
+    ctx.strokeRect(px, py, cellW, cellH);
   }
 
   canvas.addEventListener('click', (ev) => {
@@ -4437,14 +4439,16 @@ function bfRenderAtlas() {
     const localX = isBlock2 ? cx - halfPngW : cx;
     // Знайти entry: блок = palette (0 → лівий, 1 → правий).
     let bestIdx = -1, bestDist = Infinity;
+    const hitW = inf.charWidth  * scaleX;
+    const hitH = inf.charHeight * scaleY;
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i];
       const expectsBlock2 = (e.palette === 1);
       if (expectsBlock2 !== isBlock2) continue;
       const ex = e.posX * scaleX;
       const ey = e.posY * scaleY;
-      const ew = (e.width || inf.charWidth) * scaleX;
-      const eh = inf.charHeight * scaleY;
+      const ew = hitW;
+      const eh = hitH;
       if (localX >= ex && localX < ex + ew && cy >= ey && cy < ey + eh) {
         bfSelectEntry(i);
         return;
@@ -4604,16 +4608,16 @@ if (bfExportOverlayBtn) bfExportOverlayBtn.addEventListener('click', () => {
   ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(halfPngW + 0.5, 0); ctx.lineTo(halfPngW + 0.5, pngH); ctx.stroke();
-  // Рамки гліфів
+  // Рамки гліфів = повна клітина (charWidth × charHeight)
   ctx.strokeStyle = 'rgba(255, 215, 90, 1)';
   ctx.lineWidth = 1;
+  const cellW = Math.round(inf.charWidth  * scaleX);
+  const cellH = Math.round(inf.charHeight * scaleY);
   for (const e of entries) {
     const blockOffX = (e.palette === 1) ? halfPngW : 0;
     const x = Math.round(e.posX * scaleX + blockOffX) + 0.5;
     const y = Math.round(e.posY * scaleY) + 0.5;
-    const w = Math.round((e.width || inf.charWidth) * scaleX);
-    const h = Math.round(inf.charHeight * scaleY);
-    ctx.strokeRect(x, y, w, h);
+    ctx.strokeRect(x, y, cellW, cellH);
   }
 
   off.toBlob((blob) => {
