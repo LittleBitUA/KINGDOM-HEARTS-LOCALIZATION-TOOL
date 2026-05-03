@@ -627,6 +627,53 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
     }
 
     try {
+      // Спецбранч для .ev/.evdl
+      if (cls.kind === 'ev') {
+        const codecLocal = require('./shared/codec');
+        const evBuf = await fs.readFile(engPath);
+        const parsed = parseEv(evBuf, codecLocal);
+        for (const slot of parsed.slots) {
+          if (!slot.translatable) continue;  // skip {eol}-padding noise
+          const key = slot.english;
+          let entry = map.get(key);
+          if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
+          entry.count++;
+          entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+        }
+        processed++;
+        sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
+        continue;
+      }
+      // Спецбранч для *_mes_ofs.bin (паре mes-ofs+mes-data)
+      if (cls.kind === 'mesofs') {
+        const codecLocal = require('./shared/codec');
+        const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
+        if (!dataPath || !fsSync.existsSync(dataPath)) {
+          skipped++;
+          processed++;
+          sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: 'no-pair' });
+          continue;
+        }
+        const ofsBuf = await fs.readFile(engPath);
+        const dataBuf = await fs.readFile(dataPath);
+        const parsed = parseMesOfs(ofsBuf, dataBuf, codecLocal);
+        // Колапс по унікальним offset'ам (як у extract handler) — щоб глосарій
+        // не містив 5× одного й того ж рядка для лінкованих pointer'ів.
+        const seen = new Set();
+        for (const slot of parsed.slots) {
+          if (seen.has(slot.offset)) continue;
+          seen.add(slot.offset);
+          const key = slot.english;
+          let entry = map.get(key);
+          if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
+          entry.count++;
+          entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+        }
+        processed++;
+        sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
+        continue;
+      }
+      // Звичайний шлях через worker (binl/rawbin)
       const eng = await fs.readFile(engPath);
       const rus = await fs.readFile(rusPath);
       const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
