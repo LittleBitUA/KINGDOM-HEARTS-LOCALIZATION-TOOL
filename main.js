@@ -752,6 +752,110 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
     }
 
     try {
+      // ===== Спецгілка для .ev/.evdl: парсимо локально, не через worker =====
+      if (cls.kind === 'ev') {
+        const codecLocal = require('./shared/codec');
+        const evBuf = await fs.readFile(engPath);
+        const parsed = parseEv(evBuf, codecLocal);
+        // optional per-file overrides from TSV
+        let perFileMap = null;
+        if (tsvDir) {
+          const tsvPath = path.join(tsvDir, rel) + '.tsv';
+          if (fsSync.existsSync(tsvPath)) {
+            try {
+              const txt = await fs.readFile(tsvPath, 'utf8');
+              perFileMap = parseTsvOverrides(txt);
+            } catch (_) {}
+          }
+        }
+        let appliedCount = 0;
+        const slotsForCompose = parsed.slots.map(s => {
+          let uk = '';
+          if (perFileMap && perFileMap.has(s.offset)) uk = perFileMap.get(s.offset);
+          if (!uk && Object.prototype.hasOwnProperty.call(glossary, s.english)) {
+            uk = glossary[s.english];
+          }
+          if (uk && uk.trim() && uk !== s.english) {
+            uk = preserveStructure(s.english, uk);
+            appliedCount++;
+            return Object.assign({}, s, { ukText: uk });
+          }
+          return Object.assign({}, s, { ukText: s.english });
+        });
+        if (appliedCount === 0) {
+          skippedNoTranslations++;
+          processed++;
+          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
+          continue;
+        }
+        const composed = composeEv(evBuf, slotsForCompose, codecLocal);
+        await fs.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.writeFile(outPath, composed.buf);
+        written++;
+        totalReplacements += appliedCount;
+        processed++;
+        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
+        continue;
+      }
+      // ===== Спецгілка для *_mes_ofs.bin (паре mes-ofs+mes-data) =====
+      if (cls.kind === 'mesofs') {
+        const codecLocal = require('./shared/codec');
+        const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
+        if (!dataPath || !fsSync.existsSync(dataPath)) {
+          errors.push({ rel, error: 'mesofs: pair _mes_data.bin not found' });
+          processed++;
+          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-pair' });
+          continue;
+        }
+        const ofsBuf = await fs.readFile(engPath);
+        const dataBuf = await fs.readFile(dataPath);
+        const parsed = parseMesOfs(ofsBuf, dataBuf, codecLocal);
+        let perFileMap = null;
+        if (tsvDir) {
+          const tsvPath = path.join(tsvDir, rel) + '.tsv';
+          if (fsSync.existsSync(tsvPath)) {
+            try {
+              const txt = await fs.readFile(tsvPath, 'utf8');
+              perFileMap = parseTsvOverrides(txt);
+            } catch (_) {}
+          }
+        }
+        let appliedCount = 0;
+        const slotsForCompose = parsed.slots.map(s => {
+          let uk = '';
+          if (perFileMap && perFileMap.has(s.offset)) uk = perFileMap.get(s.offset);
+          if (!uk && Object.prototype.hasOwnProperty.call(glossary, s.english)) {
+            uk = glossary[s.english];
+          }
+          if (uk && uk.trim() && uk !== s.english) {
+            uk = preserveStructure(s.english, uk);
+            appliedCount++;
+            return Object.assign({}, s, { ukText: uk });
+          }
+          return Object.assign({}, s, { ukText: s.english });
+        });
+        if (appliedCount === 0) {
+          skippedNoTranslations++;
+          processed++;
+          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
+          continue;
+        }
+        const composed = composeMesOfs(slotsForCompose, {
+          ofsLength: ofsBuf.length,
+          dataLength: dataBuf.length,
+          cellLengthByOffset: parsed.cellLengthByOffset
+        }, codecLocal);
+        const outDataPath = path.join(path.dirname(outPath), pairedDataName(path.basename(outPath)));
+        await fs.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.writeFile(outPath, composed.ofsBuf);
+        await fs.writeFile(outDataPath, composed.dataBuf);
+        written++;
+        totalReplacements += appliedCount;
+        processed++;
+        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
+        continue;
+      }
+      // ===== Звичайний шлях через worker =====
       const eng = await fs.readFile(engPath);
       const rus = await fs.readFile(rusPath);
       const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
