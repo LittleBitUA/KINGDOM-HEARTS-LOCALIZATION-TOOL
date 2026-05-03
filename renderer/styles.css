@@ -52,50 +52,54 @@
    Активується через <body class="theme-light"> (зберігається у settings).
    ===================================================================== */
 body.theme-light {
-  --khn-bg-deep:       #d8cdb3;        /* теплий пергамент */
-  --khn-bg-panel:      #e6dcc4;        /* панелі — світліший пергамент */
-  --khn-bg-elev:       #f0e8d2;        /* підняті контроли */
-  --khn-gold:          #b8860b;        /* dark goldenrod — добре читається */
-  --khn-gold-light:    #d4a020;        /* акцент */
-  --khn-gold-dark:     #6b4d00;
-  --khn-gold-border:   rgba(184, 134, 11, 0.6);
-  --khn-text:          #2a1f08;        /* темно-коричневий */
-  --khn-text-muted:    #6b5a35;        /* приглушений охра */
-  --khn-glow-amber:    rgba(184, 134, 11, 0.4);
-  --khn-shadow-deep:   0 6px 20px rgba(80, 60, 20, 0.25);
-  --khn-shadow-glow:   0 0 14px rgba(184, 134, 11, 0.3);
+  /* Тепла, але світла та контрастна палітра. Колишня надто мутно-кремова
+     версія була нечитабельна — підняли яскравість фону, поглибили текст,
+     посилили gold-borders. */
+  --khn-bg-deep:       #f4ecd0;        /* світліший cream */
+  --khn-bg-panel:      #fbf6e3;        /* майже біла парчмент-панель */
+  --khn-bg-elev:       #fffcf0;        /* підняті контроли — світліше */
+  --khn-gold:          #a8780a;        /* darker goldenrod — нормальний контраст на світлому */
+  --khn-gold-light:    #c89a18;
+  --khn-gold-dark:     #5a3f00;
+  --khn-gold-border:   rgba(168, 120, 10, 0.75);
+  --khn-text:          #1a1408;        /* майже чорний з теплим відтінком */
+  --khn-text-muted:    #574420;        /* приглушений умбра, читабельний */
+  --khn-glow-amber:    rgba(168, 120, 10, 0.35);
+  --khn-shadow-deep:   0 6px 18px rgba(80, 60, 20, 0.18);
+  --khn-shadow-glow:   0 0 12px rgba(168, 120, 10, 0.25);
 
-  /* Red modal палітра — лишається теплою/червоною, але насиченішою */
+  /* Red modal палітра — насичена */
   --khn-red-top:       #a01818;
   --khn-red-bot:       #6a0a0a;
   --khn-red-glow:      rgba(200, 60, 60, 0.4);
 
-  /* Legacy токени (для backward-compat) */
-  --bg-deep:       #d8cdb3;
-  --bg-mid:        #e6dcc4;
-  --bg-light:      #f0e8d2;
-  --panel:         rgba(230, 220, 196, 0.92);
-  --panel-border:  rgba(184, 134, 11, 0.5);
-  --accent:        #b8860b;
-  --accent-strong: #8b6508;
-  --kh-yellow:     #d4a020;
-  --kh-gold:       #b8860b;
-  --gold:          #b8860b;
-  --text:          #2a1f08;
-  --text-muted:    #6b5a35;
-  --shadow-glow:   0 0 18px rgba(184, 134, 11, 0.25);
-  --kh-shadow-gold: 0 0 12px rgba(184, 134, 11, 0.35);
+  /* Legacy токени */
+  --bg-deep:       #f4ecd0;
+  --bg-mid:        #fbf6e3;
+  --bg-light:      #fffcf0;
+  --panel:         rgba(251, 246, 227, 0.95);
+  --panel-border:  rgba(168, 120, 10, 0.65);
+  --accent:        #a8780a;
+  --accent-strong: #5a3f00;
+  --kh-yellow:     #c89a18;
+  --kh-gold:       #a8780a;
+  --gold:          #a8780a;
+  --text:          #1a1408;
+  --text-muted:    #574420;
+  --shadow-glow:   0 0 14px rgba(168, 120, 10, 0.22);
+  --kh-shadow-gold: 0 0 10px rgba(168, 120, 10, 0.30);
 }
 
-/* Світла тема: кореневий gradient — теплий */
+/* Світла тема: кореневий gradient — теплий, світлий */
 body.theme-light {
   background:
-    radial-gradient(ellipse 60% 40% at 15% -10%, rgba(184, 134, 11, 0.18), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 110%, rgba(184, 134, 11, 0.14), transparent 60%),
-    linear-gradient(180deg, #d8cdb3 0%, #e0d4b8 50%, #d8cdb3 100%) !important;
+    radial-gradient(ellipse 60% 40% at 15% -10%, rgba(168, 120, 10, 0.14), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 110%, rgba(168, 120, 10, 0.10), transparent 60%),
+    linear-gradient(180deg, #f4ecd0 0%, #faf3dc 50%, #f4ecd0 100%) !important;
 }
 body.theme-light .kh-titlebar {
-  background: linear-gradient(180deg, #c8b896 0%, #b8a880 100%);
+  background: linear-gradient(180deg, #ebdfb8 0%, #d8c898 100%);
+  border-bottom-color: var(--khn-gold-border);
 }
 body.theme-light .kh-titlebar-title { text-shadow: 0 0 6px rgba(184, 134, 11, 0.35); }
 body.theme-light .kh-tb-btn:hover {
@@ -150,41 +154,51 @@ body.theme-light ::-webkit-scrollbar-thumb {
 }
 
 /* Topbar / toolbar / panels у світлій темі — без inset chrome */
-body.theme-light .topbar {
-  background:
-    linear-gradient(180deg, rgba(184, 134, 11, 0.04) 0%, #ebe0c2 30%, #ebe0c2 70%, rgba(184, 134, 11, 0.04) 100%),
-    #e6dcc4;
-  border-color: rgba(184, 134, 11, 0.5);
+body.theme-light .topbar,
+body.theme-light .toolbar {
+  background: var(--khn-bg-panel);
+  border-color: var(--khn-gold-border);
   box-shadow:
     var(--khn-shadow-deep),
-    inset 0 0 0 1px rgba(255, 250, 240, 0.4);
-}
-body.theme-light .toolbar {
-  background:
-    linear-gradient(180deg, rgba(184, 134, 11, 0.04) 0%, #ebe0c2 30%, #ebe0c2 70%, rgba(184, 134, 11, 0.04) 100%),
-    #e6dcc4;
-  border-color: rgba(184, 134, 11, 0.5);
-  box-shadow: var(--khn-shadow-deep);
+    inset 0 0 0 1px rgba(255, 252, 240, 0.5);
 }
 body.theme-light .editor-wrap,
 body.theme-light .t-rows,
 body.theme-light .statusbar {
-  background: #ebe0c2;
-  border-color: rgba(184, 134, 11, 0.4);
+  background: var(--khn-bg-panel);
+  border-color: var(--khn-gold-border);
 }
 body.theme-light .t-en {
-  background: rgba(255, 250, 240, 0.6);
-  border-color: rgba(184, 134, 11, 0.3);
+  background: var(--khn-bg-elev);
+  border-color: rgba(168, 120, 10, 0.45);
   color: var(--khn-text);
 }
 body.theme-light .t-uk {
-  background: rgba(255, 250, 240, 0.85);
-  border-color: rgba(184, 134, 11, 0.45);
+  background: #ffffff;
+  border-color: var(--khn-gold-border);
   color: var(--khn-text);
 }
 body.theme-light .t-uk:focus {
-  border-color: var(--khn-gold-dark);
-  box-shadow: 0 0 8px rgba(184, 134, 11, 0.35);
+  border-color: var(--khn-gold);
+  box-shadow: 0 0 8px rgba(168, 120, 10, 0.4);
+}
+
+/* Threshold/numeric inputs у kerning-режимі — мали hardcoded dark bg */
+body.theme-light .k-threshold-input,
+body.theme-light .k-input {
+  background: #ffffff;
+  border-color: var(--khn-gold-border);
+  color: var(--khn-text);
+}
+body.theme-light .k-threshold-input:focus,
+body.theme-light .k-input:focus {
+  border-color: var(--khn-gold);
+  box-shadow: 0 0 8px rgba(168, 120, 10, 0.4);
+}
+
+/* Progress bar track у світлій темі */
+body.theme-light .g-dash-bar {
+  background: rgba(168, 120, 10, 0.15);
 }
 
 /* =====================================================================
@@ -1020,7 +1034,7 @@ body::after {
 }
 .g-dash-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #7dd3fc);
+  background: linear-gradient(90deg, var(--khn-gold-dark), var(--khn-gold), var(--khn-gold-light));
   width: 0%;
   transition: width 0.3s ease;
 }
