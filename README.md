@@ -6,8 +6,8 @@
 [![License](https://img.shields.io/badge/license-MIT-38bdf8?style=for-the-badge&labelColor=0f1730)](LICENSE)
 [![Electron](https://img.shields.io/badge/electron-32.x-47848f?style=for-the-badge&labelColor=0f1730)](https://electronjs.org)
 
-**Інструмент для локалізації Kingdom Hearts 1 — кодек, редактор тексту, кернінг, словник.**
-*A localization toolkit for Kingdom Hearts 1 — codec, text editor, kerning, glossary.*
+**Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD) + Birth by Sleep (CTD + редактор шрифту).**
+*A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD) + Birth by Sleep (CTD + font editor).*
 
 [🇺🇦 Українська](#-українська) · [🇬🇧 English](#-english) · [📥 Download](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest)
 
@@ -19,18 +19,23 @@
 
 ### Що це
 
-Кросплатформенний редактор для перекладу тексту гри **Kingdom Hearts 1 — Final Mix HD**. Підтримує всі основні текстові формати гри, має словник із автоматичним підхопленням повторень, валідатор токенів, візуальний редактор кернінгу та збірку patch-файлу.
+Кросплатформенний редактор для перекладу тексту ігор **Kingdom Hearts 1 — Final Mix HD** та **Kingdom Hearts: Birth by Sleep — Final Mix HD**. Підтримує основні текстові формати обох ігор, має словник із автоматичним підхопленням повторень, валідатор токенів, візуальний редактор кернінгу (KH1) та редактор шрифту (BBS), збірку patch-файлу.
 
 ### ✨ Можливості
 
 | Категорія | Що працює |
 |---|---|
-| **Кодек** | Двобайтові команди (`{0x05/06/07,0xXX}`), українська overlay-карта, lossless round-trip |
-| **Формати** | `.bin` (raw KH1 text), `.binl` (з EvMsg-заголовком), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню) |
+| **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD (per-game ізольовані налаштування і теки) |
+| **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), українська overlay-карта, lossless round-trip |
+| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню) |
+| **Кодек BBS** | CTD з 32-byte header + 12-byte message + 32-byte layout entries, byte-identical round-trip (152/152), prefix-byte sequences (0x81/0x99/F1/F2/F5/F9), Cyrillic→Latin Extended мапа для font-hack |
+| **Формати BBS** | `.ctd` (event/menu/HUD), HD-PNG атлас фонтів, `mesfont/menufont/cmdfont/helpfont/numeral` шрифти |
+| **Редактор шрифту BBS** | Atlas viewer (HD PNG 1024×512), COD overlay з квадратними клітинами, правка X/Y/palette/width гліфів, експорт overlay-PNG як guide-шар, зум (−/+/Fit, Ctrl+wheel), збереження `.cod` |
 | **Глосарій** | 📊 Dashboard з прогрес-баром, фільтри, сортування, 🩹 авто-фікс структури, 🔄 bulk Find/Replace (regex/whole-word) |
-| **Імпорт** | HTML / CSV / TSV / TXT — з token-guard'ом проти втрати керівних байтів |
+| **Імпорт** | HTML / CSV / TSV / TXT — з token-guard'ом проти втрати керівних байтів. HTML-імпорт сумісний з output OpenKh CTD Editor (`{:unk XX}`) |
 | **Auto-wrap** | Адаптивне розставляння `{lf}` за EN-структурою з кернінг-метриками з `.knj` |
-| **Кернінг** | Візуальний редактор `.knj` з DDS-атласом (drag для зміни ширини, auto-fit за α-каналом) |
+| **Кернінг (KH1)** | Візуальний редактор `.knj` з DDS-атласом (drag для зміни ширини, auto-fit за α-каналом) |
+| **Auto-layout** | Авто-створення тек на запуск (KH1: `MYFILES/PROGRESS/DONE`; BBS: `ENG/PROGRESS/DONE`) |
 | **Auto-update** | Через GitHub Releases (electron-updater) |
 | **i18n** | UI українською + англійською (`/Налаштування → Мова`) |
 
@@ -51,8 +56,20 @@
 - `.data`: концатеновані null-terminated strings, KH1 codec
 - Cell-preserving compose: кожен рядок займає той самий cell-size, що дозволяє точну byte-identical перебудову.
 
-#### `.ev` / `.evdl` (event scripts)
+#### `.ev` / `.evdl` (event scripts, KH1)
 Парсер реалізований ([tools/lib/ev-format.js](tools/lib/ev-format.js)) але **тимчасово вимкнений** у Safe Mode. Потрібна подальша reverse-engineering робота над game-side validation мехнізмами.
+
+#### `.ctd` (Birth by Sleep — event/menu/HUD)
+Власна clean-room реалізація ([tools/lib/ctd-codec.js](tools/lib/ctd-codec.js), [tools/lib/ctd-format.js](tools/lib/ctd-format.js)). Структура:
+- 32-byte header: `count`, `messageTableOff`, `layoutTableOff`, `textBlockOff`, `textBlockSize`
+- N × 12-byte message entries (id + offset у text-block + len)
+- N × 32-byte layout entries (X/Y/font/scale/color)
+- Text-block: послідовність KH-encoded байт-стрічок з padding `0xCD`
+- Підтримка prefix-байтів `0x81`/`0x99` (CJK punctuation, latin extended) і кнопкових пар `F1/F2/F5/F9 + XX` (геймпадні гліфи).
+- **Byte-identical round-trip**: оригінальні `.ctd` файли парсяться, перетворюються в TSV, повертаються назад у `.ctd` без жодного відхилення (152/152).
+
+#### Шрифти BBS (`mesfont`/`menufont`/`cmdfont`/`helpfont`/`numeral`)
+Парсер ([tools/lib/bbs-font.js](tools/lib/bbs-font.js)) розпізнає bundle з `.inf` (метадані: count, texture WxH, cell WxH) + `.cod` (8 байт/гліф: charID, posX, posY, palette, width) + `.mtx` (4-bit indexed swizzled SD атлас) + `.clu` (1024-byte RGBA палітра). Опційно — HD-PNG remastered атлас (1024×512 для mesfont, складається з двох 512×512 блоків side-by-side по `palette`).
 
 ### 🚀 Як користуватися
 
@@ -91,18 +108,23 @@ npm run build:installer # NSIS installer
 
 ### What is this
 
-Cross-platform editor for translating **Kingdom Hearts 1 — Final Mix HD** text. Supports all main game text formats, has a glossary with auto-deduplication, token validator, visual kerning editor, and patch builder.
+Cross-platform editor for translating **Kingdom Hearts 1 — Final Mix HD** and **Kingdom Hearts: Birth by Sleep — Final Mix HD** text. Supports the main text formats of both games, has a glossary with auto-deduplication, token validator, visual kerning editor (KH1) and font editor (BBS), and patch builder.
 
 ### ✨ Features
 
 | Category | What works |
 |---|---|
-| **Codec** | Two-byte commands (`{0x05/06/07,0xXX}`), Ukrainian overlay map, lossless round-trip |
-| **Formats** | `.bin` (raw KH1 text), `.binl` (with EvMsg header), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus) |
+| **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD (per-game isolated settings and folders) |
+| **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), Ukrainian overlay map, lossless round-trip |
+| **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus) |
+| **BBS codec** | CTD with 32-byte header + 12-byte message + 32-byte layout entries, byte-identical round-trip (152/152), prefix-byte sequences (0x81/0x99/F1/F2/F5/F9), Cyrillic→Latin Extended map for font-hack |
+| **BBS formats** | `.ctd` (event/menu/HUD), HD-PNG font atlases, `mesfont/menufont/cmdfont/helpfont/numeral` fonts |
+| **BBS font editor** | Atlas viewer (HD PNG 1024×512), COD overlay with square cells, edit X/Y/palette/width per glyph, export overlay PNG as guide layer, zoom (−/+/Fit, Ctrl+wheel), save `.cod` |
 | **Glossary** | 📊 Dashboard with progress bar, filters, sorting, 🩹 auto-fix structure, 🔄 bulk Find/Replace (regex/whole-word) |
-| **Import** | HTML / CSV / TSV / TXT — with token-guard against losing control bytes |
+| **Import** | HTML / CSV / TSV / TXT — with token-guard against losing control bytes. HTML import compatible with OpenKh CTD Editor output (`{:unk XX}`) |
 | **Auto-wrap** | Adaptive `{lf}` placement by EN structure using kerning metrics from `.knj` |
-| **Kerning** | Visual `.knj` editor with DDS atlas (drag-to-resize widths, auto-fit by α-channel) |
+| **Kerning (KH1)** | Visual `.knj` editor with DDS atlas (drag-to-resize widths, auto-fit by α-channel) |
+| **Auto-layout** | Auto-creates folder layout on launch (KH1: `MYFILES/PROGRESS/DONE`; BBS: `ENG/PROGRESS/DONE`) |
 | **Auto-update** | Via GitHub Releases (electron-updater) |
 | **i18n** | UK + EN UI (`Settings → Language`) |
 
@@ -123,8 +145,20 @@ Menu / UI listings (gummi blocks, item names, etc.).
 - `.data`: concatenated null-terminated strings, KH1 codec
 - Cell-preserving compose: each string occupies the same cell-size, enabling byte-identical rebuild.
 
-#### `.ev` / `.evdl` (event scripts)
+#### `.ev` / `.evdl` (event scripts, KH1)
 Parser implemented ([tools/lib/ev-format.js](tools/lib/ev-format.js)) but **temporarily disabled** in Safe Mode. Pending further reverse-engineering of game-side validation mechanisms.
+
+#### `.ctd` (Birth by Sleep — event/menu/HUD)
+Custom clean-room implementation ([tools/lib/ctd-codec.js](tools/lib/ctd-codec.js), [tools/lib/ctd-format.js](tools/lib/ctd-format.js)). Layout:
+- 32-byte header: `count`, `messageTableOff`, `layoutTableOff`, `textBlockOff`, `textBlockSize`
+- N × 12-byte message entries (id + offset into text-block + len)
+- N × 32-byte layout entries (X/Y/font/scale/color)
+- Text-block: sequence of KH-encoded byte strings padded with `0xCD`
+- Supports prefix bytes `0x81`/`0x99` (CJK punctuation, latin-extended) and gamepad-button pairs `F1/F2/F5/F9 + XX`.
+- **Byte-identical round-trip**: original `.ctd` files parse → TSV → back to `.ctd` with zero deviation (152/152).
+
+#### BBS fonts (`mesfont`/`menufont`/`cmdfont`/`helpfont`/`numeral`)
+Parser ([tools/lib/bbs-font.js](tools/lib/bbs-font.js)) reads a bundle of `.inf` (metadata: count, texture WxH, cell WxH) + `.cod` (8 bytes/glyph: charID, posX, posY, palette, width) + `.mtx` (4-bit indexed swizzled SD atlas) + `.clu` (1024-byte RGBA palette). Optional HD remastered PNG atlas (1024×512 for mesfont, two 512×512 blocks side-by-side keyed by `palette`).
 
 ### 🚀 Usage
 
