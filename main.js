@@ -44,51 +44,72 @@ const MENU_DICT = {
 };
 function ml(key) { return (MENU_DICT[appLang] && MENU_DICT[appLang][key]) || MENU_DICT.uk[key] || key; }
 
-let workerInstance = null;
+// =====================================================================
+// Worker pool — паралельне виконання codec-worker задач.
+// Замість одного worker'а тримаємо POOL_SIZE workers і розподіляємо задачі
+// round-robin. Кожен worker має своє pending-map. Це дозволяє buildGlossary
+// та composeAll обробляти 4-8 файлів одночасно (CPU cores), що зменшує
+// загальний час у кілька разів.
+// =====================================================================
+const POOL_SIZE = Math.max(2, Math.min(8, require('os').cpus().length));
 let workerSeq = 0;
-const workerPending = new Map();
+const workerPool = [];   // [{ worker, pending: Map<id, {resolve, reject}> }]
+let workerRR = 0;        // round-robin counter
 
-function rejectAllPending(reason) {
+function rejectWorkerPending(slot, reason) {
   const err = reason instanceof Error ? reason : new Error(String(reason));
-  for (const { reject } of workerPending.values()) reject(err);
-  workerPending.clear();
+  for (const { reject } of slot.pending.values()) reject(err);
+  slot.pending.clear();
 }
 
-function getWorker() {
-  if (workerInstance) return workerInstance;
-
-  workerInstance = new Worker(path.join(__dirname, 'workers', 'codec-worker.js'));
-
-  workerInstance.on('message', (msg) => {
+function makeWorkerSlot() {
+  const w = new Worker(path.join(__dirname, 'workers', 'codec-worker.js'));
+  const slot = { worker: w, pending: new Map() };
+  w.on('message', (msg) => {
     const id = msg && msg.id;
-    const pending = workerPending.get(id);
-    if (!pending) return;
-    workerPending.delete(id);
-    if (msg.ok) pending.resolve(msg);
-    else pending.reject(new Error(msg.error || 'Помилка обробника'));
+    const p = slot.pending.get(id);
+    if (!p) return;
+    slot.pending.delete(id);
+    if (msg.ok) p.resolve(msg);
+    else p.reject(new Error(msg.error || 'Помилка обробника'));
   });
-
-  workerInstance.on('error', (err) => {
-    rejectAllPending(err);
-    workerInstance = null;
+  w.on('error', (err) => {
+    rejectWorkerPending(slot, err);
+    // позначити slot як «мертвий»; перестворимо на наступному виклику
+    slot.dead = true;
   });
-
-  workerInstance.on('exit', () => {
-    rejectAllPending('Обробник завершив роботу');
-    workerInstance = null;
+  w.on('exit', () => {
+    rejectWorkerPending(slot, 'Обробник завершив роботу');
+    slot.dead = true;
   });
+  return slot;
+}
 
-  return workerInstance;
+function getWorkerSlot() {
+  // Лінива ініціалізація pool'а на перший виклик.
+  if (workerPool.length === 0) {
+    for (let i = 0; i < POOL_SIZE; i++) workerPool.push(makeWorkerSlot());
+  }
+  // Перебудуй якщо якийсь slot помер.
+  for (let i = 0; i < workerPool.length; i++) {
+    if (workerPool[i].dead) workerPool[i] = makeWorkerSlot();
+  }
+  // Стратегія: round-robin серед slot'ів. Простіше за least-loaded і
+  // на практиці добре розподіляє рівномірне навантаження (всі задачі ~однакові).
+  const slot = workerPool[workerRR % workerPool.length];
+  workerRR++;
+  return slot;
 }
 
 function runWorker(payload, transferList) {
   return new Promise((resolve, reject) => {
     const id = ++workerSeq;
-    workerPending.set(id, { resolve, reject });
+    const slot = getWorkerSlot();
+    slot.pending.set(id, { resolve, reject });
     try {
-      getWorker().postMessage(Object.assign({ id }, payload), transferList || []);
+      slot.worker.postMessage(Object.assign({ id }, payload), transferList || []);
     } catch (e) {
-      workerPending.delete(id);
+      slot.pending.delete(id);
       reject(e);
     }
   });
@@ -605,97 +626,84 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   let skippedUnsafe = 0;
   const total = files.length;
 
-  for (const rel of files) {
+  // Helper для додавання slot'а у map (thread-safe для main process бо single-threaded JS).
+  function addSlot(rel, slot) {
+    const key = slot.english;
+    let entry = map.get(key);
+    if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
+    entry.count++;
+    entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+  }
+
+  // Обробка ОДНОГО файлу. Повертає Promise. Виконується паралельно з іншими
+  // через Promise.all batch.
+  async function processOne(rel) {
     const engPath = path.join(engDir, rel);
     const rusPath = path.join(rusDir, rel);
     if (!fsSync.existsSync(engPath) || !fsSync.existsSync(rusPath)) {
       skipped++;
-      processed++;
-      sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: true });
-      continue;
+      return { rel, status: 'missing' };
     }
-
     const ext = path.extname(rel).toLowerCase();
     const cls = classifyFile(engPath, ext);
-
-    // Safe mode: пропускати файли без розпізнаної структури (.evdl/байткод/інше)
     if (safeMode && !cls.isTranslatable) {
       skippedUnsafe++;
-      processed++;
-      sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: 'unsafe' });
-      continue;
+      return { rel, status: 'unsafe' };
     }
-
     try {
-      // Спецбранч для .ev/.evdl
       if (cls.kind === 'ev') {
         const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
         const parsed = parseEv(evBuf, codecLocal);
         for (const slot of parsed.slots) {
-          if (!slot.translatable) continue;  // skip {eol}-padding noise
-          const key = slot.english;
-          let entry = map.get(key);
-          if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
-          entry.count++;
-          entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+          if (!slot.translatable) continue;
+          addSlot(rel, slot);
         }
-        processed++;
-        sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // Спецбранч для *_mes_ofs.bin (паре mes-ofs+mes-data)
       if (cls.kind === 'mesofs') {
         const codecLocal = require('./shared/codec');
         const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
         if (!dataPath || !fsSync.existsSync(dataPath)) {
           skipped++;
-          processed++;
-          sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: 'no-pair' });
-          continue;
+          return { rel, status: 'no-pair' };
         }
         const ofsBuf = await fs.readFile(engPath);
         const dataBuf = await fs.readFile(dataPath);
         const parsed = parseMesOfs(ofsBuf, dataBuf, codecLocal);
-        // Колапс по унікальним offset'ам (як у extract handler) — щоб глосарій
-        // не містив 5× одного й того ж рядка для лінкованих pointer'ів.
         const seen = new Set();
         for (const slot of parsed.slots) {
           if (seen.has(slot.offset)) continue;
           seen.add(slot.offset);
-          const key = slot.english;
-          let entry = map.get(key);
-          if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
-          entry.count++;
-          entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+          addSlot(rel, slot);
         }
-        processed++;
-        sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // Звичайний шлях через worker (binl/rawbin)
+      // Worker-шлях для binl/rawbin (use multi-worker pool — паралельно).
       const eng = await fs.readFile(engPath);
       const rus = await fs.readFile(rusPath);
       const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
       const rusAb = rus.buffer.slice(rus.byteOffset, rus.byteOffset + rus.byteLength);
       const fileOpts = Object.assign({}, cls.extractOpts || {}, opts);
-      const r = await runWorker(
-        { op: 'extract', eng: engAb, rus: rusAb, opts: fileOpts },
-        [engAb, rusAb]
-      );
-      for (const slot of r.slots) {
-        const key = slot.english;
-        let entry = map.get(key);
-        if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
-        entry.count++;
-        entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
-      }
-    } catch (_) {
+      const r = await runWorker({ op: 'extract', eng: engAb, rus: rusAb, opts: fileOpts }, [engAb, rusAb]);
+      for (const slot of r.slots) addSlot(rel, slot);
+      return { rel, status: 'ok' };
+    } catch (e) {
       skipped++;
+      return { rel, status: 'error', error: e && e.message };
     }
+  }
 
-    processed++;
-    sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
+  // Паралельна обробка пакетами по POOL_SIZE * 2 (overlap I/O і CPU).
+  const BATCH = POOL_SIZE * 2;
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(processOne));
+    for (const r of results) {
+      processed++;
+      sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: r.rel,
+        skipped: r.status !== 'ok' ? r.status : undefined });
+    }
   }
 
   // serialize: array of { english, count, files: number, occurrences? }
@@ -776,35 +784,30 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
   const errors = [];
   const total = files.length;
 
-  for (const rel of files) {
+  // Helper: обробка одного файлу (повертає Promise — для batch-паралелізації).
+  async function processOne(rel) {
     const engPath = path.join(engDir, rel);
     const rusPath = path.join(rusDir, rel);
     const outPath = path.join(outDir, rel);
 
     if (!fsSync.existsSync(engPath) || !fsSync.existsSync(rusPath)) {
-      processed++;
-      sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: true });
-      continue;
+      return { rel, status: 'missing' };
     }
 
     const ext = path.extname(rel).toLowerCase();
     const cls = classifyFile(engPath, ext);
 
-    // Safe mode: не чіпати .evdl/байткод/інше
     if (safeMode && !cls.isTranslatable) {
       skippedUnsafe++;
-      processed++;
-      sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'unsafe' });
-      continue;
+      return { rel, status: 'unsafe' };
     }
 
     try {
-      // ===== Спецгілка для .ev/.evdl: парсимо локально, не через worker =====
+      // ===== Спецгілка для .ev/.evdl =====
       if (cls.kind === 'ev') {
         const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
         const parsed = parseEv(evBuf, codecLocal);
-        // optional per-file overrides from TSV
         let perFileMap = null;
         if (tsvDir) {
           const tsvPath = path.join(tsvDir, rel) + '.tsv';
@@ -831,28 +834,22 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         });
         if (appliedCount === 0) {
           skippedNoTranslations++;
-          processed++;
-          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
-          continue;
+          return { rel, status: 'no-translations' };
         }
         const composed = composeEv(evBuf, slotsForCompose, codecLocal);
         await fs.mkdir(path.dirname(outPath), { recursive: true });
         await fs.writeFile(outPath, composed.buf);
         written++;
         totalReplacements += appliedCount;
-        processed++;
-        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // ===== Спецгілка для *_mes_ofs.bin (паре mes-ofs+mes-data) =====
+      // ===== Спецгілка для *_mes_ofs.bin =====
       if (cls.kind === 'mesofs') {
         const codecLocal = require('./shared/codec');
         const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
         if (!dataPath || !fsSync.existsSync(dataPath)) {
           errors.push({ rel, error: 'mesofs: pair _mes_data.bin not found' });
-          processed++;
-          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-pair' });
-          continue;
+          return { rel, status: 'no-pair' };
         }
         const ofsBuf = await fs.readFile(engPath);
         const dataBuf = await fs.readFile(dataPath);
@@ -883,9 +880,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         });
         if (appliedCount === 0) {
           skippedNoTranslations++;
-          processed++;
-          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
-          continue;
+          return { rel, status: 'no-translations' };
         }
         const composed = composeMesOfs(slotsForCompose, {
           ofsLength: ofsBuf.length,
@@ -898,23 +893,18 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         await fs.writeFile(outDataPath, composed.dataBuf);
         written++;
         totalReplacements += appliedCount;
-        processed++;
-        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // ===== Звичайний шлях через worker =====
+      // ===== Звичайний шлях через worker pool (паралельно з іншими файлами) =====
       const eng = await fs.readFile(engPath);
       const rus = await fs.readFile(rusPath);
       const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
       const rusAb = rus.buffer.slice(rus.byteOffset, rus.byteOffset + rus.byteLength);
-
       const fileOpts = Object.assign({}, cls.extractOpts || {}, opts);
       const extResult = await runWorker(
         { op: 'extract', eng: engAb, rus: rusAb, opts: fileOpts },
         [engAb, rusAb]
       );
-
-      // optional per-file overrides from TSV
       let perFileMap = null;
       if (tsvDir) {
         const tsvPath = path.join(tsvDir, rel) + '.tsv';
@@ -925,7 +915,6 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           } catch (_) {}
         }
       }
-
       const replacements = [];
       for (const slot of extResult.slots) {
         let uk = '';
@@ -938,35 +927,40 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           replacements.push({ offset: slot.offset, oldLen: slot.byteLen, ukText: uk });
         }
       }
-
       if (replacements.length === 0) {
         skippedNoTranslations++;
-        processed++;
-        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
-        continue;
+        return { rel, status: 'no-translations' };
       }
-
       const eng2 = await fs.readFile(engPath);
       const eng2Ab = eng2.buffer.slice(eng2.byteOffset, eng2.byteOffset + eng2.byteLength);
       const cmp = await runWorker(
         { op: 'compose', eng: eng2Ab, replacements },
         [eng2Ab]
       );
-
       await fs.mkdir(path.dirname(outPath), { recursive: true });
       await fs.writeFile(outPath, Buffer.from(cmp.bytes));
-
       written++;
       totalReplacements += cmp.applied || 0;
       if (cmp.errors && cmp.errors.length) {
         errors.push({ rel, count: cmp.errors.length, samples: cmp.errors.slice(0, 3) });
       }
+      return { rel, status: 'ok' };
     } catch (e) {
       errors.push({ rel, error: (e && e.message) || String(e) });
+      return { rel, status: 'error' };
     }
+  }
 
-    processed++;
-    sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
+  // Паралельна обробка пакетами (POOL_SIZE * 2 для overlap I/O і CPU).
+  const BATCH = POOL_SIZE * 2;
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(processOne));
+    for (const r of results) {
+      processed++;
+      sendProgress({ phase: 'compose-all', done: processed, total, currentFile: r.rel,
+        skipped: r.status !== 'ok' ? r.status : undefined });
+    }
   }
 
   return {
@@ -1688,8 +1682,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  if (workerInstance) {
-    try { workerInstance.terminate(); } catch (_) {}
-    workerInstance = null;
+  // Завершити всіх workers у pool'і
+  for (const slot of workerPool) {
+    if (slot && slot.worker) {
+      try { slot.worker.terminate(); } catch (_) {}
+    }
   }
+  workerPool.length = 0;
 });
