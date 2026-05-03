@@ -44,51 +44,72 @@ const MENU_DICT = {
 };
 function ml(key) { return (MENU_DICT[appLang] && MENU_DICT[appLang][key]) || MENU_DICT.uk[key] || key; }
 
-let workerInstance = null;
+// =====================================================================
+// Worker pool — паралельне виконання codec-worker задач.
+// Замість одного worker'а тримаємо POOL_SIZE workers і розподіляємо задачі
+// round-robin. Кожен worker має своє pending-map. Це дозволяє buildGlossary
+// та composeAll обробляти 4-8 файлів одночасно (CPU cores), що зменшує
+// загальний час у кілька разів.
+// =====================================================================
+const POOL_SIZE = Math.max(2, Math.min(8, require('os').cpus().length));
 let workerSeq = 0;
-const workerPending = new Map();
+const workerPool = [];   // [{ worker, pending: Map<id, {resolve, reject}> }]
+let workerRR = 0;        // round-robin counter
 
-function rejectAllPending(reason) {
+function rejectWorkerPending(slot, reason) {
   const err = reason instanceof Error ? reason : new Error(String(reason));
-  for (const { reject } of workerPending.values()) reject(err);
-  workerPending.clear();
+  for (const { reject } of slot.pending.values()) reject(err);
+  slot.pending.clear();
 }
 
-function getWorker() {
-  if (workerInstance) return workerInstance;
-
-  workerInstance = new Worker(path.join(__dirname, 'workers', 'codec-worker.js'));
-
-  workerInstance.on('message', (msg) => {
+function makeWorkerSlot() {
+  const w = new Worker(path.join(__dirname, 'workers', 'codec-worker.js'));
+  const slot = { worker: w, pending: new Map() };
+  w.on('message', (msg) => {
     const id = msg && msg.id;
-    const pending = workerPending.get(id);
-    if (!pending) return;
-    workerPending.delete(id);
-    if (msg.ok) pending.resolve(msg);
-    else pending.reject(new Error(msg.error || 'Помилка обробника'));
+    const p = slot.pending.get(id);
+    if (!p) return;
+    slot.pending.delete(id);
+    if (msg.ok) p.resolve(msg);
+    else p.reject(new Error(msg.error || 'Помилка обробника'));
   });
-
-  workerInstance.on('error', (err) => {
-    rejectAllPending(err);
-    workerInstance = null;
+  w.on('error', (err) => {
+    rejectWorkerPending(slot, err);
+    // позначити slot як «мертвий»; перестворимо на наступному виклику
+    slot.dead = true;
   });
-
-  workerInstance.on('exit', () => {
-    rejectAllPending('Обробник завершив роботу');
-    workerInstance = null;
+  w.on('exit', () => {
+    rejectWorkerPending(slot, 'Обробник завершив роботу');
+    slot.dead = true;
   });
+  return slot;
+}
 
-  return workerInstance;
+function getWorkerSlot() {
+  // Лінива ініціалізація pool'а на перший виклик.
+  if (workerPool.length === 0) {
+    for (let i = 0; i < POOL_SIZE; i++) workerPool.push(makeWorkerSlot());
+  }
+  // Перебудуй якщо якийсь slot помер.
+  for (let i = 0; i < workerPool.length; i++) {
+    if (workerPool[i].dead) workerPool[i] = makeWorkerSlot();
+  }
+  // Стратегія: round-robin серед slot'ів. Простіше за least-loaded і
+  // на практиці добре розподіляє рівномірне навантаження (всі задачі ~однакові).
+  const slot = workerPool[workerRR % workerPool.length];
+  workerRR++;
+  return slot;
 }
 
 function runWorker(payload, transferList) {
   return new Promise((resolve, reject) => {
     const id = ++workerSeq;
-    workerPending.set(id, { resolve, reject });
+    const slot = getWorkerSlot();
+    slot.pending.set(id, { resolve, reject });
     try {
-      getWorker().postMessage(Object.assign({ id }, payload), transferList || []);
+      slot.worker.postMessage(Object.assign({ id }, payload), transferList || []);
     } catch (e) {
-      workerPending.delete(id);
+      slot.pending.delete(id);
       reject(e);
     }
   });
@@ -179,19 +200,121 @@ ipcMain.handle('file:save', async (_event, payload) => {
 
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'translate-settings.json');
 
-function loadSettings() {
-  try {
-    return JSON.parse(fsSync.readFileSync(SETTINGS_PATH, 'utf8'));
-  } catch (_) {
-    return { engDir: '', rusDir: '', outDir: '', tsvDir: '' };
+// Дир-ключі специфічні для гри (різні теки для KH1 та BBS).
+const GAME_DIR_KEYS = ['engDir', 'rusDir', 'outDir', 'tsvDir', 'lastFile'];
+
+// === Стандартна структура воркспейса ===
+// При старті створюємо ці теки (якщо не існують) і пропонуємо як defaults
+// у Settings, поки користувач не перевизначить власними шляхами.
+//
+// Базова root-тека: ~/Documents/KH-Localization/   (можна замінити, зберігається у settings.localizationRoot)
+//   KH-Localization/
+//     KH1/
+//       ENG/        — engDir
+//       MYFILES/    — rusDir (історична назва "RUS"; тепер це reference-файли користувача)
+//       PROGRESS/   — tsvDir
+//       DONE/       — outDir (готові перекладені файли)
+//     BBS/
+//       ENG/        — engDir
+//       PROGRESS/   — tsvDir
+//       DONE/       — outDir
+const DEFAULT_LOC_ROOT = path.join(app.getPath('documents'), 'KH-Localization');
+const GAME_DIR_LAYOUT = {
+  'kh1-final-mix': {
+    base: 'KH1',
+    dirs: { engDir: 'ENG', rusDir: 'MYFILES', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  },
+  'kh-bbs-final-mix': {
+    base: 'BBS',
+    dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  }
+};
+
+function ensureLocalizationDirs(root) {
+  for (const info of Object.values(GAME_DIR_LAYOUT)) {
+    for (const sub of Object.values(info.dirs)) {
+      const p = path.join(root, info.base, sub);
+      try { fsSync.mkdirSync(p, { recursive: true }); } catch (_) {}
+    }
   }
 }
 
-function saveSettings(s) {
+function getDefaultsForGame(gameId, root) {
+  const info = GAME_DIR_LAYOUT[gameId];
+  if (!info) return {};
+  const out = {};
+  for (const [k, sub] of Object.entries(info.dirs)) {
+    out[k] = path.join(root, info.base, sub);
+  }
+  return out;
+}
+
+function loadSettingsRaw() {
+  try {
+    return JSON.parse(fsSync.readFileSync(SETTINGS_PATH, 'utf8'));
+  } catch (_) {
+    return {};
+  }
+}
+
+// Migrate flat schema (старий формат до v2.21) → games.kh1-final-mix.*
+function migrateIfNeeded(raw) {
+  if (raw.games) return raw;
+  const games = {};
+  const flatDirs = {};
+  for (const k of GAME_DIR_KEYS) {
+    if (raw[k]) flatDirs[k] = raw[k];
+  }
+  if (Object.keys(flatDirs).length) {
+    games['kh1-final-mix'] = flatDirs;
+  }
+  // Усе інше (language/theme/lastKnjPath/lastDdsPath) лишається як global.
+  const out = Object.assign({}, raw);
+  for (const k of GAME_DIR_KEYS) delete out[k];
+  out.games = games;
+  return out;
+}
+
+// loadSettings(gameId?) — повертає merged:
+//   globals + DEFAULTS-from-layout + persisted-game-scoped (override)
+// Якщо gameId не вказано, повертає лише global keys (без dirs).
+function loadSettings(gameId) {
+  const raw = migrateIfNeeded(loadSettingsRaw());
+  const globals = Object.assign({}, raw);
+  delete globals.games;
+  const root = raw.localizationRoot || DEFAULT_LOC_ROOT;
+  if (!gameId) {
+    const kh1 = (raw.games && raw.games['kh1-final-mix']) || {};
+    const defaults = getDefaultsForGame('kh1-final-mix', root);
+    return Object.assign(globals, defaults, kh1);
+  }
+  const gameSettings = (raw.games && raw.games[gameId]) || {};
+  const defaults = getDefaultsForGame(gameId, root);
+  // defaults перекриваються тим, що користувач сам вибрав
+  return Object.assign(globals, defaults, gameSettings);
+}
+
+// saveSettings(partial, gameId?) — мерджить partial у відповідне місце.
+// Поля з GAME_DIR_KEYS → games[gameId]. Усе інше → top level.
+function saveSettings(partial, gameId) {
+  const raw = migrateIfNeeded(loadSettingsRaw());
+  const out = Object.assign({}, raw);
+  out.games = Object.assign({}, raw.games || {});
+
+  for (const [k, v] of Object.entries(partial || {})) {
+    if (GAME_DIR_KEYS.includes(k)) {
+      const gid = gameId || 'kh1-final-mix';
+      out.games[gid] = Object.assign({}, out.games[gid] || {}, { [k]: v });
+    } else {
+      out[k] = v;
+    }
+  }
+
   try {
     fsSync.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fsSync.writeFileSync(SETTINGS_PATH, JSON.stringify(s, null, 2), 'utf8');
+    fsSync.writeFileSync(SETTINGS_PATH, JSON.stringify(out, null, 2), 'utf8');
   } catch (_) {}
+  return loadSettings(gameId);
 }
 
 // .binl магічна сигнатура: ASCII "EvMsg" перші 5 байт
@@ -201,6 +324,9 @@ const ARD_MAGIC = Buffer.from([0x4B, 0x47, 0x52, 0x00]);
 
 const { parsePair: parseMesOfs, composePair: composeMesOfs, isMesOfsName, pairedDataName } = require('./tools/lib/mes-ofs');
 const { parseEv, composeEv, isEvName } = require('./tools/lib/ev-format');
+const { parseCtd, composeCtd, MAGIC: CTD_MAGIC } = require('./tools/lib/ctd-format');
+const ctdCodec = require('./tools/lib/ctd-codec');
+const bbsFont = require('./tools/lib/bbs-font');
 
 // Класифікація:
 //  - 'binl'    — структурований .binl з EvMsg-заголовком (header=11, footer=5)
@@ -235,11 +361,17 @@ function classifyFile(absPath, ext) {
   if (isEvName(baseName)) {
     return { kind: 'ev', magic: 'ev_evdl', extractOpts: null, isTranslatable: true };
   }
+  // .ctd — Birth By Sleep dialogue/menu container з message-table + text-блоком.
+  // Magic '@CTD' (0x44544340 LE) перевіряємо нижче в byte-sniffing блоці,
+  // але швидку перевірку за розширенням робимо перед відкриттям файлу.
   try {
     const fd = fsSync.openSync(absPath, 'r');
     const buf = Buffer.alloc(256);
     const n = fsSync.readSync(fd, buf, 0, 256, 0);
     fsSync.closeSync(fd);
+    if (n >= 4 && buf.readUInt32LE(0) === CTD_MAGIC) {
+      return { kind: 'ctd', magic: '@CTD', extractOpts: null, isTranslatable: true };
+    }
     if (n >= 5) {
       magic = buf.subarray(0, 5).toString('ascii');
       const head4 = buf.subarray(0, 4);
@@ -302,6 +434,7 @@ function walkDirSync(root) {
           rel: rel.split(path.sep).join('/'),
           size,
           ext,
+          kind: cls.kind,
           magic: cls.magic,
           isTranslatable: cls.isTranslatable
         });
@@ -312,12 +445,15 @@ function walkDirSync(root) {
   return out;
 }
 
-ipcMain.handle('translate:getSettings', () => loadSettings());
+// translate:getSettings(gameId?) — повертає merged settings (global + game-scoped).
+// Якщо gameId не передано — KH1 як legacy fallback.
+ipcMain.handle('translate:getSettings', (_e, gameId) => loadSettings(gameId || null));
 
-ipcMain.handle('translate:saveSettings', (_e, s) => {
-  const merged = Object.assign(loadSettings(), s || {});
-  saveSettings(merged);
-  return merged;
+// translate:saveSettings(partial, gameId?) — partial мерджиться. Поля dirs (engDir
+// /rusDir/etc) йдуть у games[gameId]; глобальні (theme/language/etc) — на верх.
+ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => {
+  // Backward compat: якщо payload — це повний об'єкт settings, поведінка та сама.
+  return saveSettings(payload || {}, gameId || null);
 });
 
 ipcMain.handle('translate:pickDirectory', async (_e, title) => {
@@ -346,6 +482,38 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
     // Спеціальна гілка: парний формат *_mes_ofs.bin + *_mes_data.bin.
     const ext = path.extname(engPath).toLowerCase();
     const cls = classifyFile(engPath, ext);
+    if (cls.kind === 'ctd') {
+      // BBS dialogue/menu container — кожне message → translatable slot.
+      // offset = message id (unique 32-bit per file), щоб compose міг знайти
+      // правильний слот за payload.replacements[i].offset.
+      const buf = await fs.readFile(engPath);
+      const parsed = parseCtd(buf);
+      const uiSlots = parsed.messages.map((m, i) => ({
+        index: i,
+        offset: m.id,                  // id як ключ (unique per file)
+        absOffset: m.textOffset,
+        byteLen: m._origByteLen,
+        // english показуємо у канонічній OpenKh-формі (без 2-х байтів
+        // F1/F2/F5 unknowns) — щоб UI співпадав з тим що бачать у OpenKh
+        // CTD Editor і з ключами імпортованого глосарія.
+        english: ctdCodec.glossaryKey(m.text),
+        // зберігаємо повний текст для відновлення 2-х байтів при compose
+        _fullText: m.text,
+        ukText: ''
+      }));
+      return {
+        slots: uiSlots,
+        stats: {
+          ctd: true,
+          fileId: parsed.header.fileId,
+          messageCount: parsed.messages.length,
+          layoutCount: parsed.layouts.count,
+          fileSize: buf.length
+        },
+        engSize: buf.length,
+        rusSize: 0
+      };
+    }
     if (cls.kind === 'ev') {
       const codec = require('./shared/codec');
       const ofsBuf = await fs.readFile(engPath);
@@ -450,6 +618,42 @@ ipcMain.handle('translate:compose', async (_e, payload) => {
     // Спеціальна гілка: mesofs парне записування ofs+data.
     const ext = path.extname(engPath).toLowerCase();
     const cls = classifyFile(engPath, ext);
+    if (cls.kind === 'ctd') {
+      // CTD compose — застосовуємо UK-переклади до message.text за id.
+      // Все інше (header, layouts, message-table структура) лишається
+      // ідентичним; composeCtd сам перерахує textOffsets під нові довжини.
+      const buf = await fs.readFile(engPath);
+      const parsed = parseCtd(buf);
+      const ukById = new Map();
+      for (const r of replacements) {
+        if (r && typeof r.offset === 'number' && r.ukText && r.ukText.length) {
+          ukById.set(r.offset, r.ukText);
+        }
+      }
+      let applied = 0;
+      for (const m of parsed.messages) {
+        if (ukById.has(m.id)) {
+          // Restore 2-х байтів F1/F2/F5 у UK-перекладі (UI зберігає uk у
+          // canonical-form, бо english теж так показується).
+          let uk = ukById.get(m.id);
+          uk = ctdCodec.restore2ndBytes(uk, m.text);
+          m.text = uk;
+          applied++;
+        }
+      }
+      const composed = composeCtd(parsed);
+      await fs.mkdir(path.dirname(outPath), { recursive: true });
+      await fs.writeFile(outPath, composed);
+      return {
+        ok: true,
+        outPath,
+        byteLength: composed.length,
+        applied,
+        skipped: parsed.messages.length - applied,
+        errors: [],
+        ctd: { messageCount: parsed.messages.length, sizeDiff: composed.length - buf.length }
+      };
+    }
     if (cls.kind === 'ev') {
       const codec = require('./shared/codec');
       const evBuf = await fs.readFile(engPath);
@@ -593,11 +797,12 @@ ipcMain.handle('translate:saveGlossary', (_e, payload) => {
 
 ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   const engDir = payload && payload.engDir;
-  const rusDir = payload && payload.rusDir;
+  // rusDir є опціональною — KH1 має і engDir, і rusDir; BBS лише engDir.
+  const rusDir = (payload && payload.rusDir) || engDir;
   const files = (payload && payload.files) || [];
   const opts = (payload && payload.opts) || {};
   const safeMode = payload && payload.safeMode !== false;
-  if (!engDir || !rusDir || !files.length) return { error: 'Не задано теки/файли' };
+  if (!engDir || !files.length) return { error: 'Не задано теки/файли' };
 
   const map = new Map();
   let processed = 0;
@@ -605,97 +810,100 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   let skippedUnsafe = 0;
   const total = files.length;
 
-  for (const rel of files) {
+  // Helper для додавання slot'а у map (thread-safe для main process бо single-threaded JS).
+  function addSlot(rel, slot) {
+    const key = slot.english;
+    let entry = map.get(key);
+    if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
+    entry.count++;
+    entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+  }
+
+  // Обробка ОДНОГО файлу. Повертає Promise. Виконується паралельно з іншими
+  // через Promise.all batch.
+  async function processOne(rel) {
     const engPath = path.join(engDir, rel);
     const rusPath = path.join(rusDir, rel);
     if (!fsSync.existsSync(engPath) || !fsSync.existsSync(rusPath)) {
       skipped++;
-      processed++;
-      sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: true });
-      continue;
+      return { rel, status: 'missing' };
     }
-
     const ext = path.extname(rel).toLowerCase();
     const cls = classifyFile(engPath, ext);
-
-    // Safe mode: пропускати файли без розпізнаної структури (.evdl/байткод/інше)
     if (safeMode && !cls.isTranslatable) {
       skippedUnsafe++;
-      processed++;
-      sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: 'unsafe' });
-      continue;
+      return { rel, status: 'unsafe' };
     }
-
     try {
-      // Спецбранч для .ev/.evdl
+      if (cls.kind === 'ctd') {
+        const buf = await fs.readFile(engPath);
+        const parsed = parseCtd(buf);
+        for (let i = 0; i < parsed.messages.length; i++) {
+          const m = parsed.messages[i];
+          // Зберігаємо ключ у канонічній формі (drop 2-х байтів F1/F2/F5
+          // unknowns) щоб збігся з OpenKh-style HTML-glossary при імпорті.
+          addSlot(rel, {
+            offset: m.id,
+            byteLen: m._origByteLen,
+            index: i,
+            english: ctdCodec.glossaryKey(m.text)
+          });
+        }
+        return { rel, status: 'ok' };
+      }
       if (cls.kind === 'ev') {
         const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
         const parsed = parseEv(evBuf, codecLocal);
         for (const slot of parsed.slots) {
-          if (!slot.translatable) continue;  // skip {eol}-padding noise
-          const key = slot.english;
-          let entry = map.get(key);
-          if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
-          entry.count++;
-          entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+          if (!slot.translatable) continue;
+          addSlot(rel, slot);
         }
-        processed++;
-        sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // Спецбранч для *_mes_ofs.bin (паре mes-ofs+mes-data)
       if (cls.kind === 'mesofs') {
         const codecLocal = require('./shared/codec');
         const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
         if (!dataPath || !fsSync.existsSync(dataPath)) {
           skipped++;
-          processed++;
-          sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel, skipped: 'no-pair' });
-          continue;
+          return { rel, status: 'no-pair' };
         }
         const ofsBuf = await fs.readFile(engPath);
         const dataBuf = await fs.readFile(dataPath);
         const parsed = parseMesOfs(ofsBuf, dataBuf, codecLocal);
-        // Колапс по унікальним offset'ам (як у extract handler) — щоб глосарій
-        // не містив 5× одного й того ж рядка для лінкованих pointer'ів.
         const seen = new Set();
         for (const slot of parsed.slots) {
           if (seen.has(slot.offset)) continue;
           seen.add(slot.offset);
-          const key = slot.english;
-          let entry = map.get(key);
-          if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
-          entry.count++;
-          entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
+          addSlot(rel, slot);
         }
-        processed++;
-        sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // Звичайний шлях через worker (binl/rawbin)
+      // Worker-шлях для binl/rawbin (use multi-worker pool — паралельно).
       const eng = await fs.readFile(engPath);
       const rus = await fs.readFile(rusPath);
       const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
       const rusAb = rus.buffer.slice(rus.byteOffset, rus.byteOffset + rus.byteLength);
       const fileOpts = Object.assign({}, cls.extractOpts || {}, opts);
-      const r = await runWorker(
-        { op: 'extract', eng: engAb, rus: rusAb, opts: fileOpts },
-        [engAb, rusAb]
-      );
-      for (const slot of r.slots) {
-        const key = slot.english;
-        let entry = map.get(key);
-        if (!entry) { entry = { count: 0, occurrences: [] }; map.set(key, entry); }
-        entry.count++;
-        entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
-      }
-    } catch (_) {
+      const r = await runWorker({ op: 'extract', eng: engAb, rus: rusAb, opts: fileOpts }, [engAb, rusAb]);
+      for (const slot of r.slots) addSlot(rel, slot);
+      return { rel, status: 'ok' };
+    } catch (e) {
       skipped++;
+      return { rel, status: 'error', error: e && e.message };
     }
+  }
 
-    processed++;
-    sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: rel });
+  // Паралельна обробка пакетами по POOL_SIZE * 2 (overlap I/O і CPU).
+  const BATCH = POOL_SIZE * 2;
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(processOne));
+    for (const r of results) {
+      processed++;
+      sendProgress({ phase: 'glossary-build', done: processed, total, currentFile: r.rel,
+        skipped: r.status !== 'ok' ? r.status : undefined });
+    }
   }
 
   // serialize: array of { english, count, files: number, occurrences? }
@@ -715,7 +923,7 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   return { ok: true, entries, processed, skipped, skippedUnsafe, total };
 });
 
-ipcMain.handle('translate:importTranslations', async () => {
+ipcMain.handle('translate:importTranslations', async (_e, opts) => {
   const r = await dialog.showOpenDialog(mainWindow, {
     title: 'Виберіть один або кілька файлів з готовими перекладами',
     properties: ['openFile', 'multiSelections'],
@@ -728,12 +936,13 @@ ipcMain.handle('translate:importTranslations', async () => {
   });
   if (r.canceled || !r.filePaths.length) return { canceled: true };
 
+  const importOpts = opts || {};
   const allPairs = [];
   const sources = [];
   const errors = [];
   for (const fp of r.filePaths) {
     try {
-      const result = importTranslationsFile(fp);
+      const result = importTranslationsFile(fp, importOpts);
       sources.push({
         path: fp,
         format: result.format,
@@ -756,7 +965,9 @@ ipcMain.handle('translate:importTranslations', async () => {
 
 ipcMain.handle('translate:composeAll', async (_e, payload) => {
   const engDir = payload && payload.engDir;
-  const rusDir = payload && payload.rusDir;
+  // rusDir опціональний (BBS не має). Якщо не задано — fallback на engDir,
+  // бо нижче по коду для деяких операцій (rel-walk) використовується rusDir.
+  const rusDir = (payload && payload.rusDir) || engDir;
   const outDir = payload && payload.outDir;
   const tsvDir = payload && payload.tsvDir; // optional, для per-file overrides
   const files = (payload && payload.files) || [];
@@ -764,7 +975,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
   const opts = (payload && payload.opts) || {};
   const safeMode = payload && payload.safeMode !== false;
 
-  if (!engDir || !rusDir || !outDir || !files.length) {
+  if (!engDir || !outDir || !files.length) {
     return { error: 'Не задано теки/файли' };
   }
 
@@ -776,35 +987,74 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
   const errors = [];
   const total = files.length;
 
-  for (const rel of files) {
+  // Helper: обробка одного файлу (повертає Promise — для batch-паралелізації).
+  async function processOne(rel) {
     const engPath = path.join(engDir, rel);
     const rusPath = path.join(rusDir, rel);
     const outPath = path.join(outDir, rel);
 
     if (!fsSync.existsSync(engPath) || !fsSync.existsSync(rusPath)) {
-      processed++;
-      sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: true });
-      continue;
+      return { rel, status: 'missing' };
     }
 
     const ext = path.extname(rel).toLowerCase();
     const cls = classifyFile(engPath, ext);
 
-    // Safe mode: не чіпати .evdl/байткод/інше
     if (safeMode && !cls.isTranslatable) {
       skippedUnsafe++;
-      processed++;
-      sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'unsafe' });
-      continue;
+      return { rel, status: 'unsafe' };
     }
 
     try {
-      // ===== Спецгілка для .ev/.evdl: парсимо локально, не через worker =====
+      // ===== Спецгілка для .ctd (BBS) =====
+      if (cls.kind === 'ctd') {
+        const buf = await fs.readFile(engPath);
+        const parsed = parseCtd(buf);
+        let perFileMap = null;
+        if (tsvDir) {
+          const tsvPath = path.join(tsvDir, rel) + '.tsv';
+          if (fsSync.existsSync(tsvPath)) {
+            try {
+              const txt = await fs.readFile(tsvPath, 'utf8');
+              perFileMap = parseTsvOverrides(txt);
+            } catch (_) {}
+          }
+        }
+        let appliedCount = 0;
+        for (const m of parsed.messages) {
+          let uk = '';
+          if (perFileMap && perFileMap.has(m.id)) uk = perFileMap.get(m.id);
+          if (!uk) {
+            // Glossary lookup по канонічному ключу (drop 2-byte F1/F2/F5 params).
+            const key = ctdCodec.glossaryKey(m.text);
+            if (Object.prototype.hasOwnProperty.call(glossary, key)) {
+              uk = glossary[key];
+              // Відновити втрачені 2-і байти F1/F2/F5 у UK-перекладі,
+              // використовуючи оригінальний EN-текст як reference (порядок збережено).
+              uk = ctdCodec.restore2ndBytes(uk, m.text);
+            }
+          }
+          if (uk && uk.trim() && uk !== m.text) {
+            m.text = uk;
+            appliedCount++;
+          }
+        }
+        if (appliedCount === 0) {
+          skippedNoTranslations++;
+          return { rel, status: 'no-translations' };
+        }
+        const composed = composeCtd(parsed);
+        await fs.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.writeFile(outPath, composed);
+        written++;
+        totalReplacements += appliedCount;
+        return { rel, status: 'ok' };
+      }
+      // ===== Спецгілка для .ev/.evdl =====
       if (cls.kind === 'ev') {
         const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
         const parsed = parseEv(evBuf, codecLocal);
-        // optional per-file overrides from TSV
         let perFileMap = null;
         if (tsvDir) {
           const tsvPath = path.join(tsvDir, rel) + '.tsv';
@@ -831,28 +1081,22 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         });
         if (appliedCount === 0) {
           skippedNoTranslations++;
-          processed++;
-          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
-          continue;
+          return { rel, status: 'no-translations' };
         }
         const composed = composeEv(evBuf, slotsForCompose, codecLocal);
         await fs.mkdir(path.dirname(outPath), { recursive: true });
         await fs.writeFile(outPath, composed.buf);
         written++;
         totalReplacements += appliedCount;
-        processed++;
-        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // ===== Спецгілка для *_mes_ofs.bin (паре mes-ofs+mes-data) =====
+      // ===== Спецгілка для *_mes_ofs.bin =====
       if (cls.kind === 'mesofs') {
         const codecLocal = require('./shared/codec');
         const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
         if (!dataPath || !fsSync.existsSync(dataPath)) {
           errors.push({ rel, error: 'mesofs: pair _mes_data.bin not found' });
-          processed++;
-          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-pair' });
-          continue;
+          return { rel, status: 'no-pair' };
         }
         const ofsBuf = await fs.readFile(engPath);
         const dataBuf = await fs.readFile(dataPath);
@@ -883,9 +1127,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         });
         if (appliedCount === 0) {
           skippedNoTranslations++;
-          processed++;
-          sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
-          continue;
+          return { rel, status: 'no-translations' };
         }
         const composed = composeMesOfs(slotsForCompose, {
           ofsLength: ofsBuf.length,
@@ -898,23 +1140,18 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         await fs.writeFile(outDataPath, composed.dataBuf);
         written++;
         totalReplacements += appliedCount;
-        processed++;
-        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
-        continue;
+        return { rel, status: 'ok' };
       }
-      // ===== Звичайний шлях через worker =====
+      // ===== Звичайний шлях через worker pool (паралельно з іншими файлами) =====
       const eng = await fs.readFile(engPath);
       const rus = await fs.readFile(rusPath);
       const engAb = eng.buffer.slice(eng.byteOffset, eng.byteOffset + eng.byteLength);
       const rusAb = rus.buffer.slice(rus.byteOffset, rus.byteOffset + rus.byteLength);
-
       const fileOpts = Object.assign({}, cls.extractOpts || {}, opts);
       const extResult = await runWorker(
         { op: 'extract', eng: engAb, rus: rusAb, opts: fileOpts },
         [engAb, rusAb]
       );
-
-      // optional per-file overrides from TSV
       let perFileMap = null;
       if (tsvDir) {
         const tsvPath = path.join(tsvDir, rel) + '.tsv';
@@ -925,7 +1162,6 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           } catch (_) {}
         }
       }
-
       const replacements = [];
       for (const slot of extResult.slots) {
         let uk = '';
@@ -938,35 +1174,40 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           replacements.push({ offset: slot.offset, oldLen: slot.byteLen, ukText: uk });
         }
       }
-
       if (replacements.length === 0) {
         skippedNoTranslations++;
-        processed++;
-        sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel, skipped: 'no-translations' });
-        continue;
+        return { rel, status: 'no-translations' };
       }
-
       const eng2 = await fs.readFile(engPath);
       const eng2Ab = eng2.buffer.slice(eng2.byteOffset, eng2.byteOffset + eng2.byteLength);
       const cmp = await runWorker(
         { op: 'compose', eng: eng2Ab, replacements },
         [eng2Ab]
       );
-
       await fs.mkdir(path.dirname(outPath), { recursive: true });
       await fs.writeFile(outPath, Buffer.from(cmp.bytes));
-
       written++;
       totalReplacements += cmp.applied || 0;
       if (cmp.errors && cmp.errors.length) {
         errors.push({ rel, count: cmp.errors.length, samples: cmp.errors.slice(0, 3) });
       }
+      return { rel, status: 'ok' };
     } catch (e) {
       errors.push({ rel, error: (e && e.message) || String(e) });
+      return { rel, status: 'error' };
     }
+  }
 
-    processed++;
-    sendProgress({ phase: 'compose-all', done: processed, total, currentFile: rel });
+  // Паралельна обробка пакетами (POOL_SIZE * 2 для overlap I/O і CPU).
+  const BATCH = POOL_SIZE * 2;
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(processOne));
+    for (const r of results) {
+      processed++;
+      sendProgress({ phase: 'compose-all', done: processed, total, currentFile: r.rel,
+        skipped: r.status !== 'ok' ? r.status : undefined });
+    }
   }
 
   return {
@@ -1071,6 +1312,93 @@ ipcMain.handle('translate:tsvExists', async (_e, tsvPath) => {
 // =====================================================================
 // Kerning editor: завантаження/збереження .knj + auto-find .dds
 // =====================================================================
+// ===== BBS Font Editor IPC =====
+// Load: користувач вибирає теку розпакованого FontEn.arc → повертаємо
+// список фонтів. Дані самих entries беруться окремим викликом per-font.
+
+ipcMain.handle('bbsfont:pickArcDir', async () => {
+  const r = await dialog.showOpenDialog(mainWindow, {
+    title: 'Вкажіть теку з розпакованим FontEn.arc (мають бути .inf/.cod/.mtx файли)',
+    properties: ['openDirectory']
+  });
+  return r.canceled || !r.filePaths.length ? { canceled: true } : { ok: true, dir: r.filePaths[0] };
+});
+
+ipcMain.handle('bbsfont:pickHdDir', async () => {
+  const r = await dialog.showOpenDialog(mainWindow, {
+    title: 'Вкажіть HD-remastered теку (PNG атласи), або скасуйте',
+    properties: ['openDirectory']
+  });
+  return r.canceled || !r.filePaths.length ? { canceled: true } : { ok: true, dir: r.filePaths[0] };
+});
+
+ipcMain.handle('bbsfont:listFonts', async (_e, dir) => {
+  if (!dir) return { error: 'Не вказано теку' };
+  try {
+    const fonts = bbsFont.discoverFonts(dir);
+    return {
+      ok: true,
+      fonts: fonts.map(f => ({
+        name: f.name,
+        infPath: f.infPath,
+        codPath: f.codPath,
+        mtxPath: f.mtxPath || null,
+        cluPath: f.cluPath || null
+      }))
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.handle('bbsfont:loadFont', async (_e, fontFiles) => {
+  if (!fontFiles || !fontFiles.infPath || !fontFiles.codPath) {
+    return { error: 'Не вказано INF/COD' };
+  }
+  try {
+    const font = bbsFont.loadFont(fontFiles);
+    // PNG (HD) теж зчитуємо якщо є — повертаємо як data:URL для display.
+    let pngDataUrl = null;
+    if (fontFiles.hdPngPath) {
+      try {
+        const buf = fsSync.readFileSync(fontFiles.hdPngPath);
+        pngDataUrl = 'data:image/png;base64,' + buf.toString('base64');
+      } catch (_) {}
+    }
+    return {
+      ok: true,
+      name: font.name,
+      inf: font.inf,
+      entries: font.entries,
+      pngDataUrl
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.handle('bbsfont:saveCod', async (_e, payload) => {
+  if (!payload || !payload.codPath || !Array.isArray(payload.entries)) {
+    return { error: 'Невірні параметри' };
+  }
+  try {
+    const written = bbsFont.saveCod(payload.codPath, payload.entries);
+    return { ok: true, byteLength: written };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.handle('bbsfont:listHdPngs', async (_e, hdDir) => {
+  if (!hdDir) return { ok: true, pngs: [] };
+  try {
+    const files = fsSync.readdirSync(hdDir).filter(f => /\.png$/i.test(f));
+    return { ok: true, pngs: files.map(f => path.join(hdDir, f)) };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
 ipcMain.handle('kerning:openKnj', async () => {
   const settings = loadSettings();
   const r = await dialog.showOpenDialog(mainWindow, {
@@ -1120,9 +1448,23 @@ ipcMain.handle('kerning:openDds', async (_e, suggestedDir) => {
   try {
     const buf = await fs.readFile(r.filePaths[0]);
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    saveSettings(Object.assign(loadSettings(), { lastDdsPath: r.filePaths[0] }));
     return { ok: true, filePath: r.filePaths[0], data: ab };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
+  }
+});
+
+ipcMain.handle('kerning:loadDdsFromPath', async (_e, ddsPath) => {
+  // Безмовне завантаження за збереженим шляхом (для авто-load на старті).
+  if (!ddsPath) return { ok: false };
+  try {
+    if (!fsSync.existsSync(ddsPath)) return { ok: false, error: 'not_found' };
+    const buf = await fs.readFile(ddsPath);
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    return { ok: true, filePath: ddsPath, data: ab };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || String(e) };
   }
 });
 
@@ -1142,6 +1484,7 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
       if (fsSync.existsSync(c)) {
         const buf = await fs.readFile(c);
         const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        saveSettings(Object.assign(loadSettings(), { lastDdsPath: c }));
         return { ok: true, filePath: c, data: ab };
       }
     }
@@ -1153,6 +1496,7 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
         const c = path.join(sub, ddsFiles[0]);
         const buf = await fs.readFile(c);
         const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        saveSettings(Object.assign(loadSettings(), { lastDdsPath: c }));
         return { ok: true, filePath: c, data: ab };
       }
     }
@@ -1654,8 +1998,12 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#050b1f',
-    title: 'Редактор тексту Kingdom Hearts 1',
+    backgroundColor: '#050505',
+    title: 'Kingdom Hearts Ukrainian Localization Hub',
+    icon: path.join(__dirname, 'build', 'icon.ico'),
+    frame: false,                    // Власний title bar (KH-style)
+    titleBarStyle: 'hidden',
+    thickFrame: false,               // прибрати Win11 accent-color border
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1667,13 +2015,44 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  // Відкривати на максимум за замовчуванням (за запитом користувача).
+  mainWindow.maximize();
+
+  // Notify renderer про зміни window state (для max/restore icon swap).
+  const sendWinState = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('win:state', {
+      isMaximized: mainWindow.isMaximized(),
+      isFullScreen: mainWindow.isFullScreen()
+    });
+  };
+  mainWindow.on('maximize', sendWinState);
+  mainWindow.on('unmaximize', sendWinState);
+  mainWindow.on('enter-full-screen', sendWinState);
+  mainWindow.on('leave-full-screen', sendWinState);
   mainWindow.on('closed', () => { mainWindow = null; });
 }
+
+// IPC: window controls для custom title bar.
+ipcMain.handle('win:minimize', () => mainWindow && mainWindow.minimize());
+ipcMain.handle('win:maximize', () => {
+  if (!mainWindow) return false;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+  return mainWindow.isMaximized();
+});
+ipcMain.handle('win:close', () => mainWindow && mainWindow.close());
+ipcMain.handle('win:isMaximized', () => mainWindow && mainWindow.isMaximized());
 
 app.whenReady().then(() => {
   try {
     const s = loadSettings();
     if (s && (s.language === 'en' || s.language === 'uk')) appLang = s.language;
+    // Авто-створення стандартної структури тек локалізації.
+    // Якщо користувач не вказав власний `localizationRoot` у settings —
+    // використовується ~/Documents/KH-Localization/.
+    const root = (s && s.localizationRoot) || DEFAULT_LOC_ROOT;
+    ensureLocalizationDirs(root);
   } catch (_) {}
   buildMenu();
   createWindow();
@@ -1688,8 +2067,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  if (workerInstance) {
-    try { workerInstance.terminate(); } catch (_) {}
-    workerInstance = null;
+  // Завершити всіх workers у pool'і
+  for (const slot of workerPool) {
+    if (slot && slot.worker) {
+      try { slot.worker.terminate(); } catch (_) {}
+    }
   }
+  workerPool.length = 0;
 });

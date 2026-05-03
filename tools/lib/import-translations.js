@@ -74,12 +74,25 @@ function csvRows(content) {
  *   \n → {lf}  (cell-internal newline / <br>)
  *   \r видаляється
  */
-function normalizeCellText(s) {
+function normalizeCellText(s, lineBreakToken) {
   if (!s) return '';
   let t = String(s);
   t = t.replace(/\r/g, '');
-  t = t.replace(/¶/g, '{lf}');
-  t = t.replace(/\n/g, '{lf}');
+  // lineBreakToken !== null означає замінити newline на цей токен.
+  // KH1 використовує '{lf}'; BBS — null (зберігаємо нативний \n у CTD).
+  if (lineBreakToken !== null) {
+    const tok = lineBreakToken || '{lf}';
+    t = t.replace(/¶/g, tok);
+    t = t.replace(/\n/g, tok);
+  } else {
+    // BBS: тільки нормалізація ¶ → \n, бо ¶ це paragraph mark з Word/Sheets.
+    t = t.replace(/¶/g, '\n');
+  }
+  // Нормалізація OpenKh-style escape'ів {:unk XX} → нашого {0xXX},
+  // щоб HTML-glossary (підготовлений через OpenKh CTD Editor) збігався
+  // з ключами, які генерує наш decoder.
+  t = t.replace(/\{:unk\s+([0-9a-fA-F]{1,2})\}/g, (_, hex) =>
+    `{0x${hex.toUpperCase().padStart(2, '0')}}`);
   return t.trim();
 }
 
@@ -87,12 +100,17 @@ function rowsToPairs(rows, opts) {
   const enCol = opts && opts.enCol != null ? opts.enCol : 0;
   const ukCol = opts && opts.ukCol != null ? opts.ukCol : 1;
   const headerRows = opts && opts.headerRows != null ? opts.headerRows : 0;
+  // lineBreakToken: рядок (наприклад '{lf}'), або null (зберегти \n як є).
+  // Default — '{lf}' для KH1-зворотньої сумісності.
+  const lineBreakToken = opts && opts.lineBreakToken !== undefined
+    ? opts.lineBreakToken
+    : '{lf}';
   const pairs = [];
   for (let i = headerRows; i < rows.length; i++) {
     const r = rows[i];
     if (!r) continue;
-    const en = normalizeCellText(r[enCol]);
-    const uk = normalizeCellText(r[ukCol]);
+    const en = normalizeCellText(r[enCol], lineBreakToken);
+    const uk = normalizeCellText(r[ukCol], lineBreakToken);
     if (en && uk) pairs.push({ en, uk });
   }
   return pairs;
@@ -105,13 +123,18 @@ function rowsToPairs(rows, opts) {
  * або взагалі порожня (пусті обрамлюючі рядки експорту).
  */
 function detectHeaderRows(rows, enCol, ukCol) {
-  const headerWords = /^(original|english|source|en|text|джерело|оригінал|текст)\b/i;
+  // \b в JS — ASCII-only, не працює для кирилиці. Використовуємо явний
+  // словник заголовків (case-insensitive, full-cell match).
+  const HEADER_TERMS = new Set([
+    'original', 'english', 'source', 'en', 'text', 'name', 'path', 'file',
+    'джерело', 'оригінал', 'текст', 'переклад', 'назва', 'шлях', 'файл'
+  ]);
   for (let i = 0; i < Math.min(5, rows.length); i++) {
     const r = rows[i];
     if (!r || !r.length) continue;
-    const en = (r[enCol] || '').trim();
+    const en = (r[enCol] || '').trim().toLowerCase();
     if (!en) continue;
-    if (headerWords.test(en)) return i + 1;
+    if (HEADER_TERMS.has(en)) return i + 1;
     return i;
   }
   return 0;
@@ -144,8 +167,11 @@ function importFile(filePath, opts) {
   const headerRows = opts && opts.headerRows != null
     ? opts.headerRows
     : detectHeaderRows(rows, enCol, ukCol);
+  const lineBreakToken = opts && opts.lineBreakToken !== undefined
+    ? opts.lineBreakToken
+    : '{lf}';
 
-  const pairs = rowsToPairs(rows, { enCol, ukCol, headerRows });
+  const pairs = rowsToPairs(rows, { enCol, ukCol, headerRows, lineBreakToken });
   return { pairs, format, totalRows: rows.length, headerRows, enCol, ukCol };
 }
 

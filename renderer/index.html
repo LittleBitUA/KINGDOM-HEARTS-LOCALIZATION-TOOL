@@ -8,25 +8,73 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="title">
-        <div class="kh-pill" aria-label="Kingdom Hearts Editor">
-          <span class="crest" aria-hidden="true">♔</span>
-          <h1>KH1 EDITOR</h1>
-        </div>
+  <!-- Custom title bar (frame: false). KH-style: чорний фон + золотий accent line. -->
+  <header class="kh-titlebar" role="banner">
+    <button id="tb-home" class="kh-titlebar-brand" type="button" aria-label="Home" title="На головну / Home">
+      <span class="kh-titlebar-icon" aria-hidden="true">
+        <svg class="kh-heart-svg" width="20" height="22" viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet">
+          <path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/>
+        </svg>
+      </span>
+      <span class="kh-titlebar-title">KINGDOM HEARTS UKRAINIAN LOCALIZATION HUB</span>
+      <span class="kh-titlebar-subtitle">v2.21.1</span>
+    </button>
+    <div class="kh-titlebar-actions" role="group" aria-label="Window controls">
+      <button id="tb-log" class="kh-tb-btn kh-tb-log" type="button" aria-label="Event log" title="Журнал подій / Event log">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h10"/>
+        </svg>
+        <span id="tb-log-badge" class="kh-tb-badge" hidden></span>
+      </button>
+      <button id="tb-settings" class="kh-tb-btn kh-tb-settings" type="button" aria-label="Settings" title="Налаштування / Settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button id="tb-minimize" class="kh-tb-btn" type="button" aria-label="Minimize" title="Minimize">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button id="tb-maximize" class="kh-tb-btn" type="button" aria-label="Maximize" title="Maximize/Restore">
+        <svg class="kh-tb-icon-max" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.2" rx="0.5"/>
+        </svg>
+      </button>
+      <button id="tb-close" class="kh-tb-btn kh-tb-close" type="button" aria-label="Close" title="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ HOME / GAME SELECTION ============ -->
+  <section id="home-screen" class="home-screen" aria-label="Game selection">
+    <div class="home-bg-decor" aria-hidden="true"></div>
+    <header class="home-hero">
+      <div class="home-heart" aria-hidden="true">
+        <svg viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="72" height="80">
+          <path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/>
+        </svg>
       </div>
+      <h1 class="home-title" data-i18n="homeTitle">KINGDOM HEARTS UKRAINIAN LOCALIZATION HUB</h1>
+      <p class="home-subtitle" data-i18n="homeSubtitle">Виберіть гру серії Kingdom Hearts для локалізації</p>
+    </header>
+    <div class="home-grid" id="home-grid" role="list"></div>
+    <footer class="home-footer">
+      <span data-i18n="homeFooter">Більше ігор серії з’являться у наступних оновленнях</span>
+    </footer>
+  </section>
+
+  <div class="app hidden">
+    <header class="topbar">
       <div class="mode-toggle" role="tablist">
         <button id="mode-editor" class="mode-btn active" type="button" role="tab" data-i18n="modeEditor">Редактор</button>
         <button id="mode-translate" class="mode-btn" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
-      </div>
-      <div class="topbar-right">
-        <select id="lang-select" class="lang-select" aria-label="Language">
-          <option value="uk">🇺🇦 UA</option>
-          <option value="en">🇬🇧 EN</option>
-        </select>
-        <div class="version">v2.19.10 · {Button} = [9,3]</div>
+        <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
       </div>
     </header>
 
@@ -59,7 +107,6 @@
       <footer class="statusbar">
         <span id="cursor-info" data-i18n="cursorInfo">Рядок 1, Стовпець 1</span>
         <span id="byte-info"></span>
-        <span class="brand" data-i18n="brand">Створено GuidingHeart · Перенесено на Electron</span>
       </footer>
     </div>
 
@@ -73,9 +120,9 @@
           <button id="tab-files" class="subtab-btn active" type="button" role="tab" data-i18n="tabFiles">📂 Файли</button>
           <button id="tab-glossary" class="subtab-btn" type="button" role="tab" data-i18n="tabGlossary">📚 Глосарій</button>
         </div>
-        <label class="checkbox compact" data-i18n-title="safeModeTitle" title="Працювати лише з безпечними текстовими файлами: .binl з EvMsg-магією та сирі .bin (як btltbl.bin/UK_Word.bin тощо). .evdl та інші — це байткод/скрипти, переклад їх ламає гру.">
+        <label class="checkbox compact" data-i18n-title="safeModeTitle" title="Показувати лише файли, які перекладач уміє безпечно зчитати й перепакувати: .binl, сирі .bin, .ev/.evdl з текстом та _mes_ofs.bin/_mes_data.bin пари. Інші невпізнані формати приховуються.">
           <input id="t-safe-mode" type="checkbox" checked>
-          <span data-i18n="safeMode">🛡 Безпечно (.binl + .bin)</span>
+          <span data-i18n="safeMode">🛡 Безпечно (підтримувані формати)</span>
         </label>
         <span class="spacer"></span>
         <span id="t-progress" class="t-progress">—</span>
@@ -256,7 +303,7 @@
         <button id="k-load-dds" class="kh-btn" type="button">
           <span class="icon" aria-hidden="true">🖼</span><span data-i18n="ddsLoad">Завантажити .dds</span>
         </button>
-        <input id="k-filter" class="kh-input" type="search" data-i18n-placeholder="glyphFilterPlaceholder" placeholder="🔎 № гліфа (наприклад 0-50, 100, 120)">
+        <input id="k-filter" class="kh-input" type="search" data-i18n-placeholder="glyphFilterPlaceholder" placeholder="🔎 № гліфа або символ (0-50, 100, Q a)">
         <span class="spacer"></span>
         <label class="checkbox compact" data-i18n-title="knjThresholdTitle"
                title="Поріг прозорості: піксель вважається непрозорим якщо alpha ≥ цього значення (1-255). Більше = ігнорує тонкі тіні; менше = більш точно ловить край.">
@@ -301,6 +348,68 @@
         <span id="k-info" class="brand"></span>
       </footer>
     </div>
+
+    <!-- ============ BBS FONT VIEW ============ -->
+    <div id="view-bbs-font" class="view hidden">
+      <section class="toolbar">
+        <button id="bf-pick-arc" class="kh-btn kh-btn-primary" type="button">
+          <span class="icon" aria-hidden="true">📂</span><span data-i18n="bfPickArc">Тека з FontEn.arc (unpack)</span>
+        </button>
+        <button id="bf-pick-hd" class="kh-btn" type="button" disabled>
+          <span class="icon" aria-hidden="true">🖼</span><span data-i18n="bfPickHd">Тека HD-PNG (опц.)</span>
+        </button>
+        <select id="bf-font-sel" class="kh-select kh-select-narrow" disabled>
+          <option value="" data-i18n="bfFontSelectPrompt">— виберіть шрифт —</option>
+        </select>
+        <select id="bf-png-sel" class="kh-select kh-select-narrow" disabled title="HD PNG атлас">
+          <option value="" data-i18n="bfPngNone">— без HD PNG —</option>
+        </select>
+        <span class="spacer"></span>
+        <div class="bf-zoom" role="group" aria-label="Zoom">
+          <button id="bf-zoom-out" class="kh-btn kh-btn-icon" type="button" title="Зменшити (Ctrl+−)">−</button>
+          <button id="bf-zoom-reset" class="kh-btn" type="button" title="Скинути зум (Ctrl+0)">100%</button>
+          <button id="bf-zoom-in"  class="kh-btn kh-btn-icon" type="button" title="Збільшити (Ctrl++)">+</button>
+          <button id="bf-zoom-fit" class="kh-btn" type="button" title="Підігнати до ширини">⤢ Fit</button>
+        </div>
+        <button id="bf-export-overlay" class="kh-btn" type="button" disabled
+                title="Зберегти прозорий PNG лише з рамками гліфів (як guide-шар)">⬇ Рамки PNG</button>
+        <button id="bf-add" class="kh-btn" type="button" disabled
+                title="Додати новий COD-entry (для перемальованого гліфа)">+ Додати</button>
+        <button id="bf-del" class="kh-btn" type="button" disabled
+                title="Видалити вибраний COD-entry">✕ Видалити</button>
+        <button id="bf-reset" class="kh-btn" type="button" disabled
+                data-i18n="bfReset"
+                title="Скинути всі зміни до завантажених значень">↺ Скинути</button>
+        <button id="bf-save" class="kh-btn kh-btn-primary" type="button" disabled>
+          <span class="icon" aria-hidden="true">💾</span><span data-i18n="bfSave">Зберегти .cod</span>
+        </button>
+      </section>
+
+      <section class="bf-main">
+        <div class="bf-atlas-wrap" id="bf-atlas-wrap">
+          <div class="t-empty"><p data-i18n="bfEmpty">Виберіть теку розпакованого FontEn.arc → виберіть шрифт зі списку. Опційно вкажіть HD-теку (remastered) щоб бачити атлас.</p></div>
+        </div>
+        <aside class="bf-side" id="bf-side">
+          <h3 data-i18n="bfNoSelection" style="margin:0 0 10px; font-size:13px; color:var(--khn-text-muted);">Виберіть гліф у атласі або зі списку нижче</h3>
+          <div class="bf-fields hidden" id="bf-fields">
+            <label>Index <input id="bf-f-index" type="text" readonly></label>
+            <label>Char ID (hex) <input id="bf-f-id" type="text" placeholder="0x8266" title="Edit як 0xXXXX"></label>
+            <label>Char (preview) <input id="bf-f-char" type="text" readonly></label>
+            <label>Pos X (0-255) <input id="bf-f-x" type="number" min="0" max="255" step="1"></label>
+            <label>Pos Y (0-255) <input id="bf-f-y" type="number" min="0" max="255" step="1"></label>
+            <label>Palette <input id="bf-f-pal" type="number" min="0" max="255"></label>
+            <label>Width <input id="bf-f-width" type="number" min="0" max="255"></label>
+          </div>
+          <h4 style="margin:14px 0 6px; font-size:11px; color:var(--khn-text-muted); letter-spacing:1px;">ALL ENTRIES</h4>
+          <ul id="bf-list" class="bf-list"></ul>
+        </aside>
+      </section>
+
+      <footer class="statusbar">
+        <span id="bf-status" data-i18n="fileNotLoaded">Файл не завантажено</span>
+        <span id="bf-info" class="brand"></span>
+      </footer>
+    </div>
   </div>
 
   <!-- Find dialog -->
@@ -331,39 +440,72 @@
     </div>
   </div>
 
-  <!-- Settings modal (translate dirs) -->
+  <!-- Settings modal (language + translate dirs) -->
   <div id="settings-overlay" class="overlay hidden" aria-hidden="true">
     <div class="modal modal-wide" role="dialog" aria-labelledby="settings-title" aria-modal="true">
-      <h2 id="settings-title" data-i18n="dirsTitle">Теки локалізації</h2>
-      <div class="setting-row">
+      <h2 id="settings-title" data-i18n="settingsTitle">Налаштування</h2>
+
+      <div class="setting-section">
+        <h3 class="setting-section-title" data-i18n="langSectionTitle">Мова інтерфейсу</h3>
+        <div class="setting-row">
+          <div class="lang-toggle" role="radiogroup" aria-label="Language">
+            <button type="button" class="lang-opt" data-lang="uk" role="radio" aria-checked="false">
+              <span class="lang-flag" aria-hidden="true">🇺🇦</span><span>Українська</span>
+            </button>
+            <button type="button" class="lang-opt" data-lang="en" role="radio" aria-checked="false">
+              <span class="lang-flag" aria-hidden="true">🇬🇧</span><span>English</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-section">
+        <h3 class="setting-section-title" data-i18n="themeSectionTitle">Тема оформлення</h3>
+        <div class="setting-row">
+          <div class="lang-toggle" role="radiogroup" aria-label="Theme">
+            <button type="button" class="theme-opt" data-theme="dark" role="radio" aria-checked="false">
+              <span class="lang-flag" aria-hidden="true">🌙</span><span data-i18n="themeDark">Темна</span>
+            </button>
+            <button type="button" class="theme-opt" data-theme="light" role="radio" aria-checked="false">
+              <span class="lang-flag" aria-hidden="true">☀️</span><span data-i18n="themeLight">Світла</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-section">
+        <h3 class="setting-section-title" data-i18n="dirsTitle">Теки локалізації</h3>
+      <div class="setting-row" data-dir-key="engDir">
         <label for="set-eng-dir" data-i18n="engDirLabel">Тека ENG (оригінал):</label>
         <div class="dir-row">
           <input id="set-eng-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="engDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <div class="setting-row">
-        <label for="set-rus-dir" data-i18n="rusDirLabel">Тека RUS (оракул-локалізація):</label>
+      <div class="setting-row" data-dir-key="rusDir">
+        <label for="set-rus-dir" data-i18n="rusDirLabel">Тека MYFILES (мої референсні файли):</label>
         <div class="dir-row">
           <input id="set-rus-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="rusDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <div class="setting-row">
+      <div class="setting-row" data-dir-key="tsvDir">
         <label for="set-tsv-dir" data-i18n="tsvDirLabel">Тека TSV (прогрес перекладу):</label>
         <div class="dir-row">
           <input id="set-tsv-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="tsvDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <div class="setting-row">
-        <label for="set-out-dir" data-i18n="outDirLabel">Тека UA (вихід для .binl):</label>
+      <div class="setting-row" data-dir-key="outDir">
+        <label for="set-out-dir" data-i18n="outDirLabel">Тека UA (вихідні файли):</label>
         <div class="dir-row">
           <input id="set-out-dir" type="text" readonly data-i18n-placeholder="notSelected" placeholder="не вибрано">
           <button data-pick="outDir" class="kh-btn" data-i18n="pick">Вибрати...</button>
         </div>
       </div>
-      <p class="setting-hint" data-i18n="dirsHint">RUS-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у TSV-теку, готовий .binl — в UA-теку.</p>
+      <p class="setting-hint" id="dirs-hint" data-i18n="dirsHint">MYFILES-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у PROGRESS-теку, готові файли — у DONE-теку.</p>
+      </div>
+
       <div class="modal-actions">
         <button id="settings-close" class="kh-btn kh-btn-primary" type="button" data-i18n="close">Закрити</button>
       </div>
@@ -427,6 +569,23 @@
 
   <!-- Toast container -->
   <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- Event log drawer -->
+  <aside id="event-log" class="event-log hidden" aria-hidden="true" aria-label="Event log">
+    <header class="event-log-head">
+      <h3 class="event-log-title" data-i18n="logTitle">Журнал подій</h3>
+      <div class="event-log-actions">
+        <button id="event-log-clear" class="kh-btn" type="button" data-i18n="logClear">Очистити</button>
+        <button id="event-log-close" class="kh-tb-btn kh-tb-close" type="button" aria-label="Close" title="Close">
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+    <ul id="event-log-list" class="event-log-list" role="log"></ul>
+    <p class="event-log-empty" id="event-log-empty" data-i18n="logEmpty">Поки що немає подій.</p>
+  </aside>
 
   <script src="i18n.js"></script>
   <script src="renderer.js"></script>

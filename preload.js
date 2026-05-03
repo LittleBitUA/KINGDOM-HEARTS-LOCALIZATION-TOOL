@@ -20,6 +20,18 @@ contextBridge.exposeInMainWorld('kh1', {
   saveFile: (text, suggestedName) =>
     ipcRenderer.invoke('file:save', { text, suggestedName }),
   about: () => ipcRenderer.invoke('app:about'),
+  // Custom title bar API
+  win: {
+    minimize: () => ipcRenderer.invoke('win:minimize'),
+    maximize: () => ipcRenderer.invoke('win:maximize'),
+    close: () => ipcRenderer.invoke('win:close'),
+    isMaximized: () => ipcRenderer.invoke('win:isMaximized'),
+    onState: (callback) => {
+      const listener = (_, state) => callback(state);
+      ipcRenderer.on('win:state', listener);
+      return () => ipcRenderer.removeListener('win:state', listener);
+    }
+  },
   app: {
     setLanguage: (lang) => ipcRenderer.invoke('app:setLanguage', lang),
     getCharMap: () => ipcRenderer.invoke('app:getCharMap'),
@@ -43,8 +55,8 @@ contextBridge.exposeInMainWorld('kh1', {
     return () => ipcRenderer.removeListener(channel, listener);
   },
   translate: {
-    getSettings: () => ipcRenderer.invoke('translate:getSettings'),
-    saveSettings: (s) => ipcRenderer.invoke('translate:saveSettings', s),
+    getSettings: (gameId) => ipcRenderer.invoke('translate:getSettings', gameId),
+    saveSettings: (s, gameId) => ipcRenderer.invoke('translate:saveSettings', s, gameId),
     pickDirectory: (title) => ipcRenderer.invoke('translate:pickDirectory', title),
     listFiles: (rusDir) => ipcRenderer.invoke('translate:listFiles', rusDir),
     extract: (payload) => ipcRenderer.invoke('translate:extract', payload),
@@ -56,7 +68,7 @@ contextBridge.exposeInMainWorld('kh1', {
     saveGlossary: (payload) => ipcRenderer.invoke('translate:saveGlossary', payload),
     buildGlossary: (payload) => ipcRenderer.invoke('translate:buildGlossary', payload),
     composeAll: (payload) => ipcRenderer.invoke('translate:composeAll', payload),
-    importTranslations: () => ipcRenderer.invoke('translate:importTranslations'),
+    importTranslations: (opts) => ipcRenderer.invoke('translate:importTranslations', opts),
     exportFileTxt: (payload) => ipcRenderer.invoke('translate:exportFileTxt', payload),
     importFileTxt: () => ipcRenderer.invoke('translate:importFileTxt'),
     measureMany: (payload) => ipcRenderer.invoke('translate:measureMany', payload),
@@ -70,10 +82,19 @@ contextBridge.exposeInMainWorld('kh1', {
       return () => ipcRenderer.removeListener('translate:progress', listener);
     }
   },
+  bbsfont: {
+    pickArcDir:  () => ipcRenderer.invoke('bbsfont:pickArcDir'),
+    pickHdDir:   () => ipcRenderer.invoke('bbsfont:pickHdDir'),
+    listFonts:   (dir) => ipcRenderer.invoke('bbsfont:listFonts', dir),
+    loadFont:    (fontFiles) => ipcRenderer.invoke('bbsfont:loadFont', fontFiles),
+    saveCod:     (payload) => ipcRenderer.invoke('bbsfont:saveCod', payload),
+    listHdPngs:  (hdDir) => ipcRenderer.invoke('bbsfont:listHdPngs', hdDir)
+  },
   kerning: {
     openKnj: () => ipcRenderer.invoke('kerning:openKnj'),
     loadKnjFromPath: (knjPath) => ipcRenderer.invoke('kerning:loadKnjFromPath', knjPath),
     openDds: (suggestedDir) => ipcRenderer.invoke('kerning:openDds', suggestedDir),
+    loadDdsFromPath: (ddsPath) => ipcRenderer.invoke('kerning:loadDdsFromPath', ddsPath),
     autoFindDds: (knjPath) => ipcRenderer.invoke('kerning:autoFindDds', knjPath),
     saveKnj: (payload) => ipcRenderer.invoke('kerning:saveKnj', payload),
     encodeText: (text) => ipcRenderer.invoke('kerning:encodeText', text)

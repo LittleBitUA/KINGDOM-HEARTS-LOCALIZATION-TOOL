@@ -1,14 +1,38 @@
 'use strict';
 
 // =====================================================================
+// Custom title bar handlers (Stage 1 редизайну).
+// Pure-UI: лише min/max/close через kh1.win API.
+// =====================================================================
+(function setupTitleBar() {
+  const btnMin = document.getElementById('tb-minimize');
+  const btnMax = document.getElementById('tb-maximize');
+  const btnClose = document.getElementById('tb-close');
+  if (!btnMin || !btnMax || !btnClose) return;
+  const w = window.kh1 && window.kh1.win;
+  if (!w) return;
+  btnMin.addEventListener('click', () => w.minimize());
+  btnMax.addEventListener('click', () => w.maximize());
+  btnClose.addEventListener('click', () => w.close());
+  // Subscribe на win-state events для свопу max/restore icon (optional polish).
+  if (w.onState) {
+    w.onState((state) => {
+      btnMax.title = state.isMaximized ? 'Restore' : 'Maximize';
+    });
+  }
+})();
+
+// =====================================================================
 // DOM refs
 // =====================================================================
 const viewEditor = document.getElementById('view-editor');
 const viewTranslate = document.getElementById('view-translate');
 const viewKerning = document.getElementById('view-kerning');
+const viewBbsFont = document.getElementById('view-bbs-font');
 const modeEditorBtn = document.getElementById('mode-editor');
 const modeTranslateBtn = document.getElementById('mode-translate');
 const modeKerningBtn = document.getElementById('mode-kerning');
+const modeBbsFontBtn = document.getElementById('mode-bbs-font');
 
 // editor view
 const editor = document.getElementById('editor');
@@ -139,8 +163,66 @@ const gState = {
 };
 
 // =====================================================================
-// Toasts
+// Toasts + persistent Event Log
 // =====================================================================
+const eventLog = {
+  items: [],          // { ts, kind, msg }
+  max: 200,
+  drawer: null,
+  list: null,
+  badge: null,
+  emptyEl: null,
+  unread: 0
+};
+
+function _logFmtTime(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+function _logRender() {
+  if (!eventLog.list) return;
+  eventLog.list.innerHTML = '';
+  for (let i = eventLog.items.length - 1; i >= 0; i--) {
+    const it = eventLog.items[i];
+    const li = document.createElement('li');
+    li.className = 'event-log-item kind-' + it.kind;
+    const t = document.createElement('span');
+    t.className = 'ev-time';
+    t.textContent = _logFmtTime(it.ts);
+    const m = document.createElement('span');
+    m.className = 'ev-msg';
+    m.textContent = it.msg;
+    li.appendChild(t); li.appendChild(m);
+    eventLog.list.appendChild(li);
+  }
+  if (eventLog.drawer) eventLog.drawer.classList.toggle('has-events', eventLog.items.length > 0);
+}
+
+function _logBadgeUpdate() {
+  if (!eventLog.badge) return;
+  if (eventLog.unread > 0) {
+    eventLog.badge.textContent = eventLog.unread > 99 ? '99+' : String(eventLog.unread);
+    eventLog.badge.hidden = false;
+  } else {
+    eventLog.badge.hidden = true;
+  }
+}
+
+function logEvent(message, kind) {
+  if (!kind) kind = 'info';
+  eventLog.items.push({ ts: Date.now(), kind, msg: String(message) });
+  if (eventLog.items.length > eventLog.max) {
+    eventLog.items.splice(0, eventLog.items.length - eventLog.max);
+  }
+  _logRender();
+  if (eventLog.drawer && eventLog.drawer.classList.contains('hidden')) {
+    eventLog.unread++;
+    _logBadgeUpdate();
+  }
+}
+
 function toast(message, kind, timeout) {
   if (!kind) kind = 'info';
   if (typeof timeout !== 'number') timeout = 3500;
@@ -152,6 +234,247 @@ function toast(message, kind, timeout) {
     el.classList.add('fade-out');
     window.setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
   }, timeout);
+  // Mirror to persistent log
+  logEvent(message, kind);
+}
+
+// =====================================================================
+// Home / Game Selection screen
+// gamesConfig — масив; додавай нові ігри сюди. Кожна гра має:
+//   id        - унікальний slug
+//   title     - велика назва на обкладинці
+//   name      - назва під карткою
+//   subtitle  - короткий опис (платформа/реліз)
+//   image     - шлях до cover (або null → CSS-fallback)
+//   coverGrad - CSS-градієнт обкладинки (якщо нема image)
+//   enabled   - true → клікабельна
+//   status    - 'ready' | 'soon'
+//   onSelect  - callback при виборі (тільки для enabled)
+// =====================================================================
+// `formats` = масив classifier kind'ів які належать до гри. Translate-режим
+// фільтрує список файлів за цим. KH1 використовує binl/rawbin/ev/mesofs;
+// BBS — лише ctd. Re:CoM поки заглушка.
+const gamesConfig = [
+  {
+    id: 'kh1-final-mix',
+    title: 'KINGDOM HEARTS FINAL MIX',
+    name: 'Kingdom Hearts Final Mix',
+    subtitle: 'PC (Steam / Epic Games) · .bin / .binl / .ard',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #2a1f6b 0%, #1a1448 40%, #0a0a3f 100%)',
+    enabled: true,
+    status: 'ready',
+    formats: ['binl', 'rawbin', 'ev', 'mesofs'],
+    // KH1 використовує RUS-теку як reference oracle І як джерело списку файлів.
+    dirs: ['engDir', 'rusDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'rusDir',
+    onSelect: () => enterEditor('kh1-final-mix')
+  },
+  {
+    id: 'kh-re-com',
+    title: 'KINGDOM HEARTS Re:Chain of Memories',
+    name: 'Kingdom Hearts Re:Chain of Memories',
+    subtitle: 'PC (Steam / Epic Games) · підтримка з’явиться пізніше',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #4a3a1a 0%, #2a2008 50%, #1a1404 100%)',
+    enabled: false,
+    status: 'soon'
+  },
+  {
+    id: 'kh-bbs-final-mix',
+    title: 'KINGDOM HEARTS Birth by Sleep FINAL MIX',
+    name: 'Kingdom Hearts: Birth by Sleep Final Mix',
+    subtitle: 'PC (Steam / Epic Games) · .ctd (subtitles + menu text)',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #1f4a5e 0%, #0a3040 50%, #051a2a 100%)',
+    enabled: true,
+    status: 'ready',
+    formats: ['ctd'],
+    // BBS: ENG = і джерело тексту і список файлів; UA = вихід; TSV = прогрес.
+    // Без RUS-оракула.
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir',
+    onSelect: () => enterEditor('kh-bbs-final-mix')
+  }
+];
+
+const homeScreen = document.getElementById('home-screen');
+const homeGrid   = document.getElementById('home-grid');
+const appRoot    = document.querySelector('.app');
+
+function _gameStatusLabel(status) {
+  if (status === 'ready') return (window.i18n && window.i18n.t('gameStatusReady')) || 'Готово';
+  if (status === 'soon')  return (window.i18n && window.i18n.t('gameStatusSoon'))  || 'Незабаром';
+  return '';
+}
+
+const HEART_SVG = '<svg viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet"><path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg>';
+
+function renderGameCard(game) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'game-card' + (game.enabled ? '' : ' disabled');
+  card.dataset.gameId = game.id;
+  card.setAttribute('role', 'listitem');
+  if (!game.enabled) {
+    card.disabled = true;
+    card.setAttribute('aria-disabled', 'true');
+    card.setAttribute('data-i18n-title', 'gameSoonTooltip');
+    card.title = (window.i18n && window.i18n.t('gameSoonTooltip')) || 'Підтримка з’явиться пізніше';
+  } else {
+    card.setAttribute('aria-label', game.name);
+  }
+
+  // Cover
+  const cover = document.createElement('div');
+  cover.className = 'game-cover';
+  if (game.coverGrad && !game.image) cover.style.background = game.coverGrad;
+
+  if (game.image) {
+    const img = document.createElement('img');
+    img.src = game.image;
+    img.alt = '';
+    cover.appendChild(img);
+  } else {
+    const heart = document.createElement('div');
+    heart.className = 'game-cover-heart';
+    heart.innerHTML = HEART_SVG;
+    cover.appendChild(heart);
+    const t = document.createElement('div');
+    t.className = 'game-cover-title';
+    t.textContent = game.title;
+    cover.appendChild(t);
+  }
+  const ovl = document.createElement('div');
+  ovl.className = 'game-cover-overlay';
+  cover.appendChild(ovl);
+
+  if (!game.enabled) {
+    const ribbon = document.createElement('div');
+    ribbon.className = 'game-ribbon';
+    ribbon.setAttribute('data-i18n', 'comingSoon');
+    ribbon.textContent = (window.i18n && window.i18n.t('comingSoon')) || 'Coming Soon';
+    card.appendChild(ribbon);
+  }
+
+  card.appendChild(cover);
+
+  // Info
+  const info = document.createElement('div');
+  info.className = 'game-info';
+  const name = document.createElement('h3');
+  name.className = 'game-name';
+  name.textContent = game.name;
+  const sub = document.createElement('p');
+  sub.className = 'game-subtitle';
+  sub.textContent = game.subtitle;
+  const status = document.createElement('span');
+  status.className = 'game-status status-' + game.status;
+  const statusKey = game.status === 'ready' ? 'gameStatusReady' : 'gameStatusSoon';
+  status.setAttribute('data-i18n', statusKey);
+  status.textContent = _gameStatusLabel(game.status);
+  info.appendChild(name);
+  info.appendChild(sub);
+  info.appendChild(status);
+  card.appendChild(info);
+
+  if (game.enabled && typeof game.onSelect === 'function') {
+    card.addEventListener('click', () => game.onSelect());
+  }
+  return card;
+}
+
+function renderHome() {
+  if (!homeGrid) return;
+  homeGrid.innerHTML = '';
+  for (const g of gamesConfig) homeGrid.appendChild(renderGameCard(g));
+}
+
+function showHome() {
+  if (!homeScreen || !appRoot) return;
+  homeScreen.classList.remove('hidden');
+  homeScreen.setAttribute('aria-hidden', 'false');
+  appRoot.classList.add('hidden');
+}
+function hideHome() {
+  if (!homeScreen || !appRoot) return;
+  homeScreen.classList.add('hidden');
+  homeScreen.setAttribute('aria-hidden', 'true');
+  appRoot.classList.remove('hidden');
+}
+
+// Поточна обрана гра (id з gamesConfig) — впливає на фільтрацію списку
+// файлів у translate-режимі та на доступні режими (Kerning лише для KH1).
+let _currentGameId = null;
+function getCurrentGame() {
+  return gamesConfig.find(g => g.id === _currentGameId) || null;
+}
+function getCurrentGameFormats() {
+  const g = getCurrentGame();
+  return (g && g.formats) || null;
+}
+
+function enterEditor(gameId) {
+  const newGameId = gameId || _currentGameId || 'kh1-final-mix';
+  const gameChanged = newGameId !== _currentGameId;
+  _currentGameId = newGameId;
+  hideHome();
+
+  const isKh1 = _currentGameId === 'kh1-final-mix';
+
+  // Mode tabs які доступні цій грі.
+  // KH1: Editor + Translate + Kerning.
+  // BBS: Translate + Шрифт BBS (font-hack для UA). Editor приховано (CTD не
+  // має raw-byte representation), Kerning приховано (KH1-формат .knj).
+  const editorTab  = document.getElementById('mode-editor');
+  const kerningTab = document.getElementById('mode-kerning');
+  const bbsFontTab = document.getElementById('mode-bbs-font');
+  if (editorTab)  editorTab.style.display  = isKh1 ? '' : 'none';
+  if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
+  if (bbsFontTab) bbsFontTab.style.display = isKh1 ? 'none' : '';
+
+  // Якщо гра змінилась — повністю скидаємо translate-state, бо settings,
+  // файли, slots, glossary тепер інші.
+  if (gameChanged && typeof resetTranslateState === 'function') {
+    resetTranslateState();
+  }
+
+  if (typeof setMode === 'function') setMode(isKh1 ? 'editor' : 'translate');
+
+  // First-run settings перевірка для поточної гри (один раз на сесію).
+  if (!enterEditor._firstRunChecked) {
+    enterEditor._firstRunChecked = true;
+    if (typeof maybeFirstRunSettings === 'function') maybeFirstRunSettings();
+  }
+  // KH1-specific .knj/.dds автозавантаження — лише для KH1, лише раз.
+  if (isKh1 && !enterEditor._knjLoaded) {
+    enterEditor._knjLoaded = true;
+    if (typeof kAutoLoadKnjOnBoot === 'function') kAutoLoadKnjOnBoot();
+  }
+}
+
+// Скидаємо все що належить translate-режиму, щоб при перемиканні гри
+// не лишалось stale-контенту (DOM, slots, settings, file selection).
+function resetTranslateState() {
+  if (!tState) return;
+  tState.settings = { engDir: '', rusDir: '', outDir: '', tsvDir: '' };
+  tState.files = [];
+  tState.slots = [];
+  tState.fileName = '';
+  tState.fileMeta = null;
+  if (tFileSel) {
+    while (tFileSel.firstChild) tFileSel.removeChild(tFileSel.firstChild);
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = '— виберіть файл —';
+    tFileSel.appendChild(blank);
+  }
+  if (tRows) tRows.innerHTML = '';
+  if (tStatus) tStatus.textContent = '';
+}
+
+function goHome() {
+  showHome();
 }
 
 // =====================================================================
@@ -354,9 +677,11 @@ function setMode(mode) {
   viewEditor.classList.toggle('hidden', mode !== 'editor');
   viewTranslate.classList.toggle('hidden', mode !== 'translate');
   viewKerning.classList.toggle('hidden', mode !== 'kerning');
+  if (viewBbsFont) viewBbsFont.classList.toggle('hidden', mode !== 'bbs-font');
   modeEditorBtn.classList.toggle('active', mode === 'editor');
   modeTranslateBtn.classList.toggle('active', mode === 'translate');
   modeKerningBtn.classList.toggle('active', mode === 'kerning');
+  if (modeBbsFontBtn) modeBbsFontBtn.classList.toggle('active', mode === 'bbs-font');
   if (mode === 'translate') initTranslateMode();
 }
 
@@ -368,8 +693,28 @@ function openSettings() {
   setRusDir.value = tState.settings.rusDir || '';
   setTsvDir.value = tState.settings.tsvDir || '';
   setOutDir.value = tState.settings.outDir || '';
+  // Сховати/показати dir-rows під обрану гру (BBS не використовує RUS-теку).
+  applyGameDirsVisibility();
   settingsOverlay.classList.remove('hidden');
   settingsOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function applyGameDirsVisibility() {
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const allowed = (game && game.dirs) || ['engDir', 'rusDir', 'tsvDir', 'outDir'];
+  document.querySelectorAll('.setting-row[data-dir-key]').forEach(row => {
+    const key = row.getAttribute('data-dir-key');
+    row.style.display = allowed.includes(key) ? '' : 'none';
+  });
+  // Адаптивний hint під гру
+  const hint = document.getElementById('dirs-hint');
+  if (hint && game) {
+    if (game.id === 'kh-bbs-final-mix') {
+      hint.textContent = 'ENG-тека визначає список файлів і служить джерелом для перекладу. ' +
+                         'Прогрес зберігається у TSV-теку, готові .ctd — у UA-теку.';
+    }
+    // Для KH1 — лишається оригінальний i18n-текст (data-i18n атрибут).
+  }
 }
 
 function hideSettings() {
@@ -382,9 +727,14 @@ async function pickAndSetDir(key, inputEl, title) {
   if (!dir) return;
   inputEl.value = dir;
   tState.settings[key] = dir;
-  await window.kh1.translate.saveSettings(tState.settings);
+  // Зберігаємо лише змінений ключ — у per-game scope (engDir/rusDir/tsvDir
+  // /outDir/lastFile належать поточній грі).
+  await window.kh1.translate.saveSettings({ [key]: dir }, _currentGameId);
   toast(window.i18n.t('toastSavedKv', {key, dir}), 'success');
-  if (key === 'rusDir') loadFileList();
+  // Перезавантажити список файлів якщо змінився source-dir поточної гри.
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
+  if (key === sourceDirKey) loadFileList();
 }
 
 settingsOverlay.addEventListener('click', (e) => {
@@ -409,10 +759,13 @@ settingsClose.addEventListener('click', hideSettings);
 // =====================================================================
 async function initTranslateMode() {
   try {
-    tState.settings = await window.kh1.translate.getSettings() || tState.settings;
+    tState.settings = await window.kh1.translate.getSettings(_currentGameId) || tState.settings;
   } catch (_) {}
 
-  if (!tState.settings.rusDir) {
+  // Source dir для списку файлів — для KH1 це rusDir, для BBS це engDir.
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
+  if (!tState.settings[sourceDirKey]) {
     tStatus.textContent = 'Налаштуйте теки локалізації, щоб почати';
     openSettings();
     return;
@@ -475,18 +828,27 @@ function setSubtab(name) {
 }
 
 async function loadFileList() {
-  if (!tState.settings.rusDir) return;
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
+  const sourceDir = tState.settings[sourceDirKey];
+  if (!sourceDir) return;
   try {
-    const r = await window.kh1.translate.listFiles(tState.settings.rusDir);
+    const r = await window.kh1.translate.listFiles(sourceDir);
     tState.files = (r.files || []).slice().sort((a, b) => a.rel.localeCompare(b.rel));
   } catch (e) {
     tState.files = [];
     toast(window.i18n.t('toastReadRusFail', {msg: e.message}), 'error');
   }
 
-  const visible = tState.safeMode
+  // Two filters: (а) safe-mode → лише isTranslatable, (б) game-formats →
+  // лише kind'и, що належать обраній грі (KH1 vs BBS).
+  const gameFormats = (typeof getCurrentGameFormats === 'function') ? getCurrentGameFormats() : null;
+  let visible = tState.safeMode
     ? tState.files.filter(f => f.isTranslatable)
     : tState.files;
+  if (gameFormats && gameFormats.length) {
+    visible = visible.filter(f => gameFormats.includes(f.kind));
+  }
 
   while (tFileSel.firstChild) tFileSel.removeChild(tFileSel.firstChild);
   const blank = document.createElement('option');
@@ -524,8 +886,9 @@ tSafeMode.addEventListener('change', async (e) => {
   if (!tState.safeMode) {
     if (!window.confirm(
       'УВАГА. Режим "Безпечно" вимикається.\n\n' +
-      'Файли .evdl/.ev/інші — це БАЙТКОД (скрипти подій), не текст. ' +
-      'Переклад або compose таких файлів зламає гру (краш або undefined behavior).\n\n' +
+      'У списку з’являться файли невпізнаних форматів. Редактор їх не вміє безпечно ' +
+      'розпарсити/перепакувати — compose таких файлів може зламати гру ' +
+      '(краш або undefined behavior).\n\n' +
       'Продовжити?'
     )) {
       tSafeMode.checked = true;
@@ -613,9 +976,10 @@ async function loadFile(rel) {
   renderRows();
   refreshProgress();
 
-  // Запам'ятати як "останній файл" + відновити позицію прокрутки
+  // Запам'ятати як "останній файл" + відновити позицію прокрутки.
+  // lastFile per-game (KH1 та BBS мають різні останні файли).
   tState.settings.lastFile = rel;
-  window.kh1.translate.saveSettings({ lastFile: rel }).catch(() => {});
+  window.kh1.translate.saveSettings({ lastFile: rel }, _currentGameId).catch(() => {});
   const savedScroll = (tState.settings.scrollByFile || {})[rel];
   if (typeof savedScroll === 'number') {
     requestAnimationFrame(() => { tRows.scrollTop = savedScroll; });
@@ -1191,10 +1555,17 @@ async function loadGlossaryFromDisk() {
 
 async function buildGlossary() {
   if (gState.busy) return;
-  if (!tState.settings.engDir || !tState.settings.rusDir) {
-    toast(window.i18n.t('toastConfigEngRus'), 'error');
-    openSettings();
-    return;
+  // Required dirs варіюються по грі: KH1 = engDir + rusDir, BBS = тільки engDir.
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const requiredDirs = (game && game.dirs && game.dirs.includes('rusDir'))
+    ? ['engDir', 'rusDir']
+    : ['engDir'];
+  for (const k of requiredDirs) {
+    if (!tState.settings[k]) {
+      toast(window.i18n.t('toastConfigEngRus'), 'error');
+      openSettings();
+      return;
+    }
   }
   if (!tState.files || !tState.files.length) {
     toast(window.i18n.t('toastEmptyFilesReload'), 'error');
@@ -1383,8 +1754,11 @@ function refreshGlossaryProgress() {
   }
 
   gSave.disabled = !tState.settings.tsvDir;
+  // compose precondition залежить від гри (BBS не потребує rusDir)
+  const _g = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const _needsRus = !!(_g && _g.dirs && _g.dirs.includes('rusDir'));
   gComposeAll.disabled = total === 0 || done === 0 ||
-    !tState.settings.engDir || !tState.settings.rusDir || !tState.settings.outDir;
+    !tState.settings.engDir || (_needsRus && !tState.settings.rusDir) || !tState.settings.outDir;
 }
 
 // edit handler for glossary rows — event delegation
@@ -1443,7 +1817,10 @@ async function saveGlossary(silent) {
 
 async function composeAllFiles() {
   if (gState.busy) return;
-  if (!tState.settings.engDir || !tState.settings.rusDir || !tState.settings.outDir) {
+  // BBS не вимагає rusDir; KH1 вимагає engDir+rusDir+outDir.
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const needsRus = !!(game && game.dirs && game.dirs.includes('rusDir'));
+  if (!tState.settings.engDir || (needsRus && !tState.settings.rusDir) || !tState.settings.outDir) {
     toast(window.i18n.t('toastConfigEngRusUa'), 'error');
     openSettings();
     return;
@@ -1567,8 +1944,17 @@ async function importTranslations() {
     return;
   }
 
+  // Колонкова розкладка варіюється по грі:
+  //   KH1 HTML (Pro100luk-style):   col 0 = EN,    col 1 = UK,        \n → {lf}
+  //   BBS HTML (моя розкладка):     col 0 = path,  col 1 = EN, col 2 = UK,  \n залишається
+  // Якщо у майбутньому з'являться інші формати — додавай у gamesConfig.
+  const game = (typeof getCurrentGame === 'function') ? getCurrentGame() : null;
+  const importOpts = (game && game.id === 'kh-bbs-final-mix')
+    ? { enCol: 1, ukCol: 2, lineBreakToken: null }
+    : { enCol: 0, ukCol: 1 };
+
   let r;
-  try { r = await window.kh1.translate.importTranslations(); }
+  try { r = await window.kh1.translate.importTranslations(importOpts); }
   catch (e) { toast(window.i18n.t('toastError', {msg: e.message}), 'error'); return; }
 
   if (r.canceled) return;
@@ -2683,6 +3069,7 @@ if (gImportTxtBtn) {
 modeEditorBtn.addEventListener('click', () => setMode('editor'));
 modeTranslateBtn.addEventListener('click', () => setMode('translate'));
 modeKerningBtn.addEventListener('click', () => setMode('kerning'));
+if (modeBbsFontBtn) modeBbsFontBtn.addEventListener('click', () => setMode('bbs-font'));
 
 // =====================================================================
 // Kerning Editor (.knj) — окремий режим з DDS-атласом
@@ -2715,6 +3102,7 @@ async function kEnsureCharMap() {
     if (r.ok) kState.charMap = r.map;
     else kState.charMap = {};
   } catch (_) { kState.charMap = {}; }
+  _kReverseCharMap = null;   // буде перебудовано при першому пошуку за символом
 }
 
 function kGlyphLabel(idx) {
@@ -2746,6 +3134,20 @@ const kPreviewText = document.getElementById('k-preview-text');
 const kPreviewCanvas = document.getElementById('k-preview-canvas');
 const kPreviewBg = document.getElementById('k-preview-bg');
 const kPreviewInfo = document.getElementById('k-preview-info');
+
+// Перерендерити preview, коли canvas змінює CSS-ширину (resize вікна,
+// перемикання режиму, перший показ після прихованого стану).
+if (kPreviewCanvas && typeof ResizeObserver !== 'undefined') {
+  let _kRO = null;
+  const _kROCb = () => {
+    const w = Math.max(1, kPreviewCanvas.clientWidth);
+    if (w !== _kPreviewLastW && typeof kRenderPreview === 'function') {
+      kRenderPreview();
+    }
+  };
+  _kRO = new ResizeObserver(_kROCb);
+  _kRO.observe(kPreviewCanvas);
+}
 
 function kFilenameFromPath(p) {
   if (!p) return '';
@@ -2990,17 +3392,47 @@ function kAttachDrag(canvas, g, valueLabel, input) {
   window.addEventListener('mouseup', () => { dragging = false; });
 }
 
+// Lazy reverse charMap { char → byte }. Будується з kState.charMap при першому
+// зверненні; kEnsureCharMap гарантує що kState.charMap не null до цього моменту.
+let _kReverseCharMap = null;
+function _kRebuildReverseCharMap() {
+  _kReverseCharMap = Object.create(null);
+  if (!kState.charMap) return;
+  for (const k of Object.keys(kState.charMap)) {
+    const ch = kState.charMap[k];
+    if (typeof ch === 'string' && ch.length === 1 && !_kReverseCharMap[ch]) {
+      _kReverseCharMap[ch] = parseInt(k, 10);
+    }
+  }
+}
+function _kCharToGlyphIdx(ch) {
+  if (!_kReverseCharMap) _kRebuildReverseCharMap();
+  const byte = _kReverseCharMap[ch];
+  if (typeof byte !== 'number') return -1;
+  return byte - BYTE_GLYPH_OFFSET;
+}
+
 function kParseFilter(text) {
-  // Підтримує "0-50, 100, 120-130"
+  // Підтримує:
+  //   • числові індекси/діапазони:  "0-50, 100, 120-130"
+  //   • літерали символів:          "Q", "Q a 5", "AB" (кожен символ окремо)
+  // Числове і символьне можна змішувати: "0-32 Q a 100-110".
   if (!text || !text.trim()) return null;
   const set = new Set();
   for (const part of text.split(/[,\s]+/)) {
     if (!part) continue;
-    const m = part.match(/^(\d+)(?:-(\d+))?$/);
-    if (!m) continue;
-    const a = parseInt(m[1], 10);
-    const b = m[2] ? parseInt(m[2], 10) : a;
-    for (let i = Math.min(a,b); i <= Math.max(a,b); i++) set.add(i);
+    const numMatch = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (numMatch) {
+      const a = parseInt(numMatch[1], 10);
+      const b = numMatch[2] ? parseInt(numMatch[2], 10) : a;
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) set.add(i);
+      continue;
+    }
+    // Не число — інтерпретуємо кожен символ як гліф
+    for (const ch of Array.from(part)) {
+      const idx = _kCharToGlyphIdx(ch);
+      if (idx >= 0) set.add(idx);
+    }
   }
   return set.size ? set : null;
 }
@@ -3085,11 +3517,23 @@ function kRefreshStatus() {
   kSaveKnjBtn.disabled = !kState.dirty;
   kResetBtn.disabled = changed === 0;
   if (kAutoFitBtn) kAutoFitBtn.disabled = !kState.knjBuf || !kState.atlasPx;
+  // Live-preview потребує і .knj, і .dds — без них рендер canvas ні на що
+  // не спирається. Disable + плейсхолдер краще, ніж дозволити друкувати у
+  // нікуди (користувач не розуміє чому canvas мовчить).
+  if (kPreviewText) {
+    const ready = !!(kState.knjBuf && kState.atlasPx);
+    kPreviewText.disabled = !ready;
+    kPreviewText.placeholder = ready
+      ? (window.i18n ? window.i18n.t('previewPlaceholder') : 'Live-preview: введіть текст…')
+      : (window.i18n ? window.i18n.t('previewNeedKnj') : 'Спочатку завантажте .knj/.dds');
+  }
 }
 
 async function kApplyKnjLoaded(r, opts) {
   // Спільний код: оновити kState, перерендерити, запустити auto-find DDS.
-  // opts.silent=true — без toast'у про завантажений knj (для авто-load на старті).
+  // opts.silent=true   — без toast'у про завантажений knj (для авто-load на старті).
+  // opts.preferDds     — спочатку спробувати завантажити саме цей збережений шлях,
+  //                       перш ніж шукати DDS поряд з .knj.
   kState.knjPath = r.filePath;
   kState.knjBuf = new Uint8Array(r.data);
   kState.dirty = false;
@@ -3100,20 +3544,40 @@ async function kApplyKnjLoaded(r, opts) {
   if (!opts || !opts.silent) {
     toast(window.i18n.t('toastKnjLoaded', {file: kFilenameFromPath(r.filePath), n: r.data.byteLength}), 'success');
   }
-  // Auto-find DDS поряд
-  try {
-    const a = await window.kh1.kerning.autoFindDds(r.filePath);
-    if (a.ok) {
-      kState.ddsPath = a.filePath;
-      kState.atlasPx = decodeDds(a.data);
-      kRenderGrid();
-      kRefreshStatus();
-      if (!opts || !opts.silent) {
-        toast(window.i18n.t('toastKnjAutoDds', {file: kFilenameFromPath(a.filePath)}), 'info', 4000);
+  // 1) Спробувати збережений lastDdsPath (точний користувацький вибір)
+  let ddsLoaded = false;
+  if (opts && opts.preferDds) {
+    try {
+      const d = await window.kh1.kerning.loadDdsFromPath(opts.preferDds);
+      if (d && d.ok) {
+        kState.ddsPath = d.filePath;
+        kState.atlasPx = decodeDds(d.data);
+        ddsLoaded = true;
       }
+    } catch (_) { /* провалюємось у autoFind */ }
+  }
+  // 2) Якщо збереженого нема або не вдалось — auto-find поряд з .knj
+  if (!ddsLoaded) {
+    try {
+      const a = await window.kh1.kerning.autoFindDds(r.filePath);
+      if (a.ok) {
+        kState.ddsPath = a.filePath;
+        kState.atlasPx = decodeDds(a.data);
+        ddsLoaded = true;
+        if (!opts || !opts.silent) {
+          toast(window.i18n.t('toastKnjAutoDds', {file: kFilenameFromPath(a.filePath)}), 'info', 4000);
+        }
+      }
+    } catch (e) {
+      toast(window.i18n.t('toastKnjDdsFoundFail', {msg: e.message}), 'error', 6000);
     }
-  } catch (e) {
-    toast(window.i18n.t('toastKnjDdsFoundFail', {msg: e.message}), 'error', 6000);
+  }
+  if (ddsLoaded) {
+    kRenderGrid();
+    kRefreshStatus();
+    // Атлас тепер завантажений — перерендерити preview, щоб користувач
+    // одразу бачив печатний текст замість "Завантажте .dds...".
+    if (typeof kSchedulePreview === 'function') kSchedulePreview();
   }
 }
 
@@ -3128,14 +3592,14 @@ async function kLoadKnj() {
   }
 }
 
-// Авто-завантаження останнього .knj зі settings (lastKnjPath) на старті.
+// Авто-завантаження останнього .knj + .dds зі settings на старті.
 async function kAutoLoadKnjOnBoot() {
   try {
     const settings = await window.kh1.translate.getSettings();
     if (!settings || !settings.lastKnjPath) return;
     const r = await window.kh1.kerning.loadKnjFromPath(settings.lastKnjPath);
     if (r && r.ok) {
-      await kApplyKnjLoaded(r, { silent: false });
+      await kApplyKnjLoaded(r, { silent: false, preferDds: settings.lastDdsPath || null });
     }
   } catch (_) { /* тихо ігноруємо — користувач сам завантажить вручну */ }
 }
@@ -3293,13 +3757,18 @@ function kComputeGlyphRect(byte) {
   return { x: col * CELL_W, y: row * CELL_H };
 }
 
+// Зберігаємо останньо-зрендерену ширину, щоб ResizeObserver міг визначити
+// зміну CSS-розміру canvas і перерендерити (інакше буфер 1100px розтягується
+// під CSS і текст виглядає кривим, поки користувач не змінить розмір вікна).
+let _kPreviewLastW = 0;
 async function kRenderPreview() {
   if (!kPreviewCanvas) return;
   const ctx = kPreviewCanvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   // Розтягнути canvas-px під реальну ширину
-  const cssW = kPreviewCanvas.clientWidth || 1100;
+  const cssW = Math.max(1, kPreviewCanvas.clientWidth) || 1100;
   if (kPreviewCanvas.width !== cssW) kPreviewCanvas.width = cssW;
+  _kPreviewLastW = cssW;
   ctx.clearRect(0, 0, kPreviewCanvas.width, kPreviewCanvas.height);
 
   const text = kPreviewText ? kPreviewText.value : '';
@@ -3400,6 +3869,8 @@ async function kRenderPreview() {
 
 if (kPreviewText) {
   kPreviewText.addEventListener('input', kSchedulePreview);
+  // Initialize disabled state + placeholder за відсутністю knj/dds.
+  if (typeof kRefreshStatus === 'function') kRefreshStatus();
 }
 // Re-render on window resize so canvas pixel-size matches CSS width (fixed-scale text)
 window.addEventListener('resize', () => {
@@ -3557,33 +4028,121 @@ window.kh1.onMenu('menu:mode-translate', () => setMode('translate'));
 window.kh1.onMenu('menu:mode-kerning', () => setMode('kerning'));
 
 // =====================================================================
-// i18n: language switcher + initial apply
+// i18n: language switcher (in Settings modal) + initial apply
 // =====================================================================
-const langSelect = document.getElementById('lang-select');
+const langOpts = document.querySelectorAll('.lang-opt');
+
+function setLangOptsUi(lang) {
+  langOpts.forEach(b => b.setAttribute('aria-checked', b.dataset.lang === lang ? 'true' : 'false'));
+}
+
+async function applyLanguage(lang, persist) {
+  const finalLang = (lang === 'en') ? 'en' : 'uk';
+  if (window.i18n) window.i18n.setLang(finalLang);
+  setLangOptsUi(finalLang);
+  if (persist) {
+    try { await window.kh1.translate.saveSettings({ language: finalLang }); } catch (_) {}
+    try { await window.kh1.app.setLanguage(finalLang); } catch (_) {}
+  }
+}
 
 async function initLanguage() {
   try {
     const s = await window.kh1.translate.getSettings();
     const lang = (s && s.language) || (navigator.language || 'uk').slice(0, 2);
-    const finalLang = (lang === 'en') ? 'en' : 'uk';
-    if (window.i18n) window.i18n.setLang(finalLang);
-    if (langSelect) langSelect.value = finalLang;
+    await applyLanguage(lang, false);
   } catch (_) {
-    if (window.i18n) window.i18n.setLang('uk');
+    await applyLanguage('uk', false);
   }
 }
 
-if (langSelect) {
-  langSelect.addEventListener('change', async () => {
-    const lang = langSelect.value === 'en' ? 'en' : 'uk';
-    if (window.i18n) window.i18n.setLang(lang);
-    try { await window.kh1.translate.saveSettings({ language: lang }); } catch (_) {}
-    try { await window.kh1.app.setLanguage(lang); } catch (_) {}
-  });
+langOpts.forEach(btn => {
+  btn.addEventListener('click', () => applyLanguage(btn.dataset.lang, true));
+});
+
+// Theme switcher
+const themeOpts = document.querySelectorAll('.theme-opt');
+function setThemeOptsUi(theme) {
+  themeOpts.forEach(b => b.setAttribute('aria-checked', b.dataset.theme === theme ? 'true' : 'false'));
+}
+async function applyTheme(theme, persist) {
+  const finalTheme = (theme === 'light') ? 'light' : 'dark';
+  document.body.classList.toggle('theme-light', finalTheme === 'light');
+  setThemeOptsUi(finalTheme);
+  if (persist) {
+    try { await window.kh1.translate.saveSettings({ theme: finalTheme }); } catch (_) {}
+  }
+}
+async function initTheme() {
+  try {
+    const s = await window.kh1.translate.getSettings();
+    await applyTheme((s && s.theme) || 'dark', false);
+  } catch (_) {
+    await applyTheme('dark', false);
+  }
+}
+themeOpts.forEach(btn => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme, true));
+});
+
+// Title-bar settings button + first-run auto-open.
+const tbSettingsBtn = document.getElementById('tb-settings');
+if (tbSettingsBtn) tbSettingsBtn.addEventListener('click', openSettings);
+
+// Title-bar brand (KH heart) → повернутися на головну.
+const tbHomeBtn = document.getElementById('tb-home');
+if (tbHomeBtn) tbHomeBtn.addEventListener('click', goHome);
+
+// Event log drawer wiring.
+eventLog.drawer  = document.getElementById('event-log');
+eventLog.list    = document.getElementById('event-log-list');
+eventLog.emptyEl = document.getElementById('event-log-empty');
+eventLog.badge   = document.getElementById('tb-log-badge');
+
+const tbLogBtn = document.getElementById('tb-log');
+const elClose  = document.getElementById('event-log-close');
+const elClear  = document.getElementById('event-log-clear');
+
+function toggleEventLog() {
+  if (!eventLog.drawer) return;
+  const wasHidden = eventLog.drawer.classList.contains('hidden');
+  eventLog.drawer.classList.toggle('hidden');
+  eventLog.drawer.setAttribute('aria-hidden', wasHidden ? 'false' : 'true');
+  if (wasHidden) {
+    eventLog.unread = 0;
+    _logBadgeUpdate();
+  }
+}
+function closeEventLog() {
+  if (!eventLog.drawer) return;
+  eventLog.drawer.classList.add('hidden');
+  eventLog.drawer.setAttribute('aria-hidden', 'true');
 }
 
+if (tbLogBtn) tbLogBtn.addEventListener('click', toggleEventLog);
+if (elClose)  elClose.addEventListener('click', closeEventLog);
+if (elClear)  elClear.addEventListener('click', () => {
+  eventLog.items.length = 0;
+  eventLog.unread = 0;
+  _logBadgeUpdate();
+  _logRender();
+});
+
+async function maybeFirstRunSettings() {
+  try {
+    // Перевіряємо щодо ПОТОЧНОЇ гри — якщо її dirs ще не вказані, відкриваємо settings.
+    const s = await window.kh1.translate.getSettings(_currentGameId);
+    const everConfigured = s && (s.language || s.engDir || s.rusDir || s.tsvDir || s.outDir);
+    if (!everConfigured) openSettings();
+  } catch (_) {}
+}
+
+initTheme();
 initLanguage();
-kAutoLoadKnjOnBoot();
+renderHome();
+// maybeFirstRunSettings() та kAutoLoadKnjOnBoot() викликаються з enterEditor()
+// при першому вході в редактор (щоб не виконувати KH1-specific логіку, коли
+// користувач ще на головному екрані з вибором іншої гри).
 
 // =====================================================================
 // Auto-update wiring (toast notifications + download/install dialogs)
@@ -3672,3 +4231,469 @@ window.kh1.onMenu('menu:check-updates', checkForUpdatesManual);
 refreshStatus();
 updateCursor();
 refreshProgress();
+
+// =====================================================================
+// BBS Font Editor — окрема вкладка для редагування .cod-файлів BBS-шрифтів.
+// Workflow: вибираєш теку розпакованого FontEn.arc → шрифт → бачиш атлас
+// (HD PNG як фон) з grid-оверлеєм по COD-positions → клік на гліф → правиш
+// X/Y/palette/width → save → COD перезаписується.
+// =====================================================================
+const bfState = {
+  arcDir: null,
+  hdDir: null,
+  fonts: [],          // [{name, infPath, codPath, mtxPath, cluPath}]
+  current: null,      // {name, inf, entries, infPath, codPath}
+  origEntries: null,  // для reset
+  pngUrl: null,
+  pngImg: null,
+  selected: -1,
+  dirty: false,
+  zoom: 1,            // CSS scale factor (1 = native px)
+  fitMode: false      // true = автопідгін під ширину контейнера
+};
+const BF_ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8];
+
+const bfPickArcBtn  = document.getElementById('bf-pick-arc');
+const bfPickHdBtn   = document.getElementById('bf-pick-hd');
+const bfFontSel     = document.getElementById('bf-font-sel');
+const bfPngSel      = document.getElementById('bf-png-sel');
+const bfAddBtn      = document.getElementById('bf-add');
+const bfDelBtn      = document.getElementById('bf-del');
+const bfResetBtn    = document.getElementById('bf-reset');
+const bfSaveBtn     = document.getElementById('bf-save');
+const bfZoomInBtn   = document.getElementById('bf-zoom-in');
+const bfZoomOutBtn  = document.getElementById('bf-zoom-out');
+const bfZoomResetBtn= document.getElementById('bf-zoom-reset');
+const bfZoomFitBtn  = document.getElementById('bf-zoom-fit');
+const bfExportOverlayBtn = document.getElementById('bf-export-overlay');
+const bfAtlasWrap   = document.getElementById('bf-atlas-wrap');
+const bfFields      = document.getElementById('bf-fields');
+const bfList        = document.getElementById('bf-list');
+const bfStatus      = document.getElementById('bf-status');
+const bfInfo        = document.getElementById('bf-info');
+const bfFNoSel      = document.getElementById('bf-no-selection') || null;
+const bfFIndex      = document.getElementById('bf-f-index');
+const bfFId         = document.getElementById('bf-f-id');
+const bfFChar       = document.getElementById('bf-f-char');
+const bfFX          = document.getElementById('bf-f-x');
+const bfFY          = document.getElementById('bf-f-y');
+const bfFPal        = document.getElementById('bf-f-pal');
+const bfFWidth      = document.getElementById('bf-f-width');
+
+function bfHex2(n) { return '0x' + n.toString(16).toUpperCase().padStart(4, '0'); }
+function bfCharFromId(id) {
+  // Декодуємо "видимий" символ з charID — для відображення.
+  // ASCII (0x20-0x7E): id безпосередньо ASCII.
+  // 0x81xx / 0x82xx etc — спробуємо спитати CTD-codec якщо є.
+  const lo = id & 0xFF;
+  const hi = (id >> 8) & 0xFF;
+  if (hi === 0x00 && lo >= 0x20 && lo < 0x7F) return String.fromCharCode(lo);
+  // 2-byte: low byte зазвичай ASCII-наступник
+  if ((hi === 0x81 || hi === 0x82) && lo >= 0x40 && lo < 0xFF) {
+    // Heuristic: 0x82 0x40+i → ASCII letters
+    return '';  // нема надійного маппінгу, показуємо порожньо
+  }
+  return '';
+}
+
+function bfRefreshButtons() {
+  if (bfPickHdBtn) bfPickHdBtn.disabled = !bfState.arcDir;
+  if (bfFontSel)   bfFontSel.disabled = !bfState.fonts.length;
+  if (bfPngSel)    bfPngSel.disabled = !bfState.hdDir;
+  if (bfResetBtn)  bfResetBtn.disabled = !bfState.dirty;
+  if (bfSaveBtn)   bfSaveBtn.disabled = !bfState.dirty;
+  if (bfExportOverlayBtn) bfExportOverlayBtn.disabled = !bfState.current;
+}
+
+function bfSetStatus(text) { if (bfStatus) bfStatus.textContent = text || ''; }
+function bfSetInfo(text)   { if (bfInfo)   bfInfo.textContent   = text || ''; }
+
+if (bfPickArcBtn) bfPickArcBtn.addEventListener('click', async () => {
+  const r = await window.kh1.bbsfont.pickArcDir();
+  if (r.canceled) return;
+  if (r.error) { toast(r.error, 'error'); return; }
+  bfState.arcDir = r.dir;
+  bfSetStatus(r.dir);
+  // Заповнюємо список шрифтів
+  const lr = await window.kh1.bbsfont.listFonts(r.dir);
+  if (lr.error) { toast(lr.error, 'error'); return; }
+  bfState.fonts = lr.fonts || [];
+  while (bfFontSel.firstChild) bfFontSel.removeChild(bfFontSel.firstChild);
+  const blank = document.createElement('option');
+  blank.value = ''; blank.textContent = '— виберіть шрифт —';
+  bfFontSel.appendChild(blank);
+  for (const f of bfState.fonts) {
+    const o = document.createElement('option');
+    o.value = f.name;
+    o.textContent = f.name;
+    bfFontSel.appendChild(o);
+  }
+  bfRefreshButtons();
+  toast('Знайдено шрифтів: ' + bfState.fonts.length, 'success', 2500);
+});
+
+if (bfPickHdBtn) bfPickHdBtn.addEventListener('click', async () => {
+  const r = await window.kh1.bbsfont.pickHdDir();
+  if (r.canceled) return;
+  if (r.error) { toast(r.error, 'error'); return; }
+  bfState.hdDir = r.dir;
+  // Список PNG
+  const lr = await window.kh1.bbsfont.listHdPngs(r.dir);
+  if (lr.error) { toast(lr.error, 'error'); return; }
+  while (bfPngSel.firstChild) bfPngSel.removeChild(bfPngSel.firstChild);
+  const blank = document.createElement('option');
+  blank.value = ''; blank.textContent = '— без HD PNG —';
+  bfPngSel.appendChild(blank);
+  for (const png of (lr.pngs || [])) {
+    const o = document.createElement('option');
+    o.value = png;
+    o.textContent = png.split(/[\\/]/).pop();
+    bfPngSel.appendChild(o);
+  }
+  bfRefreshButtons();
+});
+
+if (bfFontSel) bfFontSel.addEventListener('change', async () => {
+  const name = bfFontSel.value;
+  const ff = bfState.fonts.find(f => f.name === name);
+  if (!ff) return;
+  // hdPngPath передаємо лише якщо вибрано в окремому селекторі
+  const fontFiles = Object.assign({}, ff, { hdPngPath: bfPngSel && bfPngSel.value || null });
+  const r = await window.kh1.bbsfont.loadFont(fontFiles);
+  if (r.error) { toast(r.error, 'error'); return; }
+  bfState.current = { name: r.name, inf: r.inf, entries: r.entries, infPath: ff.infPath, codPath: ff.codPath };
+  bfState.origEntries = JSON.parse(JSON.stringify(r.entries));
+  bfState.pngUrl = r.pngDataUrl || null;
+  bfState.pngImg = null;
+  bfState.selected = -1;
+  bfState.dirty = false;
+  bfSetInfo(`${r.name} · ${r.entries.length} entries · ${r.inf.textureWidth}×${r.inf.textureHeight} (cell ${r.inf.charWidth}×${r.inf.charHeight})`);
+  if (bfState.pngUrl) {
+    const img = new Image();
+    img.onload = () => { bfState.pngImg = img; bfRenderAtlas(); };
+    img.src = bfState.pngUrl;
+  }
+  bfRenderAtlas();
+  bfRenderList();
+  bfRefreshButtons();
+});
+
+if (bfPngSel) bfPngSel.addEventListener('change', async () => {
+  if (!bfState.current) return;
+  // Перезавантажити поточний шрифт з новим HD PNG
+  bfFontSel.dispatchEvent(new Event('change'));
+});
+
+function bfRenderAtlas() {
+  if (!bfState.current) return;
+  const { inf, entries } = bfState.current;
+  // INF.textureWidth/Height — це PER-BLOCK розміри (не total atlas).
+  // Реальний атлас = 2× ширини (left + right halves для pal=0/pal=1).
+  const totalW = inf.textureWidth * 2;
+  const totalH = inf.textureHeight;
+  const pngW = bfState.pngImg ? bfState.pngImg.width : totalW;
+  const pngH = bfState.pngImg ? bfState.pngImg.height : totalH;
+  const scaleX = pngW / totalW;
+  const scaleY = pngH / totalH;
+  const halfPngW = pngW / 2;        // = inf.textureWidth * scaleX
+
+  bfAtlasWrap.innerHTML = '';
+  const canvas = document.createElement('canvas');
+  canvas.width = pngW;
+  canvas.height = pngH;
+  canvas.style.imageRendering = 'pixelated';
+  bfAtlasWrap.appendChild(canvas);
+  bfApplyZoom(canvas, pngW, pngH);
+  const ctx = canvas.getContext('2d');
+  // Bg + PNG
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, pngW, pngH);
+  if (bfState.pngImg) ctx.drawImage(bfState.pngImg, 0, 0);
+
+  // Vertical separator (block 1 / block 2)
+  ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(halfPngW, 0); ctx.lineTo(halfPngW, pngH); ctx.stroke();
+
+  // Cell-grid overlay. Block = palette index (0 → left half, 1 → right half).
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const blockOffX = (e.palette === 1) ? halfPngW : 0;
+    const px = e.posX * scaleX + blockOffX;
+    const py = e.posY * scaleY;
+    const pw = (e.width || inf.charWidth) * scaleX;
+    const ph = inf.charHeight * scaleY;
+    const isSel = (i === bfState.selected);
+    ctx.strokeStyle = isSel ? 'rgba(255, 200, 0, 1)' : 'rgba(255, 215, 90, 0.25)';
+    ctx.lineWidth = isSel ? 2 : 1;
+    ctx.strokeRect(px, py, pw, ph);
+  }
+
+  canvas.addEventListener('click', (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (ev.clientX - rect.left) / rect.width * pngW;
+    const cy = (ev.clientY - rect.top)  / rect.height * pngH;
+    const isBlock2 = cx > halfPngW;
+    const localX = isBlock2 ? cx - halfPngW : cx;
+    // Знайти entry: блок = palette (0 → лівий, 1 → правий).
+    let bestIdx = -1, bestDist = Infinity;
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      const expectsBlock2 = (e.palette === 1);
+      if (expectsBlock2 !== isBlock2) continue;
+      const ex = e.posX * scaleX;
+      const ey = e.posY * scaleY;
+      const ew = (e.width || inf.charWidth) * scaleX;
+      const eh = inf.charHeight * scaleY;
+      if (localX >= ex && localX < ex + ew && cy >= ey && cy < ey + eh) {
+        bfSelectEntry(i);
+        return;
+      }
+      // fallback: nearest
+      const dx = Math.max(0, ex - localX, localX - (ex + ew));
+      const dy = Math.max(0, ey - cy,     cy - (ey + eh));
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+    if (bestIdx >= 0) bfSelectEntry(bestIdx);
+  });
+}
+
+function bfRenderList() {
+  if (!bfState.current) return;
+  const entries = bfState.current.entries;
+  bfList.innerHTML = '';
+  // Limit для performance — показуємо all але рендеримо частинами якщо потрібно
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const li = document.createElement('li');
+    li.className = 'bf-list-item' + (i === bfState.selected ? ' selected' : '');
+    li.dataset.index = String(i);
+    li.textContent = `#${i}  ${bfHex2(e.id)}  ${bfCharFromId(e.id)}  (${e.posX},${e.posY})  w=${e.width}`;
+    li.addEventListener('click', () => bfSelectEntry(i));
+    frag.appendChild(li);
+  }
+  bfList.appendChild(frag);
+}
+
+function bfSelectEntry(idx) {
+  if (!bfState.current) return;
+  if (idx < 0 || idx >= bfState.current.entries.length) return;
+  bfState.selected = idx;
+  const e = bfState.current.entries[idx];
+  bfFields.classList.remove('hidden');
+  bfFIndex.value = String(idx);
+  bfFId.value    = bfHex2(e.id);
+  bfFChar.value  = bfCharFromId(e.id);
+  bfFX.value     = String(e.posX);
+  bfFY.value     = String(e.posY);
+  bfFPal.value   = String(e.palette);
+  bfFWidth.value = String(e.width);
+  bfRenderAtlas();
+  bfRenderList();
+  // scroll the selected item into view
+  const sel = bfList.querySelector('.bf-list-item.selected');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function bfRefreshSelectedListItem() {
+  if (!bfState.current || bfState.selected < 0) return;
+  const e = bfState.current.entries[bfState.selected];
+  const li = bfList.querySelector(`.bf-list-item[data-index="${bfState.selected}"]`);
+  if (li) li.textContent = `#${bfState.selected}  ${bfHex2(e.id)}  ${bfCharFromId(e.id)}  (${e.posX},${e.posY})  w=${e.width}`;
+}
+
+// === Zoom ===
+function bfApplyZoom(canvas, pngW, pngH) {
+  let z = bfState.zoom;
+  if (bfState.fitMode) {
+    const wrapW = Math.max(1, bfAtlasWrap.clientWidth - 16); // padding
+    z = wrapW / pngW;
+    bfState.zoom = z;
+  }
+  canvas.style.width  = (pngW * z) + 'px';
+  canvas.style.height = (pngH * z) + 'px';
+  canvas.style.maxWidth = 'none';
+  bfUpdateZoomLabel();
+}
+function bfUpdateZoomLabel() {
+  if (bfZoomResetBtn) bfZoomResetBtn.textContent = Math.round(bfState.zoom * 100) + '%';
+}
+function bfSetZoom(z, anchor) {
+  // anchor: optional {clientX, clientY} — keep that point under cursor
+  z = Math.max(0.1, Math.min(16, z));
+  const wrap = bfAtlasWrap;
+  const canvas = wrap.querySelector('canvas');
+  let preserve = null;
+  if (anchor && canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const fx = (anchor.clientX - rect.left) / rect.width;   // 0..1 within canvas
+    const fy = (anchor.clientY - rect.top)  / rect.height;
+    const oldScrollLeft = wrap.scrollLeft;
+    const oldScrollTop  = wrap.scrollTop;
+    const oldW = rect.width, oldH = rect.height;
+    preserve = { fx, fy, oldScrollLeft, oldScrollTop, oldW, oldH };
+  }
+  bfState.zoom = z;
+  bfState.fitMode = false;
+  if (canvas && bfState.current) {
+    const { inf } = bfState.current;
+    const totalW = inf.textureWidth * 2;
+    const pngW = bfState.pngImg ? bfState.pngImg.width : totalW;
+    const pngH = bfState.pngImg ? bfState.pngImg.height : inf.textureHeight;
+    bfApplyZoom(canvas, pngW, pngH);
+    if (preserve) {
+      const newW = pngW * z, newH = pngH * z;
+      // canvas top-left x within wrap (in wrap's content coords) == canvas.offsetLeft - wrap.offsetLeft? simpler:
+      // anchor pixel within canvas BEFORE = preserve.fx * oldW; want it under same viewport position
+      // viewport x of anchor = anchor.clientX - wrap.clientLeft; should remain same
+      const wrapRect = wrap.getBoundingClientRect();
+      const viewportX = anchor.clientX - wrapRect.left;
+      const viewportY = anchor.clientY - wrapRect.top;
+      wrap.scrollLeft = preserve.fx * newW - viewportX + (wrap.clientLeft || 0);
+      wrap.scrollTop  = preserve.fy * newH - viewportY + (wrap.clientLeft || 0);
+    }
+  }
+  bfUpdateZoomLabel();
+}
+function bfZoomStep(direction, anchor) {
+  const cur = bfState.zoom;
+  let idx = BF_ZOOM_STEPS.findIndex(s => s >= cur - 1e-6);
+  if (idx < 0) idx = BF_ZOOM_STEPS.length - 1;
+  if (direction > 0) {
+    idx = Math.min(BF_ZOOM_STEPS.length - 1, (BF_ZOOM_STEPS[idx] > cur + 1e-6) ? idx : idx + 1);
+  } else {
+    idx = Math.max(0, idx - 1);
+  }
+  bfSetZoom(BF_ZOOM_STEPS[idx], anchor);
+}
+if (bfZoomInBtn)    bfZoomInBtn.addEventListener('click',  () => bfZoomStep(+1));
+if (bfZoomOutBtn)   bfZoomOutBtn.addEventListener('click', () => bfZoomStep(-1));
+if (bfZoomResetBtn) bfZoomResetBtn.addEventListener('click', () => bfSetZoom(1));
+if (bfZoomFitBtn)   bfZoomFitBtn.addEventListener('click', () => {
+  bfState.fitMode = true;
+  bfRenderAtlas();
+});
+if (bfAtlasWrap) {
+  bfAtlasWrap.addEventListener('wheel', (ev) => {
+    if (!ev.ctrlKey) return;
+    ev.preventDefault();
+    bfZoomStep(ev.deltaY < 0 ? +1 : -1, { clientX: ev.clientX, clientY: ev.clientY });
+  }, { passive: false });
+}
+
+// === Export overlay (rectangles only) як прозорий PNG ===
+if (bfExportOverlayBtn) bfExportOverlayBtn.addEventListener('click', () => {
+  if (!bfState.current) return;
+  const { inf, entries } = bfState.current;
+  const totalW = inf.textureWidth * 2;
+  const totalH = inf.textureHeight;
+  const pngW = bfState.pngImg ? bfState.pngImg.width : totalW;
+  const pngH = bfState.pngImg ? bfState.pngImg.height : totalH;
+  const scaleX = pngW / totalW;
+  const scaleY = pngH / totalH;
+  const halfPngW = pngW / 2;
+
+  const off = document.createElement('canvas');
+  off.width = pngW;
+  off.height = pngH;
+  const ctx = off.getContext('2d');
+  // прозорий фон — нічого не малюємо
+  // Розділювач блоків (червоний, тонкий)
+  ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(halfPngW + 0.5, 0); ctx.lineTo(halfPngW + 0.5, pngH); ctx.stroke();
+  // Рамки гліфів
+  ctx.strokeStyle = 'rgba(255, 215, 90, 1)';
+  ctx.lineWidth = 1;
+  for (const e of entries) {
+    const blockOffX = (e.palette === 1) ? halfPngW : 0;
+    const x = Math.round(e.posX * scaleX + blockOffX) + 0.5;
+    const y = Math.round(e.posY * scaleY) + 0.5;
+    const w = Math.round((e.width || inf.charWidth) * scaleX);
+    const h = Math.round(inf.charHeight * scaleY);
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  off.toBlob((blob) => {
+    if (!blob) { toast('PNG export failed', 'error'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${bfState.current.name}-overlay-${pngW}x${pngH}.png`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+  }, 'image/png');
+});
+
+function bfBindFieldEdit(input, key, parser) {
+  input.addEventListener('input', () => {
+    if (!bfState.current || bfState.selected < 0) return;
+    const e = bfState.current.entries[bfState.selected];
+    const v = parser(input.value);
+    if (Number.isNaN(v) || v == null) return;
+    e[key] = v;
+    bfState.dirty = true;
+    bfRefreshButtons();
+    bfRenderAtlas();
+    bfRefreshSelectedListItem();
+  });
+}
+if (bfFX)     bfBindFieldEdit(bfFX,     'posX',    s => parseInt(s, 10));
+if (bfFY)     bfBindFieldEdit(bfFY,     'posY',    s => parseInt(s, 10));
+if (bfFPal)   bfBindFieldEdit(bfFPal,   'palette', s => parseInt(s, 10));
+if (bfFWidth) bfBindFieldEdit(bfFWidth, 'width',   s => parseInt(s, 10));
+if (bfFId)    bfBindFieldEdit(bfFId,    'id',      s => {
+  const m = String(s).trim().match(/^0x([0-9a-fA-F]{1,4})$/);
+  return m ? parseInt(m[1], 16) : NaN;
+});
+
+// === Add / Delete entry ===
+if (bfAddBtn) bfAddBtn.addEventListener('click', () => {
+  if (!bfState.current) return;
+  const newEntry = { index: bfState.current.entries.length, id: 0, posX: 0, posY: 0, palette: 0, width: 0 };
+  bfState.current.entries.push(newEntry);
+  bfState.dirty = true;
+  bfRenderList();
+  bfSelectEntry(bfState.current.entries.length - 1);
+  bfRefreshButtons();
+});
+
+if (bfDelBtn) bfDelBtn.addEventListener('click', () => {
+  if (!bfState.current || bfState.selected < 0) return;
+  if (!window.confirm('Видалити entry #' + bfState.selected + ' з COD?')) return;
+  bfState.current.entries.splice(bfState.selected, 1);
+  bfState.dirty = true;
+  bfState.selected = -1;
+  bfFields.classList.add('hidden');
+  bfRenderAtlas();
+  bfRenderList();
+  bfRefreshButtons();
+});
+
+if (bfResetBtn) bfResetBtn.addEventListener('click', () => {
+  if (!bfState.current || !bfState.origEntries) return;
+  if (!window.confirm('Скинути всі зміни до завантажених значень?')) return;
+  bfState.current.entries = JSON.parse(JSON.stringify(bfState.origEntries));
+  bfState.dirty = false;
+  bfState.selected = -1;
+  bfFields.classList.add('hidden');
+  bfRenderAtlas();
+  bfRenderList();
+  bfRefreshButtons();
+});
+
+if (bfSaveBtn) bfSaveBtn.addEventListener('click', async () => {
+  if (!bfState.current) return;
+  const r = await window.kh1.bbsfont.saveCod({
+    codPath: bfState.current.codPath,
+    entries: bfState.current.entries
+  });
+  if (r.error) { toast(r.error, 'error'); return; }
+  bfState.origEntries = JSON.parse(JSON.stringify(bfState.current.entries));
+  bfState.dirty = false;
+  bfRefreshButtons();
+  toast(`Збережено: ${r.byteLength} байт у ${bfState.current.codPath}`, 'success', 4000);
+});
