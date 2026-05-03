@@ -20,6 +20,18 @@ contextBridge.exposeInMainWorld('kh1', {
   saveFile: (text, suggestedName) =>
     ipcRenderer.invoke('file:save', { text, suggestedName }),
   about: () => ipcRenderer.invoke('app:about'),
+  // Custom title bar API
+  win: {
+    minimize: () => ipcRenderer.invoke('win:minimize'),
+    maximize: () => ipcRenderer.invoke('win:maximize'),
+    close: () => ipcRenderer.invoke('win:close'),
+    isMaximized: () => ipcRenderer.invoke('win:isMaximized'),
+    onState: (callback) => {
+      const listener = (_, state) => callback(state);
+      ipcRenderer.on('win:state', listener);
+      return () => ipcRenderer.removeListener('win:state', listener);
+    }
+  },
   app: {
     setLanguage: (lang) => ipcRenderer.invoke('app:setLanguage', lang),
     getCharMap: () => ipcRenderer.invoke('app:getCharMap'),
@@ -74,6 +86,7 @@ contextBridge.exposeInMainWorld('kh1', {
     openKnj: () => ipcRenderer.invoke('kerning:openKnj'),
     loadKnjFromPath: (knjPath) => ipcRenderer.invoke('kerning:loadKnjFromPath', knjPath),
     openDds: (suggestedDir) => ipcRenderer.invoke('kerning:openDds', suggestedDir),
+    loadDdsFromPath: (ddsPath) => ipcRenderer.invoke('kerning:loadDdsFromPath', ddsPath),
     autoFindDds: (knjPath) => ipcRenderer.invoke('kerning:autoFindDds', knjPath),
     saveKnj: (payload) => ipcRenderer.invoke('kerning:saveKnj', payload),
     encodeText: (text) => ipcRenderer.invoke('kerning:encodeText', text)

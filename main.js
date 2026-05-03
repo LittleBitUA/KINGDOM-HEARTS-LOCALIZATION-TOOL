@@ -1114,9 +1114,23 @@ ipcMain.handle('kerning:openDds', async (_e, suggestedDir) => {
   try {
     const buf = await fs.readFile(r.filePaths[0]);
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    saveSettings(Object.assign(loadSettings(), { lastDdsPath: r.filePaths[0] }));
     return { ok: true, filePath: r.filePaths[0], data: ab };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
+  }
+});
+
+ipcMain.handle('kerning:loadDdsFromPath', async (_e, ddsPath) => {
+  // Безмовне завантаження за збереженим шляхом (для авто-load на старті).
+  if (!ddsPath) return { ok: false };
+  try {
+    if (!fsSync.existsSync(ddsPath)) return { ok: false, error: 'not_found' };
+    const buf = await fs.readFile(ddsPath);
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    return { ok: true, filePath: ddsPath, data: ab };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || String(e) };
   }
 });
 
@@ -1136,6 +1150,7 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
       if (fsSync.existsSync(c)) {
         const buf = await fs.readFile(c);
         const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        saveSettings(Object.assign(loadSettings(), { lastDdsPath: c }));
         return { ok: true, filePath: c, data: ab };
       }
     }
@@ -1147,6 +1162,7 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
         const c = path.join(sub, ddsFiles[0]);
         const buf = await fs.readFile(c);
         const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        saveSettings(Object.assign(loadSettings(), { lastDdsPath: c }));
         return { ok: true, filePath: c, data: ab };
       }
     }
@@ -1648,8 +1664,12 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#050b1f',
-    title: 'Редактор тексту Kingdom Hearts 1',
+    backgroundColor: '#050505',
+    title: 'Kingdom Hearts Ukrainian Localization Hub',
+    icon: path.join(__dirname, 'build', 'icon.ico'),
+    frame: false,                    // Власний title bar (KH-style)
+    titleBarStyle: 'hidden',
+    thickFrame: false,               // прибрати Win11 accent-color border
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -1661,8 +1681,34 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  // Відкривати на максимум за замовчуванням (за запитом користувача).
+  mainWindow.maximize();
+
+  // Notify renderer про зміни window state (для max/restore icon swap).
+  const sendWinState = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('win:state', {
+      isMaximized: mainWindow.isMaximized(),
+      isFullScreen: mainWindow.isFullScreen()
+    });
+  };
+  mainWindow.on('maximize', sendWinState);
+  mainWindow.on('unmaximize', sendWinState);
+  mainWindow.on('enter-full-screen', sendWinState);
+  mainWindow.on('leave-full-screen', sendWinState);
   mainWindow.on('closed', () => { mainWindow = null; });
 }
+
+// IPC: window controls для custom title bar.
+ipcMain.handle('win:minimize', () => mainWindow && mainWindow.minimize());
+ipcMain.handle('win:maximize', () => {
+  if (!mainWindow) return false;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+  return mainWindow.isMaximized();
+});
+ipcMain.handle('win:close', () => mainWindow && mainWindow.close());
+ipcMain.handle('win:isMaximized', () => mainWindow && mainWindow.isMaximized());
 
 app.whenReady().then(() => {
   try {

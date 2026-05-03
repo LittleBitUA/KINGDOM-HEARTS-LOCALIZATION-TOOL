@@ -29,8 +29,8 @@ const DICT = {
     settingsBtnTitle: 'Налаштувати теки локалізації',
     tabFiles: '📂 Файли',
     tabGlossary: '📚 Глосарій',
-    safeMode: '🛡 Безпечно (.binl + .bin)',
-    safeModeTitle: 'Працювати лише з безпечними текстовими файлами: .binl з EvMsg-магією та сирі .bin (як btltbl.bin/UK_Word.bin тощо). .evdl та інші — це байткод/скрипти, переклад їх ламає гру.',
+    safeMode: '🛡 Безпечно (підтримувані формати)',
+    safeModeTitle: 'Показувати лише файли, які перекладач уміє безпечно зчитати й перепакувати: .binl (EvMsg), сирі .bin (btltbl, UK_Word…), .ev/.evdl з текстом, та _mes_ofs.bin/_mes_data.bin пари. Інші невпізнані формати приховуються — їх редагування може зламати гру.',
 
     // Files subtab
     selectFile: '— виберіть файл —',
@@ -138,10 +138,11 @@ const DICT = {
     updateOpenReleasePage: 'Відкрити сторінку релізу v{v} в браузері для ручного завантаження?',
     toastNeedAtlas: 'Спершу завантажте DDS-атлас',
     toastAutoFitDone: 'Auto-fit: змінено {changed} · збережено {kept} · порожніх {empty}',
-    glyphFilterPlaceholder: '🔎 № гліфа (наприклад 0-50, 100, 120)',
+    glyphFilterPlaceholder: '🔎 № гліфа або символ (0-50, 100, Q a)',
     knjEmpty: 'Завантажте .knj-файл (наприклад UA_kanji.knj). Якщо поряд є .dds-атлас — підтягнеться автоматично.',
     knjHint: 'Тягни вертикальну червону лінію щоб встановити advance-width (відступ після літери). Значення зберігається як byte = pixel / 2, максимум 24 (= 48 px).',
     previewPlaceholder: 'Live-preview: введіть текст українською/англійською...',
+    previewNeedKnj: 'Спочатку завантажте .knj/.dds, щоб увімкнути попередній перегляд',
     previewBgLabel: 'Темне тло',
     previewInfo: 'Літер: {n} · ширина: {w} px',
     previewEmpty: 'Введіть текст, щоб побачити як він виглядає в грі',
@@ -158,7 +159,27 @@ const DICT = {
     aboutTitle: 'Про програму',
     close: 'Закрити',
 
-    // Modals: Settings (dirs)
+    // Modals: Settings
+    settingsTitle: 'Налаштування',
+    langSectionTitle: 'Мова інтерфейсу',
+    themeSectionTitle: 'Тема оформлення',
+    themeDark: 'Темна',
+    themeLight: 'Світла',
+
+    // Event log drawer
+    logTitle: 'Журнал подій',
+    logClear: 'Очистити',
+    logEmpty: 'Поки що немає подій.',
+
+    // Home / Game selection
+    homeTitle: 'KINGDOM HEARTS UKRAINIAN LOCALIZATION HUB',
+    homeSubtitle: 'Виберіть гру серії Kingdom Hearts для локалізації',
+    homeFooter: 'Більше ігор серії з’являться у наступних оновленнях',
+    gameStatusReady: 'Готово',
+    gameStatusSoon: 'Незабаром',
+    comingSoon: 'Coming Soon',
+    gameSoonTooltip: 'Підтримка з’явиться у наступних оновленнях',
+
     dirsTitle: 'Теки локалізації',
     engDirLabel: 'Тека ENG (оригінал):',
     rusDirLabel: 'Тека RUS (оракул-локалізація):',
@@ -263,8 +284,8 @@ const DICT = {
     settingsBtnTitle: 'Configure localization folders',
     tabFiles: '📂 Files',
     tabGlossary: '📚 Glossary',
-    safeMode: '🛡 Safe (.binl + .bin)',
-    safeModeTitle: 'Work only with safe text files: .binl with EvMsg magic and raw .bin (like btltbl.bin/UK_Word.bin etc.). .evdl and others are bytecode/scripts — translating them breaks the game.',
+    safeMode: '🛡 Safe (supported formats)',
+    safeModeTitle: 'Show only files this editor can safely round-trip: .binl (EvMsg), raw .bin (btltbl, UK_Word…), .ev/.evdl with text, and _mes_ofs.bin/_mes_data.bin pairs. Unknown formats are hidden — editing them can break the game.',
 
     selectFile: '— select file —',
     reloadList: 'Reload file list',
@@ -369,10 +390,11 @@ const DICT = {
     updateOpenReleasePage: 'Open release page for v{v} in browser to download manually?',
     toastNeedAtlas: 'Load a DDS atlas first',
     toastAutoFitDone: 'Auto-fit: changed {changed} · kept {kept} · empty {empty}',
-    glyphFilterPlaceholder: '🔎 glyph № (e.g. 0-50, 100, 120)',
+    glyphFilterPlaceholder: '🔎 glyph № or character (0-50, 100, Q a)',
     knjEmpty: 'Load a .knj file (e.g. UA_kanji.knj). If a sibling .dds atlas exists — it will be loaded automatically.',
     knjHint: 'Drag the red vertical line to set advance-width (offset after the letter). Value is stored as byte = pixel / 2, max 24 (= 48 px).',
     previewPlaceholder: 'Live preview: type Ukrainian/English text...',
+    previewNeedKnj: 'Load .knj/.dds first to enable live preview',
     previewBgLabel: 'Dark background',
     previewInfo: 'Letters: {n} · width: {w} px',
     previewEmpty: 'Type some text to see how it looks in-game',
@@ -386,6 +408,24 @@ const DICT = {
 
     aboutTitle: 'About',
     close: 'Close',
+
+    settingsTitle: 'Settings',
+    langSectionTitle: 'Interface language',
+    themeSectionTitle: 'Theme',
+    themeDark: 'Dark',
+    themeLight: 'Light',
+
+    logTitle: 'Event log',
+    logClear: 'Clear',
+    logEmpty: 'No events yet.',
+
+    homeTitle: 'KINGDOM HEARTS UKRAINIAN LOCALIZATION HUB',
+    homeSubtitle: 'Choose a Kingdom Hearts game to localize',
+    homeFooter: 'More titles from the series are coming in future updates',
+    gameStatusReady: 'Ready',
+    gameStatusSoon: 'Soon',
+    comingSoon: 'Coming Soon',
+    gameSoonTooltip: 'Support will be added in a future update',
 
     dirsTitle: 'Localization folders',
     engDirLabel: 'ENG folder (original):',

@@ -1,6 +1,28 @@
 'use strict';
 
 // =====================================================================
+// Custom title bar handlers (Stage 1 редизайну).
+// Pure-UI: лише min/max/close через kh1.win API.
+// =====================================================================
+(function setupTitleBar() {
+  const btnMin = document.getElementById('tb-minimize');
+  const btnMax = document.getElementById('tb-maximize');
+  const btnClose = document.getElementById('tb-close');
+  if (!btnMin || !btnMax || !btnClose) return;
+  const w = window.kh1 && window.kh1.win;
+  if (!w) return;
+  btnMin.addEventListener('click', () => w.minimize());
+  btnMax.addEventListener('click', () => w.maximize());
+  btnClose.addEventListener('click', () => w.close());
+  // Subscribe на win-state events для свопу max/restore icon (optional polish).
+  if (w.onState) {
+    w.onState((state) => {
+      btnMax.title = state.isMaximized ? 'Restore' : 'Maximize';
+    });
+  }
+})();
+
+// =====================================================================
 // DOM refs
 // =====================================================================
 const viewEditor = document.getElementById('view-editor');
@@ -139,8 +161,66 @@ const gState = {
 };
 
 // =====================================================================
-// Toasts
+// Toasts + persistent Event Log
 // =====================================================================
+const eventLog = {
+  items: [],          // { ts, kind, msg }
+  max: 200,
+  drawer: null,
+  list: null,
+  badge: null,
+  emptyEl: null,
+  unread: 0
+};
+
+function _logFmtTime(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+function _logRender() {
+  if (!eventLog.list) return;
+  eventLog.list.innerHTML = '';
+  for (let i = eventLog.items.length - 1; i >= 0; i--) {
+    const it = eventLog.items[i];
+    const li = document.createElement('li');
+    li.className = 'event-log-item kind-' + it.kind;
+    const t = document.createElement('span');
+    t.className = 'ev-time';
+    t.textContent = _logFmtTime(it.ts);
+    const m = document.createElement('span');
+    m.className = 'ev-msg';
+    m.textContent = it.msg;
+    li.appendChild(t); li.appendChild(m);
+    eventLog.list.appendChild(li);
+  }
+  if (eventLog.drawer) eventLog.drawer.classList.toggle('has-events', eventLog.items.length > 0);
+}
+
+function _logBadgeUpdate() {
+  if (!eventLog.badge) return;
+  if (eventLog.unread > 0) {
+    eventLog.badge.textContent = eventLog.unread > 99 ? '99+' : String(eventLog.unread);
+    eventLog.badge.hidden = false;
+  } else {
+    eventLog.badge.hidden = true;
+  }
+}
+
+function logEvent(message, kind) {
+  if (!kind) kind = 'info';
+  eventLog.items.push({ ts: Date.now(), kind, msg: String(message) });
+  if (eventLog.items.length > eventLog.max) {
+    eventLog.items.splice(0, eventLog.items.length - eventLog.max);
+  }
+  _logRender();
+  if (eventLog.drawer && eventLog.drawer.classList.contains('hidden')) {
+    eventLog.unread++;
+    _logBadgeUpdate();
+  }
+}
+
 function toast(message, kind, timeout) {
   if (!kind) kind = 'info';
   if (typeof timeout !== 'number') timeout = 3500;
@@ -152,6 +232,178 @@ function toast(message, kind, timeout) {
     el.classList.add('fade-out');
     window.setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
   }, timeout);
+  // Mirror to persistent log
+  logEvent(message, kind);
+}
+
+// =====================================================================
+// Home / Game Selection screen
+// gamesConfig — масив; додавай нові ігри сюди. Кожна гра має:
+//   id        - унікальний slug
+//   title     - велика назва на обкладинці
+//   name      - назва під карткою
+//   subtitle  - короткий опис (платформа/реліз)
+//   image     - шлях до cover (або null → CSS-fallback)
+//   coverGrad - CSS-градієнт обкладинки (якщо нема image)
+//   enabled   - true → клікабельна
+//   status    - 'ready' | 'soon'
+//   onSelect  - callback при виборі (тільки для enabled)
+// =====================================================================
+const gamesConfig = [
+  {
+    id: 'kh1-final-mix',
+    title: 'KINGDOM HEARTS FINAL MIX',
+    name: 'Kingdom Hearts Final Mix',
+    subtitle: 'PC (Steam / Epic Games) · .bin / .binl / .ard',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #2a1f6b 0%, #1a1448 40%, #0a0a3f 100%)',
+    enabled: true,
+    status: 'ready',
+    onSelect: () => enterEditor()
+  },
+  {
+    id: 'kh-re-com',
+    title: 'KINGDOM HEARTS Re:Chain of Memories',
+    name: 'Kingdom Hearts Re:Chain of Memories',
+    subtitle: 'PC (Steam / Epic Games) · підтримка з’явиться пізніше',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #4a3a1a 0%, #2a2008 50%, #1a1404 100%)',
+    enabled: false,
+    status: 'soon'
+  },
+  {
+    id: 'kh-bbs-final-mix',
+    title: 'KINGDOM HEARTS Birth by Sleep FINAL MIX',
+    name: 'Kingdom Hearts: Birth by Sleep Final Mix',
+    subtitle: 'PC (Steam / Epic Games) · підтримка з’явиться пізніше',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #1f4a5e 0%, #0a3040 50%, #051a2a 100%)',
+    enabled: false,
+    status: 'soon'
+  }
+];
+
+const homeScreen = document.getElementById('home-screen');
+const homeGrid   = document.getElementById('home-grid');
+const appRoot    = document.querySelector('.app');
+
+function _gameStatusLabel(status) {
+  if (status === 'ready') return (window.i18n && window.i18n.t('gameStatusReady')) || 'Готово';
+  if (status === 'soon')  return (window.i18n && window.i18n.t('gameStatusSoon'))  || 'Незабаром';
+  return '';
+}
+
+const HEART_SVG = '<svg viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet"><path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg>';
+
+function renderGameCard(game) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'game-card' + (game.enabled ? '' : ' disabled');
+  card.dataset.gameId = game.id;
+  card.setAttribute('role', 'listitem');
+  if (!game.enabled) {
+    card.disabled = true;
+    card.setAttribute('aria-disabled', 'true');
+    card.setAttribute('data-i18n-title', 'gameSoonTooltip');
+    card.title = (window.i18n && window.i18n.t('gameSoonTooltip')) || 'Підтримка з’явиться пізніше';
+  } else {
+    card.setAttribute('aria-label', game.name);
+  }
+
+  // Cover
+  const cover = document.createElement('div');
+  cover.className = 'game-cover';
+  if (game.coverGrad && !game.image) cover.style.background = game.coverGrad;
+
+  if (game.image) {
+    const img = document.createElement('img');
+    img.src = game.image;
+    img.alt = '';
+    cover.appendChild(img);
+  } else {
+    const heart = document.createElement('div');
+    heart.className = 'game-cover-heart';
+    heart.innerHTML = HEART_SVG;
+    cover.appendChild(heart);
+    const t = document.createElement('div');
+    t.className = 'game-cover-title';
+    t.textContent = game.title;
+    cover.appendChild(t);
+  }
+  const ovl = document.createElement('div');
+  ovl.className = 'game-cover-overlay';
+  cover.appendChild(ovl);
+
+  if (!game.enabled) {
+    const ribbon = document.createElement('div');
+    ribbon.className = 'game-ribbon';
+    ribbon.setAttribute('data-i18n', 'comingSoon');
+    ribbon.textContent = (window.i18n && window.i18n.t('comingSoon')) || 'Coming Soon';
+    card.appendChild(ribbon);
+  }
+
+  card.appendChild(cover);
+
+  // Info
+  const info = document.createElement('div');
+  info.className = 'game-info';
+  const name = document.createElement('h3');
+  name.className = 'game-name';
+  name.textContent = game.name;
+  const sub = document.createElement('p');
+  sub.className = 'game-subtitle';
+  sub.textContent = game.subtitle;
+  const status = document.createElement('span');
+  status.className = 'game-status status-' + game.status;
+  const statusKey = game.status === 'ready' ? 'gameStatusReady' : 'gameStatusSoon';
+  status.setAttribute('data-i18n', statusKey);
+  status.textContent = _gameStatusLabel(game.status);
+  info.appendChild(name);
+  info.appendChild(sub);
+  info.appendChild(status);
+  card.appendChild(info);
+
+  if (game.enabled && typeof game.onSelect === 'function') {
+    card.addEventListener('click', () => game.onSelect());
+  }
+  return card;
+}
+
+function renderHome() {
+  if (!homeGrid) return;
+  homeGrid.innerHTML = '';
+  for (const g of gamesConfig) homeGrid.appendChild(renderGameCard(g));
+}
+
+function showHome() {
+  if (!homeScreen || !appRoot) return;
+  homeScreen.classList.remove('hidden');
+  homeScreen.setAttribute('aria-hidden', 'false');
+  appRoot.classList.add('hidden');
+}
+function hideHome() {
+  if (!homeScreen || !appRoot) return;
+  homeScreen.classList.add('hidden');
+  homeScreen.setAttribute('aria-hidden', 'true');
+  appRoot.classList.remove('hidden');
+}
+
+let _enterEditorChecked = false;
+function enterEditor() {
+  hideHome();
+  // Editor mode за замовчуванням; setMode може бути не визначений на цьому
+  // етапі парсингу, тож обережно перевіряємо.
+  if (typeof setMode === 'function') setMode('editor');
+  if (!_enterEditorChecked) {
+    _enterEditorChecked = true;
+    if (typeof maybeFirstRunSettings === 'function') maybeFirstRunSettings();
+    // KH1-specific .knj автозавантаження — лише при вході у Final Mix editor.
+    if (typeof kAutoLoadKnjOnBoot === 'function') kAutoLoadKnjOnBoot();
+  }
+}
+
+function goHome() {
+  showHome();
 }
 
 // =====================================================================
@@ -524,8 +776,9 @@ tSafeMode.addEventListener('change', async (e) => {
   if (!tState.safeMode) {
     if (!window.confirm(
       'УВАГА. Режим "Безпечно" вимикається.\n\n' +
-      'Файли .evdl/.ev/інші — це БАЙТКОД (скрипти подій), не текст. ' +
-      'Переклад або compose таких файлів зламає гру (краш або undefined behavior).\n\n' +
+      'У списку з’являться файли невпізнаних форматів. Редактор їх не вміє безпечно ' +
+      'розпарсити/перепакувати — compose таких файлів може зламати гру ' +
+      '(краш або undefined behavior).\n\n' +
       'Продовжити?'
     )) {
       tSafeMode.checked = true;
@@ -2715,6 +2968,7 @@ async function kEnsureCharMap() {
     if (r.ok) kState.charMap = r.map;
     else kState.charMap = {};
   } catch (_) { kState.charMap = {}; }
+  _kReverseCharMap = null;   // буде перебудовано при першому пошуку за символом
 }
 
 function kGlyphLabel(idx) {
@@ -2746,6 +3000,20 @@ const kPreviewText = document.getElementById('k-preview-text');
 const kPreviewCanvas = document.getElementById('k-preview-canvas');
 const kPreviewBg = document.getElementById('k-preview-bg');
 const kPreviewInfo = document.getElementById('k-preview-info');
+
+// Перерендерити preview, коли canvas змінює CSS-ширину (resize вікна,
+// перемикання режиму, перший показ після прихованого стану).
+if (kPreviewCanvas && typeof ResizeObserver !== 'undefined') {
+  let _kRO = null;
+  const _kROCb = () => {
+    const w = Math.max(1, kPreviewCanvas.clientWidth);
+    if (w !== _kPreviewLastW && typeof kRenderPreview === 'function') {
+      kRenderPreview();
+    }
+  };
+  _kRO = new ResizeObserver(_kROCb);
+  _kRO.observe(kPreviewCanvas);
+}
 
 function kFilenameFromPath(p) {
   if (!p) return '';
@@ -2990,17 +3258,47 @@ function kAttachDrag(canvas, g, valueLabel, input) {
   window.addEventListener('mouseup', () => { dragging = false; });
 }
 
+// Lazy reverse charMap { char → byte }. Будується з kState.charMap при першому
+// зверненні; kEnsureCharMap гарантує що kState.charMap не null до цього моменту.
+let _kReverseCharMap = null;
+function _kRebuildReverseCharMap() {
+  _kReverseCharMap = Object.create(null);
+  if (!kState.charMap) return;
+  for (const k of Object.keys(kState.charMap)) {
+    const ch = kState.charMap[k];
+    if (typeof ch === 'string' && ch.length === 1 && !_kReverseCharMap[ch]) {
+      _kReverseCharMap[ch] = parseInt(k, 10);
+    }
+  }
+}
+function _kCharToGlyphIdx(ch) {
+  if (!_kReverseCharMap) _kRebuildReverseCharMap();
+  const byte = _kReverseCharMap[ch];
+  if (typeof byte !== 'number') return -1;
+  return byte - BYTE_GLYPH_OFFSET;
+}
+
 function kParseFilter(text) {
-  // Підтримує "0-50, 100, 120-130"
+  // Підтримує:
+  //   • числові індекси/діапазони:  "0-50, 100, 120-130"
+  //   • літерали символів:          "Q", "Q a 5", "AB" (кожен символ окремо)
+  // Числове і символьне можна змішувати: "0-32 Q a 100-110".
   if (!text || !text.trim()) return null;
   const set = new Set();
   for (const part of text.split(/[,\s]+/)) {
     if (!part) continue;
-    const m = part.match(/^(\d+)(?:-(\d+))?$/);
-    if (!m) continue;
-    const a = parseInt(m[1], 10);
-    const b = m[2] ? parseInt(m[2], 10) : a;
-    for (let i = Math.min(a,b); i <= Math.max(a,b); i++) set.add(i);
+    const numMatch = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (numMatch) {
+      const a = parseInt(numMatch[1], 10);
+      const b = numMatch[2] ? parseInt(numMatch[2], 10) : a;
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) set.add(i);
+      continue;
+    }
+    // Не число — інтерпретуємо кожен символ як гліф
+    for (const ch of Array.from(part)) {
+      const idx = _kCharToGlyphIdx(ch);
+      if (idx >= 0) set.add(idx);
+    }
   }
   return set.size ? set : null;
 }
@@ -3085,11 +3383,23 @@ function kRefreshStatus() {
   kSaveKnjBtn.disabled = !kState.dirty;
   kResetBtn.disabled = changed === 0;
   if (kAutoFitBtn) kAutoFitBtn.disabled = !kState.knjBuf || !kState.atlasPx;
+  // Live-preview потребує і .knj, і .dds — без них рендер canvas ні на що
+  // не спирається. Disable + плейсхолдер краще, ніж дозволити друкувати у
+  // нікуди (користувач не розуміє чому canvas мовчить).
+  if (kPreviewText) {
+    const ready = !!(kState.knjBuf && kState.atlasPx);
+    kPreviewText.disabled = !ready;
+    kPreviewText.placeholder = ready
+      ? (window.i18n ? window.i18n.t('previewPlaceholder') : 'Live-preview: введіть текст…')
+      : (window.i18n ? window.i18n.t('previewNeedKnj') : 'Спочатку завантажте .knj/.dds');
+  }
 }
 
 async function kApplyKnjLoaded(r, opts) {
   // Спільний код: оновити kState, перерендерити, запустити auto-find DDS.
-  // opts.silent=true — без toast'у про завантажений knj (для авто-load на старті).
+  // opts.silent=true   — без toast'у про завантажений knj (для авто-load на старті).
+  // opts.preferDds     — спочатку спробувати завантажити саме цей збережений шлях,
+  //                       перш ніж шукати DDS поряд з .knj.
   kState.knjPath = r.filePath;
   kState.knjBuf = new Uint8Array(r.data);
   kState.dirty = false;
@@ -3100,20 +3410,40 @@ async function kApplyKnjLoaded(r, opts) {
   if (!opts || !opts.silent) {
     toast(window.i18n.t('toastKnjLoaded', {file: kFilenameFromPath(r.filePath), n: r.data.byteLength}), 'success');
   }
-  // Auto-find DDS поряд
-  try {
-    const a = await window.kh1.kerning.autoFindDds(r.filePath);
-    if (a.ok) {
-      kState.ddsPath = a.filePath;
-      kState.atlasPx = decodeDds(a.data);
-      kRenderGrid();
-      kRefreshStatus();
-      if (!opts || !opts.silent) {
-        toast(window.i18n.t('toastKnjAutoDds', {file: kFilenameFromPath(a.filePath)}), 'info', 4000);
+  // 1) Спробувати збережений lastDdsPath (точний користувацький вибір)
+  let ddsLoaded = false;
+  if (opts && opts.preferDds) {
+    try {
+      const d = await window.kh1.kerning.loadDdsFromPath(opts.preferDds);
+      if (d && d.ok) {
+        kState.ddsPath = d.filePath;
+        kState.atlasPx = decodeDds(d.data);
+        ddsLoaded = true;
       }
+    } catch (_) { /* провалюємось у autoFind */ }
+  }
+  // 2) Якщо збереженого нема або не вдалось — auto-find поряд з .knj
+  if (!ddsLoaded) {
+    try {
+      const a = await window.kh1.kerning.autoFindDds(r.filePath);
+      if (a.ok) {
+        kState.ddsPath = a.filePath;
+        kState.atlasPx = decodeDds(a.data);
+        ddsLoaded = true;
+        if (!opts || !opts.silent) {
+          toast(window.i18n.t('toastKnjAutoDds', {file: kFilenameFromPath(a.filePath)}), 'info', 4000);
+        }
+      }
+    } catch (e) {
+      toast(window.i18n.t('toastKnjDdsFoundFail', {msg: e.message}), 'error', 6000);
     }
-  } catch (e) {
-    toast(window.i18n.t('toastKnjDdsFoundFail', {msg: e.message}), 'error', 6000);
+  }
+  if (ddsLoaded) {
+    kRenderGrid();
+    kRefreshStatus();
+    // Атлас тепер завантажений — перерендерити preview, щоб користувач
+    // одразу бачив печатний текст замість "Завантажте .dds...".
+    if (typeof kSchedulePreview === 'function') kSchedulePreview();
   }
 }
 
@@ -3128,14 +3458,14 @@ async function kLoadKnj() {
   }
 }
 
-// Авто-завантаження останнього .knj зі settings (lastKnjPath) на старті.
+// Авто-завантаження останнього .knj + .dds зі settings на старті.
 async function kAutoLoadKnjOnBoot() {
   try {
     const settings = await window.kh1.translate.getSettings();
     if (!settings || !settings.lastKnjPath) return;
     const r = await window.kh1.kerning.loadKnjFromPath(settings.lastKnjPath);
     if (r && r.ok) {
-      await kApplyKnjLoaded(r, { silent: false });
+      await kApplyKnjLoaded(r, { silent: false, preferDds: settings.lastDdsPath || null });
     }
   } catch (_) { /* тихо ігноруємо — користувач сам завантажить вручну */ }
 }
@@ -3293,13 +3623,18 @@ function kComputeGlyphRect(byte) {
   return { x: col * CELL_W, y: row * CELL_H };
 }
 
+// Зберігаємо останньо-зрендерену ширину, щоб ResizeObserver міг визначити
+// зміну CSS-розміру canvas і перерендерити (інакше буфер 1100px розтягується
+// під CSS і текст виглядає кривим, поки користувач не змінить розмір вікна).
+let _kPreviewLastW = 0;
 async function kRenderPreview() {
   if (!kPreviewCanvas) return;
   const ctx = kPreviewCanvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   // Розтягнути canvas-px під реальну ширину
-  const cssW = kPreviewCanvas.clientWidth || 1100;
+  const cssW = Math.max(1, kPreviewCanvas.clientWidth) || 1100;
   if (kPreviewCanvas.width !== cssW) kPreviewCanvas.width = cssW;
+  _kPreviewLastW = cssW;
   ctx.clearRect(0, 0, kPreviewCanvas.width, kPreviewCanvas.height);
 
   const text = kPreviewText ? kPreviewText.value : '';
@@ -3400,6 +3735,8 @@ async function kRenderPreview() {
 
 if (kPreviewText) {
   kPreviewText.addEventListener('input', kSchedulePreview);
+  // Initialize disabled state + placeholder за відсутністю knj/dds.
+  if (typeof kRefreshStatus === 'function') kRefreshStatus();
 }
 // Re-render on window resize so canvas pixel-size matches CSS width (fixed-scale text)
 window.addEventListener('resize', () => {
@@ -3557,33 +3894,120 @@ window.kh1.onMenu('menu:mode-translate', () => setMode('translate'));
 window.kh1.onMenu('menu:mode-kerning', () => setMode('kerning'));
 
 // =====================================================================
-// i18n: language switcher + initial apply
+// i18n: language switcher (in Settings modal) + initial apply
 // =====================================================================
-const langSelect = document.getElementById('lang-select');
+const langOpts = document.querySelectorAll('.lang-opt');
+
+function setLangOptsUi(lang) {
+  langOpts.forEach(b => b.setAttribute('aria-checked', b.dataset.lang === lang ? 'true' : 'false'));
+}
+
+async function applyLanguage(lang, persist) {
+  const finalLang = (lang === 'en') ? 'en' : 'uk';
+  if (window.i18n) window.i18n.setLang(finalLang);
+  setLangOptsUi(finalLang);
+  if (persist) {
+    try { await window.kh1.translate.saveSettings({ language: finalLang }); } catch (_) {}
+    try { await window.kh1.app.setLanguage(finalLang); } catch (_) {}
+  }
+}
 
 async function initLanguage() {
   try {
     const s = await window.kh1.translate.getSettings();
     const lang = (s && s.language) || (navigator.language || 'uk').slice(0, 2);
-    const finalLang = (lang === 'en') ? 'en' : 'uk';
-    if (window.i18n) window.i18n.setLang(finalLang);
-    if (langSelect) langSelect.value = finalLang;
+    await applyLanguage(lang, false);
   } catch (_) {
-    if (window.i18n) window.i18n.setLang('uk');
+    await applyLanguage('uk', false);
   }
 }
 
-if (langSelect) {
-  langSelect.addEventListener('change', async () => {
-    const lang = langSelect.value === 'en' ? 'en' : 'uk';
-    if (window.i18n) window.i18n.setLang(lang);
-    try { await window.kh1.translate.saveSettings({ language: lang }); } catch (_) {}
-    try { await window.kh1.app.setLanguage(lang); } catch (_) {}
-  });
+langOpts.forEach(btn => {
+  btn.addEventListener('click', () => applyLanguage(btn.dataset.lang, true));
+});
+
+// Theme switcher
+const themeOpts = document.querySelectorAll('.theme-opt');
+function setThemeOptsUi(theme) {
+  themeOpts.forEach(b => b.setAttribute('aria-checked', b.dataset.theme === theme ? 'true' : 'false'));
+}
+async function applyTheme(theme, persist) {
+  const finalTheme = (theme === 'light') ? 'light' : 'dark';
+  document.body.classList.toggle('theme-light', finalTheme === 'light');
+  setThemeOptsUi(finalTheme);
+  if (persist) {
+    try { await window.kh1.translate.saveSettings({ theme: finalTheme }); } catch (_) {}
+  }
+}
+async function initTheme() {
+  try {
+    const s = await window.kh1.translate.getSettings();
+    await applyTheme((s && s.theme) || 'dark', false);
+  } catch (_) {
+    await applyTheme('dark', false);
+  }
+}
+themeOpts.forEach(btn => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme, true));
+});
+
+// Title-bar settings button + first-run auto-open.
+const tbSettingsBtn = document.getElementById('tb-settings');
+if (tbSettingsBtn) tbSettingsBtn.addEventListener('click', openSettings);
+
+// Title-bar brand (KH heart) → повернутися на головну.
+const tbHomeBtn = document.getElementById('tb-home');
+if (tbHomeBtn) tbHomeBtn.addEventListener('click', goHome);
+
+// Event log drawer wiring.
+eventLog.drawer  = document.getElementById('event-log');
+eventLog.list    = document.getElementById('event-log-list');
+eventLog.emptyEl = document.getElementById('event-log-empty');
+eventLog.badge   = document.getElementById('tb-log-badge');
+
+const tbLogBtn = document.getElementById('tb-log');
+const elClose  = document.getElementById('event-log-close');
+const elClear  = document.getElementById('event-log-clear');
+
+function toggleEventLog() {
+  if (!eventLog.drawer) return;
+  const wasHidden = eventLog.drawer.classList.contains('hidden');
+  eventLog.drawer.classList.toggle('hidden');
+  eventLog.drawer.setAttribute('aria-hidden', wasHidden ? 'false' : 'true');
+  if (wasHidden) {
+    eventLog.unread = 0;
+    _logBadgeUpdate();
+  }
+}
+function closeEventLog() {
+  if (!eventLog.drawer) return;
+  eventLog.drawer.classList.add('hidden');
+  eventLog.drawer.setAttribute('aria-hidden', 'true');
 }
 
+if (tbLogBtn) tbLogBtn.addEventListener('click', toggleEventLog);
+if (elClose)  elClose.addEventListener('click', closeEventLog);
+if (elClear)  elClear.addEventListener('click', () => {
+  eventLog.items.length = 0;
+  eventLog.unread = 0;
+  _logBadgeUpdate();
+  _logRender();
+});
+
+async function maybeFirstRunSettings() {
+  try {
+    const s = await window.kh1.translate.getSettings();
+    const everConfigured = s && (s.language || s.engDir || s.rusDir || s.tsvDir || s.outDir);
+    if (!everConfigured) openSettings();
+  } catch (_) {}
+}
+
+initTheme();
 initLanguage();
-kAutoLoadKnjOnBoot();
+renderHome();
+// maybeFirstRunSettings() та kAutoLoadKnjOnBoot() викликаються з enterEditor()
+// при першому вході в редактор (щоб не виконувати KH1-specific логіку, коли
+// користувач ще на головному екрані з вибором іншої гри).
 
 // =====================================================================
 // Auto-update wiring (toast notifications + download/install dialogs)
