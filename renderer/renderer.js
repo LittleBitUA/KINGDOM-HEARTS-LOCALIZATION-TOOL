@@ -1306,8 +1306,25 @@ function renderGlossaryRows() {
   applyGlossaryFilter();
 }
 
+// Кирилично-латинські look-alike — у KH1 один і той самий гліф у шрифті
+// має той самий бай т, тому розпарсений ENG-файл з overlay дає Cyrillic-look
+// замість Latin (P→Р, o→о, p→р тощо). Нормалізуємо обидва напрямки до
+// Latin для пошуку, щоб «Press» матчив і «Рress».
+const LOOKALIKE_TO_LATIN = {
+  'А': 'a', 'В': 'b', 'С': 'c', 'Е': 'e', 'Н': 'h', 'К': 'k', 'М': 'm',
+  'О': 'o', 'Р': 'p', 'Т': 't', 'Х': 'x', 'У': 'y', 'З': 'z',
+  'а': 'a', 'в': 'b', 'с': 'c', 'е': 'e', 'к': 'k', 'м': 'm',
+  'о': 'o', 'р': 'p', 'т': 't', 'х': 'x', 'у': 'y'
+};
+function normalizeLookalikes(s) {
+  let out = '';
+  for (const ch of s) out += LOOKALIKE_TO_LATIN[ch] || ch;
+  return out.toLowerCase();
+}
+
 function applyGlossaryFilter() {
-  const search = (gState.filter.search || '').toLowerCase();
+  const searchRaw = (gState.filter.search || '');
+  const search = normalizeLookalikes(searchRaw);
   const mode = gState.filter.mode || 'all';
   const rowEls = gRows.querySelectorAll('.t-row');
   for (const rowEl of rowEls) {
@@ -1316,7 +1333,7 @@ function applyGlossaryFilter() {
     if (!entry) continue;
     const uk = gState.translations[entry.english] || '';
     let hide = false;
-    if (search && entry.english.toLowerCase().indexOf(search) === -1) hide = true;
+    if (search && normalizeLookalikes(entry.english).indexOf(search) === -1) hide = true;
     if (mode === 'untranslated' && uk) hide = true;
     if (mode === 'translated' && !uk) hide = true;
     if (mode === 'same-as-en' && uk !== entry.english) hide = true;
