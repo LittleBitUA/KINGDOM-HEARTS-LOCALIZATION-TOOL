@@ -226,13 +226,14 @@ function classifyFile(absPath, ext) {
   if (/_mes_data\.bin$/i.test(baseName)) {
     return { kind: 'mesdata', magic: 'mes_data', extractOpts: null, isTranslatable: false };
   }
-  // .ev / .evdl — event-script container.
-  // ⚠ ВИМКНЕНО: навіть cell-preserving режим з identical round-trip ламає
-  // гру при будь-яких змінах. Можлива game-side checksum або specific byte
-  // pattern requirement що не очевидний з аналізу. Парсер у tools/lib/ev-format.js
-  // залишається для майбутньої roboти. Поки .ev файли пропускаються у Safe Mode.
+  // .ev / .evdl — event-script container з текст-блоком всередині.
+  // Footer/bytecode позиційно-незалежний (підтверджено byte-by-byte порівнянням
+  // ENG vs RUS файлів: блоки PUSH/JMP/BEQZ ідентичні, навіть коли весь footer
+  // зміщений через довший RUS-текст). Тому потрібно ОНОВЛЮВАТИ ЛИШЕ header
+  // pointer table при зростанні текстового блоку — що composeEv (compact mode)
+  // і робить.
   if (isEvName(baseName)) {
-    return { kind: 'ev', magic: 'ev_evdl', extractOpts: null, isTranslatable: false };
+    return { kind: 'ev', magic: 'ev_evdl', extractOpts: null, isTranslatable: true };
   }
   try {
     const fd = fsSync.openSync(absPath, 'r');

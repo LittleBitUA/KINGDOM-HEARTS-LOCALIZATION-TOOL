@@ -88,7 +88,12 @@ function composeEv(origBuf, slots, codec, opts) {
   const parsed = parseEv(origBuf, codec);
   const { textOffset, footerOffset } = parsed;
   const oldTextLength = footerOffset - textOffset;
-  const cellPreserving = !(opts && opts.compact === true);
+  // DEFAULT режим — COMPACT (з header pointer relocation). Підтверджено
+  // байт-у-байт порівнянням ENG/RUS .ev файлів: footer/bytecode position-
+  // independent, треба оновлювати ЛИШЕ header pointer table при зростанні
+  // тексту. Cell-preserving (opts.cellPreserving) — опційно для випадків
+  // коли треба гарантувати що байт-довжина не змінилась взагалі.
+  const cellPreserving = !!(opts && opts.cellPreserving === true);
 
   // === Cell-preserving режим (default, безпечний) ===
   // Кожен слот лишається на оригінальному offset'і. UK encoded + 0x00
