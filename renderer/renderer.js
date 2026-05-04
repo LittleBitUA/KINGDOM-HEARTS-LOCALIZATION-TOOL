@@ -274,11 +274,17 @@ const gamesConfig = [
     id: 'kh-re-com',
     title: 'KINGDOM HEARTS Re:Chain of Memories',
     name: 'Kingdom Hearts Re:Chain of Memories',
-    subtitle: 'PC (Steam / Epic Games) · підтримка з’явиться пізніше',
+    subtitle: 'PC (Steam / Epic Games) · .ctdl (subtitles + menu text)',
     image: null,
     coverGrad: 'linear-gradient(135deg, #4a3a1a 0%, #2a2008 50%, #1a1404 100%)',
-    enabled: false,
-    status: 'soon'
+    enabled: true,
+    status: 'ready',
+    formats: ['ctdl'],
+    // Re:CoM: ENG = і джерело тексту і список файлів; UA = вихід; TSV = прогрес.
+    // Без RUS-оракула (як у BBS).
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir',
+    onSelect: () => enterEditor('kh-re-com')
   },
   {
     id: 'kh-bbs-final-mix',
@@ -421,17 +427,19 @@ function enterEditor(gameId) {
   hideHome();
 
   const isKh1 = _currentGameId === 'kh1-final-mix';
-
+  const isBbs = _currentGameId === 'kh-bbs-final-mix';
   // Mode tabs які доступні цій грі.
-  // KH1: Editor + Translate + Kerning.
-  // BBS: Translate + Шрифт BBS (font-hack для UA). Editor приховано (CTD не
-  // має raw-byte representation), Kerning приховано (KH1-формат .knj).
+  // KH1:    Editor + Translate + Kerning.
+  // BBS:    Translate + Шрифт BBS (font-hack для UA).
+  // Re:CoM: лише Translate. Editor приховано (CTDL = таблично-структурований,
+  //         немає raw-byte representation як у BIN/BINL); Kerning — KH1-формат
+  //         .knj; BBS Font — специфічний для BBS-fontEn.arc.
   const editorTab  = document.getElementById('mode-editor');
   const kerningTab = document.getElementById('mode-kerning');
   const bbsFontTab = document.getElementById('mode-bbs-font');
   if (editorTab)  editorTab.style.display  = isKh1 ? '' : 'none';
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
-  if (bbsFontTab) bbsFontTab.style.display = isKh1 ? 'none' : '';
+  if (bbsFontTab) bbsFontTab.style.display = isBbs ? '' : 'none';
 
   // Якщо гра змінилась — повністю скидаємо translate-state, бо settings,
   // файли, slots, glossary тепер інші.
@@ -712,6 +720,9 @@ function applyGameDirsVisibility() {
     if (game.id === 'kh-bbs-final-mix') {
       hint.textContent = 'ENG-тека визначає список файлів і служить джерелом для перекладу. ' +
                          'Прогрес зберігається у TSV-теку, готові .ctd — у UA-теку.';
+    } else if (game.id === 'kh-re-com') {
+      hint.textContent = 'ENG-тека визначає список .ctdl-файлів і служить джерелом для перекладу. ' +
+                         'Прогрес зберігається у TSV-теку, готові .ctdl — у UA-теку.';
     }
     // Для KH1 — лишається оригінальний i18n-текст (data-i18n атрибут).
   }
