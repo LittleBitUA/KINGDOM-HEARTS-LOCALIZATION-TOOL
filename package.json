@@ -1,7 +1,7 @@
 {
   "name": "kh1-text-editor",
   "productName": "KH1 Text Editor",
-  "version": "2.24.0",
+  "version": "2.24.1",
   "description": "Редактор текстових файлів Kingdom Hearts 1 (.bin/.binl/.ard) на Electron",
   "main": "main.js",
   "private": true,
@@ -24,7 +24,8 @@
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "iconv-lite": "^0.7.2"
   },
   "build": {
     "appId": "com.guidingheart.kh1-text-editor",
@@ -63,11 +64,15 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "KH1-Text-Editor-${version}-${arch}-${target}.${ext}"
@@ -82,7 +87,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "KH1 Text Editor",
-      "installerLanguages": ["uk_UA", "en_US"],
+      "installerLanguages": [
+        "uk_UA",
+        "en_US"
+      ],
       "language": "1058",
       "artifactName": "KH1-Text-Editor-${version}-setup.exe"
     }
