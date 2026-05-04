@@ -82,6 +82,18 @@ contextBridge.exposeInMainWorld('kh1', {
       return () => ipcRenderer.removeListener('translate:progress', listener);
     }
   },
+  setup: {
+    status:  () => ipcRenderer.invoke('setup:status'),
+    run:     (payload) => ipcRenderer.invoke('setup:run', payload),
+    pickDir: (title)   => ipcRenderer.invoke('setup:pickDir', title),
+    reset:   () => ipcRenderer.invoke('setup:reset'),
+    onProgress: (callback) => {
+      if (typeof callback !== 'function') return () => {};
+      const listener = (_e, p) => callback(p);
+      ipcRenderer.on('setup:progress', listener);
+      return () => ipcRenderer.removeListener('setup:progress', listener);
+    }
+  },
   bbsfont: {
     pickArcDir:  () => ipcRenderer.invoke('bbsfont:pickArcDir'),
     pickHdDir:   () => ipcRenderer.invoke('bbsfont:pickHdDir'),

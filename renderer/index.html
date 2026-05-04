@@ -50,8 +50,83 @@
     </div>
   </header>
 
+  <!-- ============ SETUP / ONBOARDING ============ -->
+  <!-- Перший запуск або після `Перевідкрити setup`. Закриває все інше доки -->
+  <!-- користувач не пройде кроки. -->
+  <section id="setup-screen" class="home-screen setup-screen hidden" aria-label="Setup">
+    <div class="home-bg-decor" aria-hidden="true"></div>
+    <div class="setup-shell" role="document">
+      <header class="home-hero" style="padding-top: 28px;">
+        <div class="home-heart" aria-hidden="true">
+          <svg viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="56" height="62">
+            <path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/>
+          </svg>
+        </div>
+        <h1 class="home-title" data-i18n="setupTitle">Початкове налаштування</h1>
+        <p class="home-subtitle" data-i18n="setupSubtitle">Підготовка робочого середовища для локалізації</p>
+      </header>
+
+      <div class="setup-body">
+        <!-- ===== Step 1: вибір гри ===== -->
+        <section class="setup-step">
+          <h2 class="setup-step-title">
+            <span class="setup-step-num">1</span>
+            <span data-i18n="setupStep1Title">Активна гра</span>
+          </h2>
+          <p class="setup-step-hint" data-i18n="setupStep1Hint">Вибери гру, яку перекладатимеш зараз. Шлях до самої гри обов'язковий лише для активної; інші можна додати пізніше.</p>
+          <div class="setup-game-list" id="setup-game-list" role="radiogroup" aria-label="Active game"></div>
+        </section>
+
+        <!-- ===== Step 2: tools dir ===== -->
+        <section class="setup-step">
+          <h2 class="setup-step-title">
+            <span class="setup-step-num">2</span>
+            <span data-i18n="setupStep2Title">Директорія tools</span>
+          </h2>
+          <p class="setup-step-hint" data-i18n="setupStep2Hint">Куди завантажити OpenKH і KHPCPatchManager. Якщо тека не існує — буде створена.</p>
+          <div class="setting-row">
+            <div class="dir-row">
+              <input type="text" id="setup-tools-dir" placeholder="…/Documents/KH-Localization/tools" autocomplete="off">
+              <button class="kh-btn" type="button" id="setup-tools-pick" data-i18n="setupBrowse">Вибрати…</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== Step 3: text assets dir ===== -->
+        <section class="setup-step">
+          <h2 class="setup-step-title">
+            <span class="setup-step-num">3</span>
+            <span data-i18n="setupStep3Title">Директорія текстових ресурсів</span>
+          </h2>
+          <p class="setup-step-hint" data-i18n="setupStep3Hint">Корінь, де лежатимуть тексти ігор (усередині — підпапки KH1, BBS, ReCoM з ENG/PROGRESS/DONE).</p>
+          <div class="setting-row">
+            <div class="dir-row">
+              <input type="text" id="setup-assets-dir" placeholder="…/Documents/KH-Localization" autocomplete="off">
+              <button class="kh-btn" type="button" id="setup-assets-pick" data-i18n="setupBrowse">Вибрати…</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== Run button + progress ===== -->
+        <section class="setup-actions">
+          <button id="setup-run" class="kh-btn kh-btn-primary kh-btn-large" type="button" data-i18n="setupRun">Підготувати середовище</button>
+          <button id="setup-skip-download" class="kh-btn" type="button" title="Зберегти лише шляхи без завантаження інструментів" data-i18n="setupSkipDownload">Пропустити завантаження</button>
+        </section>
+
+        <section id="setup-progress" class="setup-progress hidden" aria-live="polite">
+          <div class="setup-progress-row">
+            <span id="setup-progress-phase" class="setup-progress-phase">—</span>
+            <span id="setup-progress-percent" class="setup-progress-percent"></span>
+          </div>
+          <div class="g-dash-bar setup-progress-bar"><div class="g-dash-bar-fill" id="setup-progress-fill"></div></div>
+          <div id="setup-progress-message" class="setup-progress-message"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ HOME / GAME SELECTION ============ -->
-  <section id="home-screen" class="home-screen" aria-label="Game selection">
+  <section id="home-screen" class="home-screen hidden" aria-label="Game selection">
     <div class="home-bg-decor" aria-hidden="true"></div>
     <header class="home-hero">
       <div class="home-heart" aria-hidden="true">
@@ -507,6 +582,9 @@
       </div>
 
       <div class="modal-actions">
+        <button id="settings-reopen-setup" class="kh-btn" type="button"
+                data-i18n="reopenSetup"
+                title="Знову показати екран початкового налаштування">↺ Перевідкрити setup</button>
         <button id="settings-close" class="kh-btn kh-btn-primary" type="button" data-i18n="close">Закрити</button>
       </div>
     </div>
