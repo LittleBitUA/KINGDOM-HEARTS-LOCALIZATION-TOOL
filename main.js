@@ -116,10 +116,11 @@ function runWorker(payload, transferList) {
 }
 
 const FILE_FILTERS_OPEN = [
-  { name: 'Підтримувані файли (*.bin;*.binl;*.ard)', extensions: ['bin', 'binl', 'ard'] },
+  { name: 'Підтримувані файли (*.bin;*.binl;*.ard;*.ctdl)', extensions: ['bin', 'binl', 'ard', 'ctdl'] },
   { name: 'BIN файли (*.bin)', extensions: ['bin'] },
   { name: 'BINL файли (*.binl)', extensions: ['binl'] },
   { name: 'ARD файли (*.ard)', extensions: ['ard'] },
+  { name: 'CTDL файли (*.ctdl)', extensions: ['ctdl'] },
   { name: 'Усі файли', extensions: ['*'] }
 ];
 
@@ -127,6 +128,7 @@ const FILE_FILTERS_SAVE = [
   { name: 'BIN файли (*.bin)', extensions: ['bin'] },
   { name: 'BINL файли (*.binl)', extensions: ['binl'] },
   { name: 'ARD файли (*.ard)', extensions: ['ard'] },
+  { name: 'CTDL файли (*.ctdl)', extensions: ['ctdl'] },
   { name: 'Усі файли', extensions: ['*'] }
 ];
 
@@ -226,6 +228,10 @@ const GAME_DIR_LAYOUT = {
   },
   'kh-bbs-final-mix': {
     base: 'BBS',
+    dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  },
+  'kh-re-com': {
+    base: 'ReCoM',
     dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
   }
 };
@@ -327,6 +333,10 @@ const { parseEv, composeEv, isEvName } = require('./tools/lib/ev-format');
 const { parseCtd, composeCtd, MAGIC: CTD_MAGIC } = require('./tools/lib/ctd-format');
 const ctdCodec = require('./tools/lib/ctd-codec');
 const bbsFont = require('./tools/lib/bbs-font');
+// Re:Chain of Memories CTDL — інший формат, але ділить magic '@CTD' з BBS.
+// Розрізняємо за розширенням файлу: .ctdl → Re:CoM, .ctd → BBS.
+const { parseCtdl, composeCtdl, MAGIC: CTDL_MAGIC } = require('./tools/lib/recom-ctdl-format');
+const recomCodec = require('./tools/lib/recom-ctdl-codec');
 
 // Класифікація:
 //  - 'binl'    — структурований .binl з EvMsg-заголовком (header=11, footer=5)
@@ -369,6 +379,12 @@ function classifyFile(absPath, ext) {
     const buf = Buffer.alloc(256);
     const n = fsSync.readSync(fd, buf, 0, 256, 0);
     fsSync.closeSync(fd);
+    // BBS .ctd і Re:CoM .ctdl ділять однаковий magic '@CTD' (0x44544340 LE).
+    // Розрізняємо за РОЗШИРЕННЯМ файлу: .ctdl → Re:CoM (інший layout header),
+    // .ctd → BBS. Перевіряємо .ctdl першим, щоб BBS-парсер не зачепив його.
+    if (n >= 4 && ext === '.ctdl' && buf.readUInt32LE(0) === CTDL_MAGIC) {
+      return { kind: 'ctdl', magic: '@CTD', extractOpts: null, isTranslatable: true };
+    }
     if (n >= 4 && buf.readUInt32LE(0) === CTD_MAGIC) {
       return { kind: 'ctd', magic: '@CTD', extractOpts: null, isTranslatable: true };
     }
@@ -514,6 +530,32 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
         rusSize: 0
       };
     }
+    if (cls.kind === 'ctdl') {
+      // Re:CoM CTDL — кожен text entry стає translatable slot. Як ключ
+      // (offset) використовуємо index entry (унікальний всередині файлу).
+      const buf = await fs.readFile(engPath);
+      const parsed = parseCtdl(buf);
+      const uiSlots = parsed.entries.map((e, i) => ({
+        index: i,
+        offset: e.index,                       // index entry як стабільний ключ
+        absOffset: e.absoluteOffset,
+        byteLen: e.originalLength,
+        english: recomCodec.glossaryKey(e.text),
+        _fullText: e.text,
+        ukText: ''
+      }));
+      return {
+        slots: uiSlots,
+        stats: {
+          ctdl: true,
+          textboxCount: parsed.textboxes.length,
+          entryCount: parsed.entries.length,
+          fileSize: buf.length
+        },
+        engSize: buf.length,
+        rusSize: 0
+      };
+    }
     if (cls.kind === 'ev') {
       const codec = require('./shared/codec');
       const ofsBuf = await fs.readFile(engPath);
@@ -652,6 +694,29 @@ ipcMain.handle('translate:compose', async (_e, payload) => {
         skipped: parsed.messages.length - applied,
         errors: [],
         ctd: { messageCount: parsed.messages.length, sizeDiff: composed.length - buf.length }
+      };
+    }
+    if (cls.kind === 'ctdl') {
+      // Re:CoM CTDL compose — replacement.offset = entry index.
+      const buf = await fs.readFile(engPath);
+      const parsed = parseCtdl(buf);
+      const repMap = new Map();
+      for (const r of replacements) {
+        if (r && typeof r.offset === 'number' && r.ukText && r.ukText.length) {
+          repMap.set(r.offset, r.ukText);
+        }
+      }
+      const composed = composeCtdl(parsed, repMap);
+      await fs.mkdir(path.dirname(outPath), { recursive: true });
+      await fs.writeFile(outPath, composed);
+      return {
+        ok: true,
+        outPath,
+        byteLength: composed.length,
+        applied: repMap.size,
+        skipped: parsed.entries.length - repMap.size,
+        errors: [],
+        ctdl: { entryCount: parsed.entries.length, sizeDiff: composed.length - buf.length }
       };
     }
     if (cls.kind === 'ev') {
@@ -851,6 +916,20 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
         }
         return { rel, status: 'ok' };
       }
+      if (cls.kind === 'ctdl') {
+        const buf = await fs.readFile(engPath);
+        const parsed = parseCtdl(buf);
+        for (let i = 0; i < parsed.entries.length; i++) {
+          const e = parsed.entries[i];
+          addSlot(rel, {
+            offset: e.index,
+            byteLen: e.originalLength,
+            index: i,
+            english: recomCodec.glossaryKey(e.text)
+          });
+        }
+        return { rel, status: 'ok' };
+      }
       if (cls.kind === 'ev') {
         const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
@@ -1044,6 +1123,48 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           return { rel, status: 'no-translations' };
         }
         const composed = composeCtd(parsed);
+        await fs.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.writeFile(outPath, composed);
+        written++;
+        totalReplacements += appliedCount;
+        return { rel, status: 'ok' };
+      }
+      // ===== Спецгілка для .ctdl (Re:CoM) =====
+      if (cls.kind === 'ctdl') {
+        const buf = await fs.readFile(engPath);
+        const parsed = parseCtdl(buf);
+        let perFileMap = null;
+        if (tsvDir) {
+          const tsvPath = path.join(tsvDir, rel) + '.tsv';
+          if (fsSync.existsSync(tsvPath)) {
+            try {
+              const txt = await fs.readFile(tsvPath, 'utf8');
+              perFileMap = parseTsvOverrides(txt);
+            } catch (_) {}
+          }
+        }
+        const repMap = new Map();
+        let appliedCount = 0;
+        for (let i = 0; i < parsed.entries.length; i++) {
+          const e = parsed.entries[i];
+          let uk = '';
+          if (perFileMap && perFileMap.has(e.index)) uk = perFileMap.get(e.index);
+          if (!uk) {
+            const key = recomCodec.glossaryKey(e.text);
+            if (Object.prototype.hasOwnProperty.call(glossary, key)) {
+              uk = glossary[key];
+            }
+          }
+          if (uk && uk.trim() && uk !== e.text) {
+            repMap.set(i, uk);
+            appliedCount++;
+          }
+        }
+        if (appliedCount === 0) {
+          skippedNoTranslations++;
+          return { rel, status: 'no-translations' };
+        }
+        const composed = composeCtdl(parsed, repMap);
         await fs.mkdir(path.dirname(outPath), { recursive: true });
         await fs.writeFile(outPath, composed);
         written++;
