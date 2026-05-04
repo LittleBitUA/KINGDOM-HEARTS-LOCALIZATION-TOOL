@@ -44,22 +44,26 @@ for (const [code, name] of Object.entries(BTN_FF)) {
   BTN_FF_REV[name] = parseInt(code, 10);
 }
 
-// Альтернативні button glyphs 0xF5 0x64..0x7E. У C# коді частина цих
-// дублює FF-варіанти (BTN_LCLICK, BTN_SPACE, ...), але у файлі вони присутні
-// як окремі байт-послідовності. Щоб не втрачати їх при round-trip, маркуємо
-// унікальним суфіксом `_F5XX`.
+// Альтернативні button glyphs 0xF5 0x64..0x7E. Усі вони — ДУБЛІКАТИ
+// токенів з BTN_FF (наприклад 0xF567 та 0xFF11 обидва — `BTN_F`). C#-
+// референс показує їх однаково як `{BTN_X}` без жодного суфікса; encode
+// завжди обирає FF-версію. Round-trip для незмінених entries
+// зберігається через in-place overwrite (encode не викликається).
 const BTN_F5 = {
-  0x64: 'BTN_LCLICK_F564', 0x65: 'BTN_SPACE_F565',  0x66: 'BTN_RCLICK_F566',
-  0x67: 'BTN_F_F567',      0x68: 'BTN_SHIFT_F568',  0x69: 'BTN_R_F569',
-  0x70: 'BTN_WASD_F570',   0x71: 'BTN_MOUSE_F571',  0x72: 'BTN_STICK_F572',
-  0x73: 'BTN_W_F573',      0x74: 'BTN_DPAD_F574',   0x75: 'BTN_UPDOWN_F575',
-  0x76: 'BTN_LEFTRIGHT_F576', 0x77: 'BTN_UP_F577',  0x78: 'BTN_DOWN_F578',
-  0x79: 'BTN_LEFT_F579',   0x7A: 'BTN_RIGHT_F57A',  0x7B: 'BTN_SPACE_F57B',
-  0x7C: 'BTN_LCLICK_F57C', 0x7D: 'BTN_S_F57D',      0x7E: 'BTN_A_F57E'
+  0x64: 'BTN_LCLICK', 0x65: 'BTN_SPACE',  0x66: 'BTN_RCLICK',
+  0x67: 'BTN_F',      0x68: 'BTN_SHIFT',  0x69: 'BTN_R',
+  0x70: 'BTN_WASD',   0x71: 'BTN_MOUSE',  0x72: 'BTN_STICK',
+  0x73: 'BTN_W',      0x74: 'BTN_DPAD',   0x75: 'BTN_UPDOWN',
+  0x76: 'BTN_LEFTRIGHT', 0x77: 'BTN_UP',  0x78: 'BTN_DOWN',
+  0x79: 'BTN_LEFT',   0x7A: 'BTN_RIGHT',  0x7B: 'BTN_SPACE',
+  0x7C: 'BTN_LCLICK', 0x7D: 'BTN_S',      0x7E: 'BTN_A'
 };
+// Reverse map для F5-only якщо знадобиться — але у нашому encode
+// BTN_FF_REV має пріоритет (бо ім'я є в обох), тому F5-байти не видаються
+// при кодуванні редагованих entries (так само як у C#).
 const BTN_F5_REV = {};
 for (const [code, name] of Object.entries(BTN_F5)) {
-  BTN_F5_REV[name] = parseInt(code, 10);
+  if (!(name in BTN_F5_REV)) BTN_F5_REV[name] = parseInt(code, 10);
 }
 
 // Командні маркери 0xF9 + low byte. C# знає лише три, інші — лишимо raw.
@@ -117,6 +121,35 @@ function hex2(n) { return n.toString(16).toUpperCase().padStart(2, '0'); }
 function isSjisLead(b) {
   return (b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC);
 }
+function isSjisTrail(b) {
+  // Допустимі trail-byte значення у SJIS (без 0x7F).
+  return (b >= 0x40 && b <= 0x7E) || (b >= 0x80 && b <= 0xFC);
+}
+const REPLACEMENT = '�';
+
+// Microsoft cp932 EUDC (End User Defined Character) mapping:
+// lead 0xF0-0xFC × trail 0x40-0x7E/0x80-0xFC → PUA U+E000-U+E757.
+// .NET Encoding.GetEncoding("shift_jis") (=cp932) використовує саме цю
+// мапу, через що байти типу 0xF9 0x45 декодуються в один PUA-char (який
+// показується як `■` чи невидимо, залежно від фонта). iconv-lite сам цю
+// мапу не реалізує — робимо вручну, щоб збігатись з референсним C#-кодом.
+function eudcCp932ToPua(lead, trail) {
+  if (lead < 0xF0 || lead > 0xFC) return -1;
+  if (trail < 0x40 || trail === 0x7F || trail > 0xFC) return -1;
+  const leadIdx = lead - 0xF0;
+  // 188 trail-позицій: 0x40-0x7E = 63, 0x80-0xFC = 125. Пропускаємо 0x7F.
+  const trailIdx = (trail <= 0x7E) ? (trail - 0x40) : (trail - 0x41);
+  return 0xE000 + leadIdx * 188 + trailIdx;
+}
+function puaToEudcCp932(codepoint) {
+  if (codepoint < 0xE000 || codepoint > 0xE757) return null;
+  const offset = codepoint - 0xE000;
+  const leadIdx = Math.floor(offset / 188);
+  const trailIdx = offset % 188;
+  const lead = 0xF0 + leadIdx;
+  const trail = (trailIdx <= 62) ? (0x40 + trailIdx) : (0x41 + trailIdx);
+  return [lead, trail];
+}
 
 // ---- decode(bytes) → string --------------------------------------------
 
@@ -128,7 +161,7 @@ function decode(buf) {
   let sjisRun = [];
   const flushSjis = () => {
     if (!sjisRun.length) return;
-    parts.push(iconv.decode(Buffer.from(sjisRun), 'shift_jis'));
+    parts.push(iconv.decode(Buffer.from(sjisRun), 'cp932'));
     sjisRun = [];
   };
 
@@ -191,9 +224,26 @@ function decode(buf) {
       continue;
     }
 
-    // Shift-JIS 2-byte
+    // Shift-JIS 2-byte. Декодуємо як у .NET cp932:
+    //  • Якщо iconv знає mapping — беремо звичайний символ.
+    //  • Інакше якщо пара у EUDC-діапазоні (lead 0xF0-0xFC) — мапимо
+    //    у Private Use Area (U+E000+), як це робить Windows-31J.
+    //    Round-trip safe (encode зворотньо мапить PUA → байти).
+    //  • Інакше — `?` як placeholder.
+    // У всіх випадках i += 2.
     if (isSjisLead(b) && i + 1 < buf.length) {
-      sjisRun.push(b, buf[i + 1]);
+      const tail = buf[i + 1];
+      let decoded = null;
+      if (isSjisTrail(tail)) {
+        const dec = iconv.decode(Buffer.from([b, tail]), 'cp932');
+        if (dec && dec.length === 1 && dec !== REPLACEMENT) decoded = dec;
+      }
+      if (decoded == null) {
+        const pua = eudcCp932ToPua(b, tail);
+        if (pua > 0) decoded = String.fromCharCode(pua);
+      }
+      flushSjis();
+      parts.push(decoded != null ? decoded : '?');
       i += 2;
       continue;
     }
@@ -224,8 +274,35 @@ function decode(buf) {
 //   <XXXX>               — raw two-byte hex
 const TOKEN_RE = /\{(BTN_[A-Z0-9_]+)\}|<(Unk41|Unk59|EMPTYBLOCK)>|<([0-9A-Fa-f]{4})>|<([0-9A-Fa-f]{2})>/g;
 
-function encode(text) {
+// Збирає підказки про byte-форму button-токенів з ОРИГІНАЛЬНИХ байтів
+// entry. Повертає Map<name, queue<'FF'|'F5'>> у порядку появи у тексті.
+// При encode редагованого тексту ми використовуємо ці підказки, щоб не
+// зламати рядки, де гра очікує саме F5-варіант (наприклад tutorial-text
+// на кшталт `0xF5 0x66`), а не FF-default.
+function collectBtnHints(originalBytes) {
+  const hints = {};
+  if (!originalBytes) return hints;
+  for (let i = 0; i + 1 < originalBytes.length; i++) {
+    const lead = originalBytes[i];
+    const trail = originalBytes[i + 1];
+    if (lead === 0xFF && BTN_FF[trail]) {
+      const name = BTN_FF[trail];
+      (hints[name] = hints[name] || []).push('FF');
+      i++;
+    } else if (lead === 0xF5 && BTN_F5[trail]) {
+      const name = BTN_F5[trail];
+      (hints[name] = hints[name] || []).push('F5');
+      i++;
+    }
+  }
+  return hints;
+}
+
+function encode(text, options) {
   if (text == null) return Buffer.alloc(0);
+  options = options || {};
+  const hints = options.originalBytes ? collectBtnHints(options.originalBytes) : null;
+  const hintCursor = {};   // name → next-index в hints[name]
   const out = [];
 
   // Розбиваємо текст на сегменти "звичайний текст" і "токен".
@@ -238,13 +315,27 @@ function encode(text) {
       _encodeRun(text.slice(cursor, m.index), out);
     }
     if (m[1]) {
-      // {BTN_X}
+      // {BTN_X}. Підглядаємо у hints (з оригінальних байтів) яку
+      // byte-форму використати для цього токена. Якщо hint є — беремо.
+      // Якщо нема — fallback на FF (як у C#-референсі), а якщо ім'я лише
+      // у F5-мапі — використовуємо F5.
       const name = m[1];
-      // Спочатку перевіряємо суфіксовану F5-версію
-      if (name in BTN_F5_REV) {
+      let pref = null;
+      if (hints && hints[name]) {
+        const idx = hintCursor[name] || 0;
+        if (idx < hints[name].length) {
+          pref = hints[name][idx];
+          hintCursor[name] = idx + 1;
+        }
+      }
+      if (pref === 'F5' && name in BTN_F5_REV) {
         out.push(0xF5, BTN_F5_REV[name]);
+      } else if (pref === 'FF' && name in BTN_FF_REV) {
+        out.push(0xFF, BTN_FF_REV[name]);
       } else if (name in BTN_FF_REV) {
         out.push(0xFF, BTN_FF_REV[name]);
+      } else if (name in BTN_F5_REV) {
+        out.push(0xF5, BTN_F5_REV[name]);
       } else {
         // Невідомий BTN-токен — пишемо як literal `{BTN_...}` у SJIS
         _encodeRun(m[0], out);
@@ -274,7 +365,7 @@ function _encodeRun(seg, out) {
   let pendingSjis = '';
   const flushSjis = () => {
     if (!pendingSjis) return;
-    const enc = iconv.encode(pendingSjis, 'shift_jis');
+    const enc = iconv.encode(pendingSjis, 'cp932');
     for (let i = 0; i < enc.length; i++) out.push(enc[i]);
     pendingSjis = '';
   };
@@ -290,6 +381,18 @@ function _encodeRun(seg, out) {
       flushSjis();
       out.push(0x99, EXT_99_REV[ch]);
       continue;
+    }
+    // PUA з cp932 EUDC-діапазону — мапимо назад у lead+trail байти.
+    // Гарантує byte-perfect round-trip навіть для редагованих entries
+    // якщо користувач не чіпав ці символи у тексті.
+    const cp = ch.charCodeAt(0);
+    if (cp >= 0xE000 && cp <= 0xE757) {
+      const pair = puaToEudcCp932(cp);
+      if (pair) {
+        flushSjis();
+        out.push(pair[0], pair[1]);
+        continue;
+      }
     }
     pendingSjis += ch;
   }

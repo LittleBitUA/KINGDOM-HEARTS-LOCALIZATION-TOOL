@@ -190,9 +190,13 @@ function composeCtdl(parsed, replacements) {
   const { raw, header, textboxes, entries } = parsed;
 
   // Закодовуємо всі entries наперед, щоб вирішити: in-place чи rebuild.
+  // Для редагованих — передаємо originalBytes як hint, щоб збереглася
+  // оригінальна byte-форма кнопкових токенів (FF чи F5), бо гра
+  // у різних контекстах розпізнає різні форми. Для unchanged — копія
+  // оригіналу 1:1.
   const encoded = entries.map((e, i) => {
     if (repMap.has(i)) {
-      return codec.encode(repMap.get(i));
+      return codec.encode(repMap.get(i), { originalBytes: e.originalBytes });
     }
     return e.originalBytes;
   });

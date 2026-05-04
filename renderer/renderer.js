@@ -316,17 +316,41 @@ function _gameStatusLabel(status) {
 
 const HEART_SVG = '<svg viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet"><path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg>';
 
+// Кеш gameDirectories з settings (оновлюється у bootstrapApp / після setup).
+// Гра вважається "готовою до перекладу" лише якщо її директорію вказано.
+let _gameDirsCache = {};
+async function refreshGameDirsCache() {
+  try {
+    const s = await window.kh1.setup.status();
+    _gameDirsCache = (s && s.gameDirectories) || {};
+  } catch (_) { _gameDirsCache = {}; }
+}
+function _gameHasDir(gameId) {
+  const v = _gameDirsCache && _gameDirsCache[gameId];
+  return !!(v && String(v).trim());
+}
+
 function renderGameCard(game) {
   const card = document.createElement('button');
   card.type = 'button';
-  card.className = 'game-card' + (game.enabled ? '' : ' disabled');
+  // Гра доступна тільки якщо: (a) gamesConfig.enabled (статичний support flag),
+  // (b) користувач указав директорію цієї гри у setup'і.
+  const hasDir = _gameHasDir(game.id);
+  const isReady = game.enabled && hasDir;
+  card.className = 'game-card' + (isReady ? '' : ' disabled');
   card.dataset.gameId = game.id;
   card.setAttribute('role', 'listitem');
-  if (!game.enabled) {
+  if (!isReady) {
     card.disabled = true;
     card.setAttribute('aria-disabled', 'true');
-    card.setAttribute('data-i18n-title', 'gameSoonTooltip');
-    card.title = (window.i18n && window.i18n.t('gameSoonTooltip')) || 'Підтримка з’явиться пізніше';
+    if (!game.enabled) {
+      card.setAttribute('data-i18n-title', 'gameSoonTooltip');
+      card.title = (window.i18n && window.i18n.t('gameSoonTooltip')) || 'Підтримка з’явиться пізніше';
+    } else {
+      card.setAttribute('data-i18n-title', 'gameNoDirTooltip');
+      card.title = (window.i18n && window.i18n.t('gameNoDirTooltip')) ||
+                   'Спочатку вкажи директорію цієї гри в Settings → ↺ Перевідкрити setup';
+    }
   } else {
     card.setAttribute('aria-label', game.name);
   }
@@ -361,6 +385,13 @@ function renderGameCard(game) {
     ribbon.setAttribute('data-i18n', 'comingSoon');
     ribbon.textContent = (window.i18n && window.i18n.t('comingSoon')) || 'Coming Soon';
     card.appendChild(ribbon);
+  } else if (!hasDir) {
+    // Картка enabled, але директорія не задана — підказка, що треба зробити.
+    const ribbon = document.createElement('div');
+    ribbon.className = 'game-ribbon game-ribbon-setup';
+    ribbon.setAttribute('data-i18n', 'gameNeedsSetup');
+    ribbon.textContent = (window.i18n && window.i18n.t('gameNeedsSetup')) || 'Setup needed';
+    card.appendChild(ribbon);
   }
 
   card.appendChild(cover);
@@ -384,8 +415,15 @@ function renderGameCard(game) {
   info.appendChild(status);
   card.appendChild(info);
 
-  if (game.enabled && typeof game.onSelect === 'function') {
+  if (isReady && typeof game.onSelect === 'function') {
     card.addEventListener('click', () => game.onSelect());
+  } else if (game.enabled && !hasDir) {
+    // Клік по сірій картці — підказати куди йти.
+    card.addEventListener('click', () => {
+      if (typeof toast === 'function') {
+        toast(card.title, 'info', 5000);
+      }
+    });
   }
   return card;
 }
@@ -398,6 +436,7 @@ function renderHome() {
 
 function showHome() {
   if (!homeScreen || !appRoot) return;
+  hideSetup();
   homeScreen.classList.remove('hidden');
   homeScreen.setAttribute('aria-hidden', 'false');
   appRoot.classList.add('hidden');
@@ -407,6 +446,352 @@ function hideHome() {
   homeScreen.classList.add('hidden');
   homeScreen.setAttribute('aria-hidden', 'true');
   appRoot.classList.remove('hidden');
+}
+
+// =====================================================================
+// Setup / Onboarding screen
+// =====================================================================
+//
+// Перший запуск (або після `Перевідкрити setup` у Settings): користувач
+// обирає активну гру + директорії (gameDir, tools, textAssets), натискає
+// «Підготувати середовище» — main process завантажує OpenKH/KHPCPatchManager
+// у tools-теку і пише setupCompleted=true. Далі — звичайний home-screen.
+const setupScreen = document.getElementById('setup-screen');
+const setupGameList = document.getElementById('setup-game-list');
+const setupToolsDir  = document.getElementById('setup-tools-dir');
+const setupAssetsDir = document.getElementById('setup-assets-dir');
+const setupRunBtn    = document.getElementById('setup-run');
+const setupSkipBtn   = document.getElementById('setup-skip-download');
+const setupProgress  = document.getElementById('setup-progress');
+const setupProgressFill    = document.getElementById('setup-progress-fill');
+const setupProgressPhase   = document.getElementById('setup-progress-phase');
+const setupProgressPercent = document.getElementById('setup-progress-percent');
+const setupProgressMessage = document.getElementById('setup-progress-message');
+
+// Локальний стан, який пишеться в IPC при кліку «Підготувати».
+const _setupState = {
+  activeGame: '',
+  gameDirectories: {},   // { [gameId]: path }
+  toolsDir: '',
+  textAssetsDir: ''
+};
+let _setupOffProgress = null;  // unsubscribe handle
+
+function showSetup() {
+  if (!setupScreen) return;
+  // Спершу ховаємо всі інші екрани, щоб setup був єдиним видимим.
+  if (homeScreen) {
+    homeScreen.classList.add('hidden');
+    homeScreen.setAttribute('aria-hidden', 'true');
+  }
+  if (appRoot) appRoot.classList.add('hidden');
+  setupScreen.classList.remove('hidden');
+  setupScreen.setAttribute('aria-hidden', 'false');
+}
+function hideSetup() {
+  if (!setupScreen) return;
+  setupScreen.classList.add('hidden');
+  setupScreen.setAttribute('aria-hidden', 'true');
+}
+
+function _setupRenderGames() {
+  if (!setupGameList) return;
+  setupGameList.innerHTML = '';
+  for (const g of gamesConfig) {
+    const row = document.createElement('div');
+    row.className = 'setup-game';
+    row.dataset.gameId = g.id;
+    row.setAttribute('role', 'radio');
+    row.setAttribute('aria-checked', _setupState.activeGame === g.id ? 'true' : 'false');
+    if (_setupState.activeGame === g.id) row.classList.add('active');
+
+    const radio = document.createElement('div');
+    radio.className = 'setup-game-radio';
+    row.appendChild(radio);
+
+    const text = document.createElement('div');
+    text.className = 'setup-game-text';
+    const nm = document.createElement('div');
+    nm.className = 'setup-game-name';
+    nm.textContent = g.name;
+    const pth = document.createElement('div');
+    pth.className = 'setup-game-path';
+    const dir = _setupState.gameDirectories[g.id] || '';
+    pth.textContent = dir;
+    pth.setAttribute('data-empty',
+      (window.i18n && window.i18n.t('setupGameNoDir')) || 'Директорію гри ще не вказано');
+    text.appendChild(nm);
+    text.appendChild(pth);
+    row.appendChild(text);
+
+    const pickBtn = document.createElement('button');
+    pickBtn.type = 'button';
+    pickBtn.className = 'kh-btn setup-game-pick';
+    pickBtn.textContent = (window.i18n && window.i18n.t('setupBrowse')) || 'Вибрати…';
+    pickBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const title = ((window.i18n && window.i18n.t('setupPickGameDir')) || 'Тека гри') + ' — ' + g.name;
+      const dir = await window.kh1.setup.pickDir(title);
+      if (!dir) return;
+      _setupState.gameDirectories[g.id] = dir;
+      // Якщо це перша вказана гра — автоматично робимо її активною.
+      if (!_setupState.activeGame) _setupState.activeGame = g.id;
+      _setupRenderGames();
+      _setupRefreshRunBtn();
+    });
+    row.appendChild(pickBtn);
+
+    row.addEventListener('click', () => {
+      _setupState.activeGame = g.id;
+      _setupRenderGames();
+      _setupRefreshRunBtn();
+    });
+
+    setupGameList.appendChild(row);
+  }
+  // Apply i18n (на випадок якщо вже виставили мову)
+  if (window.i18n && window.i18n.apply) window.i18n.apply(setupGameList);
+}
+
+function _setupRefreshRunBtn() {
+  if (!setupRunBtn) return;
+  // activeGame опційна (можна вказати теки для кількох ігор без вибору
+  // дефолтної). Достатньо: хоча б одна гра з директорією + обидві службові
+  // теки (tools, textAssets).
+  const haveAtLeastOneGame = Object.values(_setupState.gameDirectories || {})
+    .some(p => typeof p === 'string' && p.trim().length > 0);
+  const ok = haveAtLeastOneGame &&
+             setupToolsDir.value.trim() &&
+             setupAssetsDir.value.trim();
+  setupRunBtn.disabled = !ok;
+  if (setupSkipBtn) setupSkipBtn.disabled = !ok;
+}
+
+function _setupResetProgressUi() {
+  if (setupProgress) setupProgress.classList.remove('error', 'done');
+  if (setupProgressFill) setupProgressFill.style.width = '0%';
+  if (setupProgressPercent) setupProgressPercent.textContent = '';
+  if (setupProgressPhase) setupProgressPhase.textContent = '—';
+  if (setupProgressMessage) setupProgressMessage.textContent = '';
+}
+
+// Мапа phase → i18n-ключ. Сам label повертає `_setupPhaseLabel()` з
+// поточної мови (щоб перемикач EN/UA впливав одразу).
+const SETUP_PHASE_KEYS = {
+  check:             'spPhaseCheck',
+  'tools-dir':       'spPhaseToolsDir',
+  'fetch-openkh':    'spPhaseFetchOpenKh',
+  'download-openkh': 'spPhaseDownloadOpenKh',
+  'fetch-khpcpm':    'spPhaseFetchKhpcpm',
+  'download-khpcpm': 'spPhaseDownloadKhpcpm',
+  persist:           'spPhasePersist',
+  'unpack-game':     'spPhaseUnpackGame',
+  'copy-files':      'spPhaseCopyFiles',
+  done:              'spPhaseDone',
+  error:             'spPhaseError'
+};
+function _setupPhaseLabel(phase) {
+  const key = SETUP_PHASE_KEYS[phase];
+  if (key && window.i18n) return window.i18n.t(key);
+  return phase || '';
+}
+
+function _setupOnProgress(p) {
+  if (!setupProgress) return;
+  setupProgress.classList.remove('hidden');
+  const phaseLabel = _setupPhaseLabel(p.phase);
+  if (setupProgressPhase) setupProgressPhase.textContent = phaseLabel;
+  // Текст повідомлення: i18n-ключ з params (key+params) має пріоритет;
+  // інакше — сире p.message як було.
+  if (setupProgressMessage) {
+    if (p.key && window.i18n) {
+      setupProgressMessage.textContent = window.i18n.t(p.key, p.params || {});
+    } else if (p.message) {
+      setupProgressMessage.textContent = p.message;
+    }
+  }
+  if (typeof p.percent === 'number' && setupProgressFill) {
+    setupProgressFill.style.width = p.percent + '%';
+    if (setupProgressPercent) setupProgressPercent.textContent = p.percent + '%';
+  } else if (p.phase === 'done' && setupProgressFill) {
+    setupProgressFill.style.width = '100%';
+    if (setupProgressPercent) setupProgressPercent.textContent = '100%';
+  }
+  if (p.phase === 'error') {
+    setupProgress.classList.add('error');
+  }
+  if (p.phase === 'done') {
+    setupProgress.classList.add('done');
+  }
+}
+
+async function _setupRun(skipDownload) {
+  if (setupRunBtn) setupRunBtn.disabled = true;
+  if (setupSkipBtn) setupSkipBtn.disabled = true;
+  _setupResetProgressUi();
+  if (setupProgress) setupProgress.classList.remove('hidden');
+
+  // Підписка на progress
+  if (_setupOffProgress) { try { _setupOffProgress(); } catch(_){} _setupOffProgress = null; }
+  _setupOffProgress = window.kh1.setup.onProgress(_setupOnProgress);
+
+  const payload = {
+    activeGame: _setupState.activeGame,
+    gameDirectories: _setupState.gameDirectories,
+    toolsDir: setupToolsDir.value.trim(),
+    textAssetsDir: setupAssetsDir.value.trim(),
+    skipDownload: !!skipDownload
+  };
+  let r;
+  try { r = await window.kh1.setup.run(payload); }
+  catch (e) { r = { error: (e && e.message) || String(e) }; }
+
+  if (r && r.error) {
+    if (setupProgress) setupProgress.classList.add('error');
+    if (setupProgressMessage) setupProgressMessage.textContent = r.error;
+    if (typeof toast === 'function') toast(r.error, 'error', 6000);
+    if (setupRunBtn) setupRunBtn.disabled = false;
+    if (setupSkipBtn) setupSkipBtn.disabled = false;
+    return;
+  }
+
+  if (r && r.warnings && r.warnings.length) {
+    for (const w of r.warnings) {
+      if (typeof toast === 'function') toast(w, 'error', 5000);
+    }
+  }
+
+  // Status повідомлення для фази unpack-game (KHPCPatchManager). Без цього
+  // користувач не бачить що відбулось після основного setup.
+  if (r && r.unpack && typeof toast === 'function') {
+    if (r.unpack.launched) {
+      toast('KHPCPatchManager запущено для: ' + r.unpack.hed +
+            '. Заверши розпакування у його вікні.', 'success', 8000);
+    } else if (r.unpack.skipped) {
+      toast('Розпакування пропущено: ' + r.unpack.reason, 'error', 8000);
+    } else if (r.unpack.error) {
+      toast('Помилка розпакування: ' + r.unpack.error, 'error', 8000);
+    }
+  } else if (r && r.activeGame && typeof toast === 'function') {
+    // Activgame вибрана, але r.unpack відсутній → діагностика: або
+    // HED_PATHS[gid] не задано, або khpcpm не був завантажений.
+    if (!r.tools || !r.tools.khpcpm) {
+      toast('KHPCPatchManager не завантажено — розпакування недоступне.', 'error', 7000);
+    }
+  }
+
+  // Setup завершений. Оновлюємо cache і перерендеримо home, щоб картка
+  // активної гри (та інших, для яких задано dir) стала кольоровою.
+  await refreshGameDirsCache();
+  renderHome();
+
+  // Якщо активна гра була явно обрана — заходимо у її редактор як шорткат.
+  // Якщо ні — показуємо home, де користувач може вибрати картку.
+  setTimeout(() => {
+    hideSetup();
+    showHome();
+    if (typeof toast === 'function') {
+      const msg = (window.i18n && window.i18n.t('toastSetupDone')) || 'Налаштування завершено';
+      toast(msg, 'success', 3000);
+    }
+    if (r.activeGame && typeof enterEditor === 'function') {
+      const g = gamesConfig.find(x => x.id === r.activeGame);
+      if (g && g.enabled) enterEditor(r.activeGame);
+    }
+  }, 600);
+}
+
+async function initSetupFromState(state) {
+  // Заповнюємо UI поточними значеннями (якщо є — повторне відкриття).
+  _setupState.activeGame = state.activeGame || '';
+  _setupState.gameDirectories = Object.assign({}, state.gameDirectories || {});
+  _setupState.toolsDir = state.toolsDir || (state.defaults && state.defaults.toolsDir) || '';
+  _setupState.textAssetsDir = state.textAssetsDir || (state.defaults && state.defaults.textAssetsDir) || '';
+  if (setupToolsDir)  setupToolsDir.value  = _setupState.toolsDir;
+  if (setupAssetsDir) setupAssetsDir.value = _setupState.textAssetsDir;
+  _setupRenderGames();
+  _setupRefreshRunBtn();
+}
+
+// Bootstrap: вирішує що показати першим (setup vs home).
+//
+// Поведінка:
+//   • setupCompleted === true  → одразу home. Якщо якісь директорії
+//     зникли з диска — користувач сам помітить (порожній список файлів),
+//     і завжди може натиснути «↺ Перевідкрити setup» у Settings.
+//   • setupCompleted === false → показуємо setup-onboarding.
+//
+// Раніше тут був toast «директорії не існують», але він спрацьовував
+// помилково для legacy-юзерів v2.22.x, у яких немає toolsDir/textAssetsDir
+// (нові поля v2.23). Прибрано — setup-screen сам по собі є достатнім сигналом.
+async function bootstrapApp() {
+  let state;
+  try { state = await window.kh1.setup.status(); }
+  catch (_) { state = null; }
+
+  // Кеш gameDirectories для home-cards (грейаут якщо директорії немає).
+  _gameDirsCache = (state && state.gameDirectories) || {};
+  renderHome();
+
+  if (state && state.completed) {
+    showHome();
+    return;
+  }
+  await initSetupFromState(state || {});
+  showSetup();
+}
+
+// Wiring обробників (один раз).
+if (setupToolsDir) {
+  setupToolsDir.addEventListener('input', () => {
+    _setupState.toolsDir = setupToolsDir.value.trim();
+    _setupRefreshRunBtn();
+  });
+}
+if (setupAssetsDir) {
+  setupAssetsDir.addEventListener('input', () => {
+    _setupState.textAssetsDir = setupAssetsDir.value.trim();
+    _setupRefreshRunBtn();
+  });
+}
+const _setupToolsPick = document.getElementById('setup-tools-pick');
+if (_setupToolsPick) {
+  _setupToolsPick.addEventListener('click', async () => {
+    const dir = await window.kh1.setup.pickDir(
+      (window.i18n && window.i18n.t('setupPickToolsDir')) || 'Тека tools');
+    if (!dir) return;
+    setupToolsDir.value = dir;
+    _setupState.toolsDir = dir;
+    _setupRefreshRunBtn();
+  });
+}
+const _setupAssetsPick = document.getElementById('setup-assets-pick');
+if (_setupAssetsPick) {
+  _setupAssetsPick.addEventListener('click', async () => {
+    const dir = await window.kh1.setup.pickDir(
+      (window.i18n && window.i18n.t('setupPickAssetsDir')) || 'Тека текстових ресурсів');
+    if (!dir) return;
+    setupAssetsDir.value = dir;
+    _setupState.textAssetsDir = dir;
+    _setupRefreshRunBtn();
+  });
+}
+if (setupRunBtn)  setupRunBtn.addEventListener('click',  () => _setupRun(false));
+if (setupSkipBtn) setupSkipBtn.addEventListener('click', () => _setupRun(true));
+
+// «Перевідкрити setup» у Settings overlay: скидає setupCompleted у головному
+// процесі, закриває settings, переключає на setup-screen.
+const _settingsReopenSetup = document.getElementById('settings-reopen-setup');
+if (_settingsReopenSetup) {
+  _settingsReopenSetup.addEventListener('click', async () => {
+    try { await window.kh1.setup.reset(); } catch (_) {}
+    if (typeof hideSettings === 'function') hideSettings();
+    // Перечитуємо current state (щоб у setup-формі заповнилися останні шляхи).
+    let state = null;
+    try { state = await window.kh1.setup.status(); } catch (_) {}
+    if (state) await initSetupFromState(state);
+    showSetup();
+  });
 }
 
 // Поточна обрана гра (id з gamesConfig) — впливає на фільтрацію списку
@@ -718,11 +1103,11 @@ function applyGameDirsVisibility() {
   const hint = document.getElementById('dirs-hint');
   if (hint && game) {
     if (game.id === 'kh-bbs-final-mix') {
-      hint.textContent = 'ENG-тека визначає список файлів і служить джерелом для перекладу. ' +
-                         'Прогрес зберігається у TSV-теку, готові .ctd — у UA-теку.';
+      hint.textContent = (window.i18n && window.i18n.t('dirsHintBbs')) ||
+        'ENG-тека визначає список файлів і служить джерелом для перекладу. Прогрес — у TSV-теку, готові .ctd — у UA-теку.';
     } else if (game.id === 'kh-re-com') {
-      hint.textContent = 'ENG-тека визначає список .ctdl-файлів і служить джерелом для перекладу. ' +
-                         'Прогрес зберігається у TSV-теку, готові .ctdl — у UA-теку.';
+      hint.textContent = (window.i18n && window.i18n.t('dirsHintReCom')) ||
+        'FILES-тека (з оригінальними UK_*.ctdl) — список і джерело для перекладу. Прогрес — у TSV-теку, готові .ctdl — у UA-теку.';
     }
     // Для KH1 — лишається оригінальний i18n-текст (data-i18n атрибут).
   }
@@ -4058,12 +4443,22 @@ async function applyLanguage(lang, persist) {
 }
 
 async function initLanguage() {
+  // Якщо користувач вже обирав мову — використовуємо її. Інакше визначаємо
+  // за Windows-locale (через navigator.language, який в Electron =
+  // app.getLocale()): uk-* → 'uk', усе інше → 'en'.
+  // Інші мови поки не підтримуються.
   try {
     const s = await window.kh1.translate.getSettings();
-    const lang = (s && s.language) || (navigator.language || 'uk').slice(0, 2);
-    await applyLanguage(lang, false);
+    if (s && s.language) {
+      await applyLanguage(s.language, false);
+      return;
+    }
+    const sysLocale = (navigator.language || 'en').toLowerCase();
+    const detected = sysLocale.startsWith('uk') ? 'uk' : 'en';
+    // Persist одразу, щоб надалі не triggerити detection при кожному запуску.
+    await applyLanguage(detected, true);
   } catch (_) {
-    await applyLanguage('uk', false);
+    await applyLanguage('en', false);
   }
 }
 
@@ -4148,9 +4543,15 @@ async function maybeFirstRunSettings() {
   } catch (_) {}
 }
 
-initTheme();
-initLanguage();
-renderHome();
+// Послідовний старт: тема (sync) → мова (await, щоб усі i18n-рядки
+// у setup/home рендерились на правильній мові) → home-картки → bootstrap
+// (вирішує showSetup() vs showHome() за setupCompleted у main.js).
+(async () => {
+  try { initTheme(); } catch (_) {}
+  try { await initLanguage(); } catch (_) {}
+  try { renderHome(); } catch (_) {}
+  try { await bootstrapApp(); } catch (_) {}
+})();
 // maybeFirstRunSettings() та kAutoLoadKnjOnBoot() викликаються з enterEditor()
 // при першому вході в редактор (щоб не виконувати KH1-specific логіку, коли
 // користувач ще на головному екрані з вибором іншої гри).

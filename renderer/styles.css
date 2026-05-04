@@ -1909,6 +1909,145 @@ body.theme-light .kh-btn:disabled {
   opacity: 0.7;
 }
 
+/* === Setup-onboarding screen === */
+.setup-screen .setup-shell {
+  position: relative;
+  z-index: 1;
+  width: min(820px, 96vw);
+  margin: 12px auto 32px;
+  padding: 0 8px 20px;
+}
+.setup-body {
+  background: linear-gradient(160deg, rgba(15, 12, 5, 0.96), rgba(8, 6, 3, 0.92));
+  border: 1px solid var(--khn-gold-border);
+  border-radius: 14px;
+  padding: 24px 28px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+.setup-step { margin-bottom: 22px; }
+.setup-step-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--khn-gold);
+  text-transform: uppercase;
+}
+.setup-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--khn-gold-light), var(--khn-gold-dark));
+  color: #1a1404;
+  font-size: 12px;
+  font-weight: 700;
+}
+.setup-step-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--khn-text-muted);
+  line-height: 1.5;
+}
+.setup-game-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.setup-game {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(10, 10, 10, 0.6);
+  border: 1px solid rgba(255, 215, 90, 0.12);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.setup-game:hover { border-color: rgba(255, 215, 90, 0.32); background: rgba(20, 16, 6, 0.72); }
+.setup-game.active { border-color: var(--khn-gold); background: rgba(40, 30, 8, 0.78); box-shadow: inset 0 0 0 1px rgba(255, 215, 90, 0.25); }
+.setup-game-radio {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255, 215, 90, 0.4);
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+.setup-game.active .setup-game-radio { border-color: var(--khn-gold); }
+.setup-game.active .setup-game-radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--khn-gold);
+}
+.setup-game-text { min-width: 0; }
+.setup-game-name { font-weight: 600; font-size: 14px; color: var(--khn-text); }
+.setup-game-path {
+  font-size: 11px;
+  color: var(--khn-text-muted);
+  font-family: ui-monospace, monospace;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setup-game-path:empty::before {
+  content: attr(data-empty);
+  color: rgba(180, 160, 120, 0.5);
+  font-style: italic;
+  font-family: inherit;
+}
+.setup-game-pick { white-space: nowrap; }
+.setup-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 215, 90, 0.12);
+}
+.kh-btn-large { padding: 10px 22px; font-size: 13px; letter-spacing: 1px; }
+.setup-progress {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: rgba(10, 10, 10, 0.6);
+  border: 1px solid rgba(255, 215, 90, 0.18);
+  border-radius: 10px;
+}
+.setup-progress.hidden { display: none; }
+.setup-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--khn-text);
+}
+.setup-progress-phase { letter-spacing: 0.6px; }
+.setup-progress-percent { font-family: ui-monospace, monospace; color: var(--khn-gold); }
+.setup-progress-bar { height: 8px; }
+.setup-progress-message {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--khn-text-muted);
+  font-family: ui-monospace, monospace;
+  min-height: 14px;
+  word-break: break-word;
+}
+.setup-progress.error {
+  border-color: rgba(220, 60, 60, 0.5);
+  background: rgba(60, 12, 12, 0.5);
+}
+.setup-progress.error .setup-progress-message { color: #ffb0b0; }
+.setup-progress.done { border-color: rgba(120, 200, 80, 0.5); }
+
 /* === Game card === */
 .game-card {
   position: relative;
@@ -2072,6 +2211,13 @@ body.theme-light .kh-btn:disabled {
   border-bottom: 1px solid var(--khn-gold);
   pointer-events: none;
   z-index: 3;
+}
+/* "Setup needed" ribbon — янтарно-золотий (м'якіший за червоний "Coming Soon") */
+.game-ribbon.game-ribbon-setup {
+  background: linear-gradient(180deg, #b88a14 0%, #6b4f08 100%);
+  color: #fffbe6;
+  border-top: 1px solid var(--khn-gold-light);
+  border-bottom: 1px solid var(--khn-gold-dark);
 }
 
 /* Light theme adjustments */
