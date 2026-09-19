@@ -2,6 +2,10 @@
 
 const fs = require('fs');
 
+function safeFromCodePoint(cp) {
+  try { return String.fromCodePoint(cp); } catch (_) { return ''; }
+}
+
 function stripHtml(s) {
   return String(s || '')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -13,6 +17,9 @@ function stripHtml(s) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
+    // Числові entity (&#8217; &#x2019;) — Google Sheets експортує так типографські лапки/тире.
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => safeFromCodePoint(parseInt(h, 16)))
+    .replace(/&#([0-9]+);/g, (_, d) => safeFromCodePoint(parseInt(d, 10)))
     .trim();
 }
 

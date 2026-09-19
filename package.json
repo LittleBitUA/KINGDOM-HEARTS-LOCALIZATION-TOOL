@@ -2,7 +2,7 @@
   "name": "kh1-text-editor",
   "productName": "KH1 Text Editor",
   "version": "2.24.1",
-  "description": "Редактор текстових файлів Kingdom Hearts 1 (.bin/.binl/.ard) на Electron",
+  "description": "Інструмент локалізації Kingdom Hearts (KH1 FM .bin/.binl/.ard/.ev/_mes_ofs, BBS FM .ctd + font editor, Re:CoM .ctdl) на Electron",
   "main": "main.js",
   "private": true,
   "author": {

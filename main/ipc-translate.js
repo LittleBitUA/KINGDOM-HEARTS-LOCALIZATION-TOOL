@@ -16,6 +16,7 @@ const { classifyFile } = require('../tools/lib/formats');
 const ops = require('../tools/lib/translate-ops');
 const { readGlossary, saveGlossary } = require('../tools/lib/glossary');
 const { importFile: importTranslationsFile } = require('../tools/lib/import-translations');
+const { dl } = require('./menu');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
@@ -62,7 +63,7 @@ ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => saveSettings(p
 
 ipcMain.handle('translate:pickDirectory', async (_e, title) => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: title || 'Виберіть теку',
+    title: title || dl('pickDir'),
     properties: ['openDirectory']
   });
   return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
@@ -188,13 +189,13 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
 
 ipcMain.handle('translate:importTranslations', async (_e, opts) => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'Виберіть один або кілька файлів з готовими перекладами',
+    title: dl('importTranslations'),
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Таблиці перекладів (HTML/CSV/TSV)', extensions: ['html', 'htm', 'tsv', 'csv'] },
+      { name: dl('tableFiles'), extensions: ['html', 'htm', 'tsv', 'csv'] },
       { name: 'HTML', extensions: ['html', 'htm'] },
       { name: 'TSV/CSV', extensions: ['tsv', 'csv'] },
-      { name: 'Усі файли', extensions: ['*'] }
+      { name: dl('allFiles'), extensions: ['*'] }
     ]
   });
   if (r.canceled || !r.filePaths.length) return { canceled: true };
@@ -241,11 +242,11 @@ ipcMain.handle('translate:exportFileTxt', async (_e, payload) => {
   const defaultName = (payload && payload.defaultName) || 'translation.txt';
   const content = (payload && payload.content) || '';
   const r = await dialog.showSaveDialog(win.get(), {
-    title: 'Експортувати переклад у .txt',
+    title: dl('exportTxt'),
     defaultPath: defaultName,
     filters: [
-      { name: 'Текстові файли (*.txt)', extensions: ['txt'] },
-      { name: 'Усі файли', extensions: ['*'] }
+      { name: dl('txtFiles') + ' (*.txt)', extensions: ['txt'] },
+      { name: dl('allFiles'), extensions: ['*'] }
     ]
   });
   if (r.canceled || !r.filePath) return { canceled: true };
@@ -259,11 +260,11 @@ ipcMain.handle('translate:exportFileTxt', async (_e, payload) => {
 
 ipcMain.handle('translate:importFileTxt', async () => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'Імпортувати переклад з .txt',
+    title: dl('importTxt'),
     properties: ['openFile'],
     filters: [
-      { name: 'Текстові файли (*.txt)', extensions: ['txt'] },
-      { name: 'Усі файли', extensions: ['*'] }
+      { name: dl('txtFiles') + ' (*.txt)', extensions: ['txt'] },
+      { name: dl('allFiles'), extensions: ['*'] }
     ]
   });
   if (r.canceled || !r.filePaths.length) return { canceled: true };

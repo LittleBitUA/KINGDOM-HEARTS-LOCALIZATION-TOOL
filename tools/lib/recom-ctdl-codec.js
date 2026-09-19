@@ -108,6 +108,10 @@ for (const [code, ch] of Object.entries(EXT_99)) {
   // у 2-байтову послідовність 0x99 при encode.
   if (!(ch in EXT_99_REV)) EXT_99_REV[ch] = parseInt(code, 10);
 }
+// УВАГА (lossy): 0x99 0xB5 (',') і 0x99 0xCE ('-') декодуються в ASCII і при
+// re-encode стануть 0x2C / 0x2D. Для незмінених entries це не важливо
+// (composeCtdl копіює originalBytes), для відредагованих — гра рендерить їх
+// однаково. Якщо колись знадобиться byte-perfect, мапити у U+201A / U+2010.
 // Прибираємо ASCII-look-alikes з reverse мапи: ASCII символи `,`, `-`, `"`,
 // `\``, ` ` ніколи не мають кодуватись як 0x99 NN — інакше ми зламаємо файл.
 delete EXT_99_REV[','];

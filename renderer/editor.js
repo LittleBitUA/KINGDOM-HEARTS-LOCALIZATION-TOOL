@@ -7,10 +7,10 @@ import { state } from './core/state.js';
 // =====================================================================
 export function refreshStatus() {
   if (state.loadedFileName) {
-    fileStatus.textContent = 'Завантажено: ' + state.loadedFileName;
-    byteInfo.textContent = state.byteLength.toLocaleString('uk-UA') + ' байт';
+    fileStatus.textContent = window.i18n.t('edLoaded', { file: state.loadedFileName });
+    byteInfo.textContent = window.i18n.t('edBytes', { n: state.byteLength.toLocaleString(window.i18n.getLang() === 'en' ? 'en-US' : 'uk-UA') });
   } else {
-    fileStatus.textContent = 'Файл не завантажено';
+    fileStatus.textContent = window.i18n.t('fileNotLoaded');
     byteInfo.textContent = '';
   }
 }
@@ -24,7 +24,7 @@ export function updateCursor() {
     if (before.charCodeAt(i) === 10) { lineNum++; lastNl = i; }
   }
   const colNum = pos - (lastNl + 1) + 1;
-  cursorInfo.textContent = 'Рядок ' + lineNum + ', Стовпець ' + colNum;
+  cursorInfo.textContent = window.i18n.t('edCursor', { line: lineNum, col: colNum });
 }
 
 editor.addEventListener('keyup', updateCursor);
@@ -111,7 +111,7 @@ export function performFind(wrap) {
   if (typeof wrap !== 'boolean') wrap = true;
   const query = findInput.value;
   if (!query) {
-    findMessage.textContent = 'Введіть текст для пошуку.';
+    findMessage.textContent = window.i18n.t('findEnterText');
     findMessage.className = 'find-message error';
     return;
   }
@@ -126,14 +126,14 @@ export function performFind(wrap) {
   if (idx < 0 && wrap) idx = haystack.indexOf(needle, 0);
 
   if (idx < 0) {
-    findMessage.textContent = 'Текст не знайдено.';
+    findMessage.textContent = window.i18n.t('findNotFound');
     findMessage.className = 'find-message error';
     return;
   }
   editor.focus();
   editor.setSelectionRange(idx, idx + query.length);
   scrollEditorTo(idx);
-  findMessage.textContent = 'Знайдено.';
+  findMessage.textContent = window.i18n.t('findFound');
   findMessage.className = 'find-message success';
   updateCursor();
 }

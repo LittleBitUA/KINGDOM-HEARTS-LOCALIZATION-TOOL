@@ -10,6 +10,7 @@ const win = require('./window');
 const { runWorker } = require('./worker-pool');
 const { loadSettings, saveSettings } = require('./settings');
 const bbsFont = require('../tools/lib/bbs-font');
+const { dl } = require('./menu');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
@@ -19,7 +20,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 
 ipcMain.handle('bbsfont:pickArcDir', async () => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'Вкажіть теку з розпакованим FontEn.arc (мають бути .inf/.cod/.mtx файли)',
+    title: dl('pickArcDir'),
     properties: ['openDirectory']
   });
   return r.canceled || !r.filePaths.length ? { canceled: true } : { ok: true, dir: r.filePaths[0] };
@@ -27,7 +28,7 @@ ipcMain.handle('bbsfont:pickArcDir', async () => {
 
 ipcMain.handle('bbsfont:pickHdDir', async () => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'Вкажіть HD-remastered теку (PNG атласи), або скасуйте',
+    title: dl('pickHdDir'),
     properties: ['openDirectory']
   });
   return r.canceled || !r.filePaths.length ? { canceled: true } : { ok: true, dir: r.filePaths[0] };
@@ -103,12 +104,12 @@ ipcMain.handle('bbsfont:listHdPngs', async (_e, hdDir) => {
 ipcMain.handle('kerning:openKnj', async () => {
   const settings = loadSettings();
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'Завантажити .knj',
+    title: dl('loadKnj'),
     defaultPath: settings.lastKnjPath || undefined,
     properties: ['openFile'],
     filters: [
-      { name: 'Kanji файли (*.knj)', extensions: ['knj'] },
-      { name: 'Усі файли', extensions: ['*'] }
+      { name: dl('knjFiles') + ' (*.knj)', extensions: ['knj'] },
+      { name: dl('allFiles'), extensions: ['*'] }
     ]
   });
   if (r.canceled || !r.filePaths.length) return { canceled: true };
@@ -137,12 +138,12 @@ ipcMain.handle('kerning:loadKnjFromPath', async (_e, knjPath) => {
 
 ipcMain.handle('kerning:openDds', async (_e, suggestedDir) => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'Завантажити .dds atlas',
+    title: dl('loadDds'),
     defaultPath: suggestedDir || undefined,
     properties: ['openFile'],
     filters: [
-      { name: 'DDS текстури (*.dds)', extensions: ['dds'] },
-      { name: 'Усі файли', extensions: ['*'] }
+      { name: dl('ddsFiles') + ' (*.dds)', extensions: ['dds'] },
+      { name: dl('allFiles'), extensions: ['*'] }
     ]
   });
   if (r.canceled || !r.filePaths.length) return { canceled: true };
@@ -246,11 +247,11 @@ ipcMain.handle('kerning:encodeText', async (_e, text) => {
 ipcMain.handle('kerning:saveKnj', async (_e, payload) => {
   const suggested = (payload && payload.suggestedPath) || 'output.knj';
   const r = await dialog.showSaveDialog(win.get(), {
-    title: 'Зберегти .knj',
+    title: dl('saveKnj'),
     defaultPath: suggested,
     filters: [
-      { name: 'Kanji файли (*.knj)', extensions: ['knj'] },
-      { name: 'Усі файли', extensions: ['*'] }
+      { name: dl('knjFiles') + ' (*.knj)', extensions: ['knj'] },
+      { name: dl('allFiles'), extensions: ['*'] }
     ]
   });
   if (r.canceled || !r.filePath) return { canceled: true };

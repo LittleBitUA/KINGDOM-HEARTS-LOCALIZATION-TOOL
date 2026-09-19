@@ -13,6 +13,7 @@ const {
   GAME_DIR_LAYOUT, ensureLocalizationDirs,
   writeSettingsRaw, loadSettingsRaw, migrateIfNeeded
 } = require('./settings');
+const { dl } = require('./menu');
 
 // ---- Setup-onboarding -----------------------------------------------
 //
@@ -466,7 +467,7 @@ ipcMain.handle('setup:run', async (_e, payload) => {
                 params: { file: path.basename(hedAbs), sec: elapsed, filesPart, linePart }
               });
             }
-          }, 1000);
+          }, 3000);   // 3с: рекурсивний підрахунок файлів у теці гри — не щосекунди
 
           await new Promise((resolve, reject) => {
             const child = spawn(exePath, [hedAbs], {
@@ -568,7 +569,7 @@ ipcMain.handle('setup:run', async (_e, payload) => {
 // було симетричним).
 ipcMain.handle('setup:pickDir', async (_e, title) => {
   const r = await dialog.showOpenDialog(win.get(), {
-    title: title || 'Виберіть теку',
+    title: title || dl('pickDir'),
     properties: ['openDirectory']
   });
   return r.canceled || !r.filePaths.length ? null : r.filePaths[0];

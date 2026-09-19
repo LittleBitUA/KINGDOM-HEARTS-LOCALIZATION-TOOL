@@ -6,8 +6,8 @@
 [![License](https://img.shields.io/badge/license-MIT-38bdf8?style=for-the-badge&labelColor=0f1730)](LICENSE)
 [![Electron](https://img.shields.io/badge/electron-44.x-47848f?style=for-the-badge&labelColor=0f1730)](https://electronjs.org)
 
-**Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD) + Birth by Sleep (CTD + редактор шрифту).**
-*A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD) + Birth by Sleep (CTD + font editor).*
+**Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs) + Birth by Sleep (CTD + редактор шрифту) + Re:Chain of Memories (CTDL).**
+*A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs) + Birth by Sleep (CTD + font editor) + Re:Chain of Memories (CTDL).*
 
 [🇺🇦 Українська](#-українська) · [🇬🇧 English](#-english) · [📥 Download](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest)
 
@@ -19,19 +19,20 @@
 
 ### Що це
 
-Кросплатформенний редактор для перекладу тексту ігор **Kingdom Hearts 1 — Final Mix HD** та **Kingdom Hearts: Birth by Sleep — Final Mix HD**. Підтримує основні текстові формати обох ігор, має словник із автоматичним підхопленням повторень, валідатор токенів, візуальний редактор кернінгу (KH1) та редактор шрифту (BBS), збірку patch-файлу.
+Редактор для перекладу тексту ігор **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: Birth by Sleep — Final Mix HD** та **Kingdom Hearts Re:Chain of Memories** (PC). Збірки — для Windows; setup-майстер (OpenKH, KHPCPatchManager, Expand-Archive) — Windows-only, сам редактор працює на будь-якій ОС з Electron. Підтримує основні текстові формати обох ігор, має словник із автоматичним підхопленням повторень, валідатор токенів, візуальний редактор кернінгу (KH1) та редактор шрифту (BBS), збірку patch-файлу.
 
 ### ✨ Можливості
 
 | Категорія | Що працює |
 |---|---|
-| **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD (per-game ізольовані налаштування і теки) |
+| **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories (per-game ізольовані налаштування і теки) |
 | **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), українська overlay-карта, lossless round-trip |
-| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню) |
+| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню), `.ev`/`.evdl` (event-скрипти) |
+| **Формати Re:CoM** | `.ctdl` (subtitles + menu; Shift-JIS + Latin-Extended, button-іконки `{BTN_X}`, byte-identical round-trip) |
 | **Кодек BBS** | CTD з 32-byte header + 12-byte message + 32-byte layout entries, byte-identical round-trip (152/152), prefix-byte sequences (0x81/0x99/F1/F2/F5/F9), Cyrillic→Latin Extended мапа для font-hack |
 | **Формати BBS** | `.ctd` (event/menu/HUD), HD-PNG атлас фонтів, `mesfont/menufont/cmdfont/helpfont/numeral` шрифти |
 | **Редактор шрифту BBS** | Atlas viewer (HD PNG 1024×512), COD overlay з квадратними клітинами, правка X/Y/palette/width гліфів, експорт overlay-PNG як guide-шар, зум (−/+/Fit, Ctrl+wheel), збереження `.cod` |
-| **Глосарій** | 📊 Dashboard з прогрес-баром, фільтри, сортування, 🩹 авто-фікс структури, 🔄 bulk Find/Replace (regex/whole-word) |
+| **Глосарій** | 📊 Dashboard з прогрес-баром, фільтри, сортування, 🩹 авто-фікс структури, 🔄 bulk Find/Replace (regex/whole-word), ↶ Undo масових операцій, 5 ротаційних бекапів `_glossary.json` |
 | **Імпорт** | HTML / CSV / TSV / TXT — з token-guard'ом проти втрати керівних байтів. HTML-імпорт сумісний з output OpenKh CTD Editor (`{:unk XX}`) |
 | **Auto-wrap** | Адаптивне розставляння `{lf}` за EN-структурою з кернінг-метриками з `.knj` |
 | **Кернінг (KH1)** | Візуальний редактор `.knj` з DDS-атласом (drag для зміни ширини, auto-fit за α-каналом) |
@@ -57,7 +58,7 @@
 - Cell-preserving compose: кожен рядок займає той самий cell-size, що дозволяє точну byte-identical перебудову.
 
 #### `.ev` / `.evdl` (event scripts, KH1)
-Парсер реалізований ([tools/lib/ev-format.js](tools/lib/ev-format.js)) але **тимчасово вимкнений** у Safe Mode. Потрібна подальша reverse-engineering робота над game-side validation мехнізмами.
+Парсер/композер ([tools/lib/ev-format.js](tools/lib/ev-format.js)) увімкнений: text-блок перебудовується compact-режимом з релокацією header-pointer'ів у footer (підтверджено byte-by-byte порівнянням ENG/RUS файлів). Є cell-preserving режим (`opts.cellPreserving`), що гарантує незмінний розмір файлу.
 
 #### `.ctd` (Birth by Sleep — event/menu/HUD)
 Власна clean-room реалізація ([tools/lib/ctd-codec.js](tools/lib/ctd-codec.js), [tools/lib/ctd-format.js](tools/lib/ctd-format.js)). Структура:
@@ -97,10 +98,26 @@
 git clone https://github.com/LittleBitUA/KH1-Localization-tool.git
 cd KH1-Localization-tool
 npm install
-npm start              # dev-режим
-npm run build          # портабельний .exe
+npm start               # dev-режим
+npm test                # unit-тести (node:test, синтетичні фікстури — файли гри не потрібні)
+npm run lint            # ESLint
+npm run test:smoke      # headless e2e: справжній Electron + IPC на синтетичних файлах
+npm run check           # lint + test + smoke
+npm run build           # портабельний .exe
 npm run build:installer # NSIS installer
 ```
+
+Корисне для розробки:
+- `KH_DEBUG=1 npm start` — дзеркалить console renderer'а у термінал і відкриває DevTools.
+- Якщо запускаєш з терміналу VS Code і бачиш `ipcMain undefined` — зніми змінну `ELECTRON_RUN_AS_NODE` (VS Code передає її дочірнім процесам).
+- CI (GitHub Actions) ганяє lint + тести на кожен push; тег `vX.Y.Z` збирає portable + NSIS і публікує реліз.
+
+Структура коду:
+- `main.js` + `main/*.js` — main-процес (вікно, settings, IPC за доменами, worker-pool, setup).
+- `renderer/` — ESM-модулі UI (`main.js` — вхід; `core/`, `screens/`, `translate/`, `kerning/`, `bbsfont/`).
+- `shared/` — чисті модулі, спільні для main і renderer (codec KH1, TSV-формат, структура токенів, атомарний запис).
+- `tools/lib/formats/` — один handler на формат (`parse`/`compose`); `tools/lib/translate-ops.js` — generic extract/compose/glossary/composeAll поверх реєстру.
+- `test/` — тести; `test/helpers/synth.js` будує синтетичні .binl/.ev/mes_ofs/.ctd/.ctdl.
 
 ---
 
@@ -108,19 +125,20 @@ npm run build:installer # NSIS installer
 
 ### What is this
 
-Cross-platform editor for translating **Kingdom Hearts 1 — Final Mix HD** and **Kingdom Hearts: Birth by Sleep — Final Mix HD** text. Supports the main text formats of both games, has a glossary with auto-deduplication, token validator, visual kerning editor (KH1) and font editor (BBS), and patch builder.
+Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: Birth by Sleep — Final Mix HD** and **Kingdom Hearts Re:Chain of Memories** (PC) text. Builds target Windows; the setup wizard (OpenKH, KHPCPatchManager, Expand-Archive) is Windows-only, the editor itself runs anywhere Electron does. Supports the main text formats of both games, has a glossary with auto-deduplication, token validator, visual kerning editor (KH1) and font editor (BBS), and patch builder.
 
 ### ✨ Features
 
 | Category | What works |
 |---|---|
-| **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD (per-game isolated settings and folders) |
+| **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories (per-game isolated settings and folders) |
 | **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), Ukrainian overlay map, lossless round-trip |
-| **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus) |
+| **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus), `.ev`/`.evdl` (event scripts) |
+| **Re:CoM formats** | `.ctdl` (subtitles + menu; Shift-JIS + Latin-Extended, `{BTN_X}` button icons, byte-identical round-trip) |
 | **BBS codec** | CTD with 32-byte header + 12-byte message + 32-byte layout entries, byte-identical round-trip (152/152), prefix-byte sequences (0x81/0x99/F1/F2/F5/F9), Cyrillic→Latin Extended map for font-hack |
 | **BBS formats** | `.ctd` (event/menu/HUD), HD-PNG font atlases, `mesfont/menufont/cmdfont/helpfont/numeral` fonts |
 | **BBS font editor** | Atlas viewer (HD PNG 1024×512), COD overlay with square cells, edit X/Y/palette/width per glyph, export overlay PNG as guide layer, zoom (−/+/Fit, Ctrl+wheel), save `.cod` |
-| **Glossary** | 📊 Dashboard with progress bar, filters, sorting, 🩹 auto-fix structure, 🔄 bulk Find/Replace (regex/whole-word) |
+| **Glossary** | 📊 Dashboard with progress bar, filters, sorting, 🩹 auto-fix structure, 🔄 bulk Find/Replace (regex/whole-word), ↶ Undo for bulk operations, 5 rotating `_glossary.json` backups |
 | **Import** | HTML / CSV / TSV / TXT — with token-guard against losing control bytes. HTML import compatible with OpenKh CTD Editor output (`{:unk XX}`) |
 | **Auto-wrap** | Adaptive `{lf}` placement by EN structure using kerning metrics from `.knj` |
 | **Kerning (KH1)** | Visual `.knj` editor with DDS atlas (drag-to-resize widths, auto-fit by α-channel) |
@@ -146,7 +164,7 @@ Menu / UI listings (gummi blocks, item names, etc.).
 - Cell-preserving compose: each string occupies the same cell-size, enabling byte-identical rebuild.
 
 #### `.ev` / `.evdl` (event scripts, KH1)
-Parser implemented ([tools/lib/ev-format.js](tools/lib/ev-format.js)) but **temporarily disabled** in Safe Mode. Pending further reverse-engineering of game-side validation mechanisms.
+Parser/composer ([tools/lib/ev-format.js](tools/lib/ev-format.js)) is enabled: the text block is rebuilt in compact mode with relocation of footer pointers in the header (confirmed by byte-by-byte ENG/RUS comparison). A cell-preserving mode (`opts.cellPreserving`) keeps the file size unchanged.
 
 #### `.ctd` (Birth by Sleep — event/menu/HUD)
 Custom clean-room implementation ([tools/lib/ctd-codec.js](tools/lib/ctd-codec.js), [tools/lib/ctd-format.js](tools/lib/ctd-format.js)). Layout:
@@ -186,10 +204,21 @@ Parser ([tools/lib/bbs-font.js](tools/lib/bbs-font.js)) reads a bundle of `.inf`
 git clone https://github.com/LittleBitUA/KH1-Localization-tool.git
 cd KH1-Localization-tool
 npm install
-npm start              # dev mode
-npm run build          # portable .exe
+npm start               # dev mode
+npm test                # unit tests (node:test, synthetic fixtures — no game files needed)
+npm run lint            # ESLint
+npm run test:smoke      # headless e2e: real Electron + IPC on synthetic files
+npm run check           # lint + test + smoke
+npm run build           # portable .exe
 npm run build:installer # NSIS installer
 ```
+
+Development notes:
+- `KH_DEBUG=1 npm start` mirrors the renderer console to the terminal and opens DevTools.
+- Running from the VS Code terminal and seeing `ipcMain undefined`? Unset `ELECTRON_RUN_AS_NODE` (VS Code passes it to child processes).
+- CI (GitHub Actions) runs lint + tests on every push; a `vX.Y.Z` tag builds portable + NSIS and publishes the release.
+
+Code layout: `main/` (main process by domain), `renderer/` (ESM UI modules), `shared/` (pure modules used by both), `tools/lib/formats/` (one handler per format) + `tools/lib/translate-ops.js`, `test/`.
 
 ---
 

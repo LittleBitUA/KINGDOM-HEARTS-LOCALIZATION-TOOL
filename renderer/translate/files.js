@@ -21,7 +21,7 @@ export async function initTranslateMode() {
   const game = getCurrentGame();
   const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
   if (!tState.settings[sourceDirKey]) {
-    tStatus.textContent = 'Налаштуйте теки локалізації, щоб почати';
+    tStatus.textContent = window.i18n.t('tStatusConfigure');
     openSettings();
     return;
   }
@@ -108,7 +108,7 @@ export async function loadFileList() {
   while (tFileSel.firstChild) tFileSel.removeChild(tFileSel.firstChild);
   const blank = document.createElement('option');
   blank.value = '';
-  blank.textContent = '— виберіть файл —';
+  blank.textContent = window.i18n.t('selectFile');
   tFileSel.appendChild(blank);
   for (const f of visible) {
     const o = document.createElement('option');
@@ -132,20 +132,14 @@ export async function loadFileList() {
   const safeCount = tState.files.filter(f => f.isTranslatable).length;
   const unsafeCount = allCount - safeCount;
   tStatus.textContent = tState.safeMode
-    ? 'Безпечних .binl: ' + safeCount + ' (приховано небезпечних: ' + unsafeCount + ')'
-    : 'Усього файлів: ' + allCount + ' · з них .binl: ' + safeCount;
+    ? window.i18n.t('tStatusSafe', { safe: safeCount, unsafe: unsafeCount })
+    : window.i18n.t('tStatusAll', { all: allCount, safe: safeCount });
 }
 
 tSafeMode.addEventListener('change', async (e) => {
   tState.safeMode = e.target.checked;
   if (!tState.safeMode) {
-    if (!window.confirm(
-      'УВАГА. Режим "Безпечно" вимикається.\n\n' +
-      'У списку з’являться файли невпізнаних форматів. Редактор їх не вміє безпечно ' +
-      'розпарсити/перепакувати — compose таких файлів може зламати гру ' +
-      '(краш або undefined behavior).\n\n' +
-      'Продовжити?'
-    )) {
+    if (!window.confirm(window.i18n.t('confirmUnsafeMode'))) {
       tSafeMode.checked = true;
       tState.safeMode = true;
       return;
@@ -167,20 +161,20 @@ export async function loadFile(rel) {
   const engPath = joinPath(tState.settings.engDir, rel);
   const rusPath = joinPath(tState.settings.rusDir, rel);
 
-  tStatus.textContent = 'Завантажую ' + rel + '…';
-  renderEmpty('Обробка ' + rel + '…');
+  tStatus.textContent = window.i18n.t('tLoading', { rel });
+  renderEmpty(window.i18n.t('tProcessing', { rel }));
 
   let r;
   try {
     r = await window.kh1.translate.extract({ engPath, rusPath });
   } catch (e) {
     toast(window.i18n.t('toastExtractError', {msg: e.message}), 'error', 6000);
-    renderEmpty('Помилка завантаження');
+    renderEmpty(window.i18n.t('tLoadError'));
     return;
   }
   if (r.error) {
     toast(window.i18n.t('toastExtractError', {msg: r.error}), 'error', 6000);
-    renderEmpty('Помилка: ' + r.error);
+    renderEmpty(window.i18n.t('tErrorPrefix', { msg: r.error }));
     return;
   }
 
@@ -223,9 +217,9 @@ export async function loadFile(rel) {
 
   if (glossFilled || tsvMerged) {
     const parts = [];
-    if (glossFilled) parts.push(glossFilled + ' з глосарія');
-    if (tsvMerged) parts.push(tsvMerged + ' з TSV');
-    toast(window.i18n.t('toastAutoFilled', {parts: parts.join(', ') + (stubbed ? ' · ' + stubbed + ' English stubs' : '')}), 'info');
+    if (glossFilled) parts.push(window.i18n.t('tFromGlossary', { n: glossFilled }));
+    if (tsvMerged) parts.push(window.i18n.t('tFromTsv', { n: tsvMerged }));
+    toast(window.i18n.t('toastAutoFilled', {parts: parts.join(', ') + (stubbed ? ' · ' + window.i18n.t('tEnglishStubs', { n: stubbed }) : '')}), 'info');
   }
 
   renderRows();
@@ -390,7 +384,7 @@ export function renderEmpty(msg) {
 export function renderRows() {
   while (tRows.firstChild) tRows.removeChild(tRows.firstChild);
   if (tState.slots.length === 0) {
-    renderEmpty('Цей файл не містить translatable рядків.');
+    renderEmpty(window.i18n.t('tNoTranslatable'));
     return;
   }
 
@@ -466,7 +460,7 @@ export function refreshProgress() {
     ? done + ' / ' + total + ' (' + pct + '%)'
     : '—';
 
-  const dirtyMark = tState.dirty ? ' ● незбережено' : '';
+  const dirtyMark = tState.dirty ? window.i18n.t('tUnsaved') : '';
   tStatus.textContent = (tState.currentRel || '—') + dirtyMark;
 
   tSaveTsv.disabled = !tState.currentRel || !tState.settings.tsvDir;
@@ -573,9 +567,9 @@ export async function composeBinl() {
     const r = await window.kh1.translate.compose({ engPath, replacements, outPath });
     if (r.error) { toast(window.i18n.t('toastComposeError', {msg: r.error}), 'error', 6000); return; }
 
-    let msg = 'Зібрано: ' + replacements.length + ' замін, ' + r.byteLength + ' байт → ' + outPath;
+    let msg = window.i18n.t('tComposed', { n: replacements.length, bytes: r.byteLength, path: outPath });
     if (r.errors && r.errors.length) {
-      msg += ' · помилок: ' + r.errors.length;
+      msg += window.i18n.t('tComposedErrors', { n: r.errors.length });
       const offToRow = new Map();
       for (const row of tRows.querySelectorAll('.t-row')) {
         offToRow.set(parseInt(row.dataset.off, 10), row);
@@ -724,9 +718,9 @@ export async function importFileTxt() {
       scheduleTsvAutoSave();
       scheduleGlossaryAutoSave();
     }
-    let msg = 'Імпорт: ' + applied + ' застосовано';
-    if (skipped) msg += ', ' + skipped + ' пропущено (порожнє/=EN)';
-    if (notFound) msg += ', ' + notFound + ' не знайдено за offset';
+    let msg = window.i18n.t('tTxtImportSummary', { applied });
+    if (skipped) msg += window.i18n.t('tTxtImportSkipped', { n: skipped });
+    if (notFound) msg += window.i18n.t('tTxtImportNotFound', { n: notFound });
     toast(msg, applied ? 'success' : 'info', 6000);
   } catch (e) {
     toast(window.i18n.t('toastError', {msg: e.message}), 'error', 6000);
@@ -738,8 +732,8 @@ export async function importFileTxt() {
 // =====================================================================
 window.kh1.translate.onProgress((p) => {
   if (!p) return;
-  const phase = p.phase === 'glossary-build' ? 'Сканую'
-              : p.phase === 'compose-all' ? 'Збираю'
+  const phase = p.phase === 'glossary-build' ? window.i18n.t('phaseScanning')
+              : p.phase === 'compose-all' ? window.i18n.t('phaseComposing')
               : p.phase || '…';
   tProgress.textContent = phase + ': ' + p.done + ' / ' + p.total;
   if (p.currentFile) tStatus.textContent = phase + '… ' + p.currentFile;

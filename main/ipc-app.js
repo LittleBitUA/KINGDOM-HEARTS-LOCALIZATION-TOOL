@@ -95,7 +95,7 @@ ipcMain.handle('app:setLanguage', (_e, lang) => {
 });
 
 ipcMain.handle('app:about', () => ({
-  name: 'Редактор тексту Kingdom Hearts 1',
+  name: menu.dl('appName'),
   version: app.getVersion(),
   electron: process.versions.electron,
   node: process.versions.node,

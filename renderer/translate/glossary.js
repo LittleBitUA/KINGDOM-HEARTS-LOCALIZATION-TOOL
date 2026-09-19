@@ -44,7 +44,7 @@ export async function buildGlossary() {
   gState.busy = true;
   gBuild.disabled = true;
   tProgress.classList.add('busy');
-  tProgress.textContent = 'Сканую…';
+  tProgress.textContent = window.i18n.t('gScanning');
 
   try {
     const r = await window.kh1.translate.buildGlossary({
@@ -58,10 +58,10 @@ export async function buildGlossary() {
     gState.entries = r.entries || [];
     renderGlossaryRows();
     refreshGlossaryProgress();
-    const parts = ['Знайдено ' + gState.entries.length + ' унікальних рядків'];
-    parts.push('оброблено: ' + r.processed);
-    if (r.skipped) parts.push('пропущено: ' + r.skipped);
-    if (r.skippedUnsafe) parts.push('🛡 заблоковано небезпечних: ' + r.skippedUnsafe);
+    const parts = [window.i18n.t('gBuiltSummary', { n: gState.entries.length })];
+    parts.push(window.i18n.t('gProcessed', { n: r.processed }));
+    if (r.skipped) parts.push(window.i18n.t('gSkipped', { n: r.skipped }));
+    if (r.skippedUnsafe) parts.push(window.i18n.t('gSkippedUnsafe', { n: r.skippedUnsafe }));
     toast(parts.join(' · '), 'success', 5000);
   } catch (e) {
     toast(window.i18n.t('toastError', {msg: e.message}), 'error', 6000);
@@ -97,7 +97,7 @@ export function renderGlossaryRows() {
     const div = document.createElement('div');
     div.className = 't-empty';
     const p = document.createElement('p');
-    p.textContent = 'Глосарій порожній. Натисніть "Побудувати/Оновити".';
+    p.textContent = window.i18n.t('gEmptyHint');
     div.appendChild(p);
     gRows.appendChild(div);
     return;
@@ -123,7 +123,7 @@ export function renderGlossaryRows() {
     const cnt = document.createElement('span');
     cnt.className = 't-count';
     cnt.textContent = '× ' + entry.count;
-    cnt.title = 'У файлах: ' + entry.fileCount;
+    cnt.title = window.i18n.t('gInFiles', { n: entry.fileCount });
     meta.appendChild(cnt);
 
     const en = document.createElement('div');

@@ -7,31 +7,26 @@ const path = require('path');
 const fs = require('fs/promises');
 const win = require('./window');
 const { runWorker } = require('./worker-pool');
+const { dl } = require('./menu');
 
-const FILE_FILTERS_OPEN = [
-  { name: 'Підтримувані файли (*.bin;*.binl;*.ard;*.ctdl)', extensions: ['bin', 'binl', 'ard', 'ctdl'] },
-  { name: 'BIN файли (*.bin)', extensions: ['bin'] },
-  { name: 'BINL файли (*.binl)', extensions: ['binl'] },
-  { name: 'ARD файли (*.ard)', extensions: ['ard'] },
-  { name: 'CTDL файли (*.ctdl)', extensions: ['ctdl'] },
-  { name: 'Усі файли', extensions: ['*'] }
+const filtersOpen = () => [
+  { name: dl('supported') + ' (*.bin;*.binl;*.ard;*.ctdl)', extensions: ['bin', 'binl', 'ard', 'ctdl'] },
+  { name: dl('binFiles') + ' (*.bin)', extensions: ['bin'] },
+  { name: dl('binlFiles') + ' (*.binl)', extensions: ['binl'] },
+  { name: dl('ardFiles') + ' (*.ard)', extensions: ['ard'] },
+  { name: dl('ctdlFiles') + ' (*.ctdl)', extensions: ['ctdl'] },
+  { name: dl('allFiles'), extensions: ['*'] }
 ];
 
-const FILE_FILTERS_SAVE = [
-  { name: 'BIN файли (*.bin)', extensions: ['bin'] },
-  { name: 'BINL файли (*.binl)', extensions: ['binl'] },
-  { name: 'ARD файли (*.ard)', extensions: ['ard'] },
-  { name: 'CTDL файли (*.ctdl)', extensions: ['ctdl'] },
-  { name: 'Усі файли', extensions: ['*'] }
-];
+const filtersSave = () => filtersOpen().slice(1);
 
 ipcMain.handle('file:open', async (_e, opts) => {
   // decodeMode: 'smart' (default) | 'overlay' | 'base' — див. shared/codec.js
   const decodeMode = (opts && ['smart', 'overlay', 'base'].includes(opts.decodeMode)) ? opts.decodeMode : 'smart';
   const result = await dialog.showOpenDialog(win.get(), {
-    title: 'Імпортувати файл BIN/BINL/ARD',
+    title: dl('importFile'),
     properties: ['openFile'],
-    filters: FILE_FILTERS_OPEN
+    filters: filtersOpen()
   });
   if (result.canceled || !result.filePaths.length) {
     return { canceled: true };
@@ -62,9 +57,9 @@ ipcMain.handle('file:save', async (_event, payload) => {
   const suggestedName = (payload && payload.suggestedName) || 'untitled.bin';
 
   const result = await dialog.showSaveDialog(win.get(), {
-    title: 'Експортувати файл BIN/BINL/ARD',
+    title: dl('exportFile'),
     defaultPath: suggestedName,
-    filters: FILE_FILTERS_SAVE
+    filters: filtersSave()
   });
   if (result.canceled || !result.filePath) {
     return { canceled: true };

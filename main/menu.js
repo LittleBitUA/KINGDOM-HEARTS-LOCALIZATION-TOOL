@@ -35,6 +35,36 @@ const MENU_DICT = {
 };
 function ml(key) { return (MENU_DICT[appLang] && MENU_DICT[appLang][key]) || MENU_DICT.uk[key] || key; }
 
+// Заголовки native-діалогів і назви фільтрів файлів (main-процес не має
+// доступу до renderer/i18n.js).
+const DIALOG_DICT = {
+  uk: {
+    allFiles: 'Усі файли', supported: 'Підтримувані файли', binFiles: 'BIN файли', binlFiles: 'BINL файли',
+    ardFiles: 'ARD файли', ctdlFiles: 'CTDL файли', knjFiles: 'Kanji файли', ddsFiles: 'DDS текстури',
+    txtFiles: 'Текстові файли', tableFiles: 'Таблиці перекладів (HTML/CSV/TSV)',
+    importFile: 'Імпортувати файл BIN/BINL/ARD', exportFile: 'Експортувати файл BIN/BINL/ARD',
+    pickDir: 'Виберіть теку', pickArcDir: 'Вкажіть теку з розпакованим FontEn.arc (мають бути .inf/.cod/.mtx файли)',
+    pickHdDir: 'Вкажіть HD-remastered теку (PNG атласи), або скасуйте',
+    loadKnj: 'Завантажити .knj', loadDds: 'Завантажити .dds atlas', saveKnj: 'Зберегти .knj',
+    importTranslations: 'Виберіть один або кілька файлів з готовими перекладами',
+    exportTxt: 'Експортувати переклад у .txt', importTxt: 'Імпортувати переклад з .txt',
+    appName: 'KH Localization Tool — редактор тексту Kingdom Hearts'
+  },
+  en: {
+    allFiles: 'All files', supported: 'Supported files', binFiles: 'BIN files', binlFiles: 'BINL files',
+    ardFiles: 'ARD files', ctdlFiles: 'CTDL files', knjFiles: 'Kanji files', ddsFiles: 'DDS textures',
+    txtFiles: 'Text files', tableFiles: 'Translation tables (HTML/CSV/TSV)',
+    importFile: 'Import BIN/BINL/ARD file', exportFile: 'Export BIN/BINL/ARD file',
+    pickDir: 'Select folder', pickArcDir: 'Select the unpacked FontEn.arc folder (.inf/.cod/.mtx files)',
+    pickHdDir: 'Select the HD-remastered folder (PNG atlases), or cancel',
+    loadKnj: 'Load .knj', loadDds: 'Load .dds atlas', saveKnj: 'Save .knj',
+    importTranslations: 'Select one or more files with ready translations',
+    exportTxt: 'Export translation to .txt', importTxt: 'Import translation from .txt',
+    appName: 'KH Localization Tool — Kingdom Hearts text editor'
+  }
+};
+function dl(key) { return (DIALOG_DICT[appLang] && DIALOG_DICT[appLang][key]) || DIALOG_DICT.uk[key] || key; }
+
 function getLang() { return appLang; }
 function setLang(lang) { appLang = (lang === 'en') ? 'en' : 'uk'; }
 
@@ -97,4 +127,4 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-module.exports = { buildMenu, getLang, setLang, ml };
+module.exports = { buildMenu, getLang, setLang, ml, dl };
