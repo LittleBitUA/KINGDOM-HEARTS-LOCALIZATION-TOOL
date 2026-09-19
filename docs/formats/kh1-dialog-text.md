@@ -56,7 +56,7 @@
 ## Генератор: `tools/py/kh1/kh1font.py` (вкладка «Шрифти UA» для KH1)
 
 ```
-python tools/py/kh1/kh1font.py --knj original/exchange/UK_kanji.knj     --dds remastered/exchange/UK_kanji.knj/UK_kanji_knj0.dds     --font assets/fonts/ComicHearts-Regular.otf --layout game --out build/kh1_first.hed_out --preview preview.png
+python tools/py/kh1/kh1font.py --knj original/exchange/UK_kanji.knj \n    --dds remastered/exchange/UK_kanji.knj/UK_kanji_knj0.dds \n    --font assets/fonts/ComicHearts-Regular.otf --layout game --out build/kh1_first.hed_out --preview preview.png
 ```
 
 - Автокалібрування: розмір шрифту підбирається так, щоб заливка «H» мала висоту оригіналу
