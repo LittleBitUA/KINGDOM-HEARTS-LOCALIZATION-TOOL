@@ -373,4 +373,4 @@ ipcMain.handle('uafonts:defaults', async (_e, gameId) => ({
   fallbackFont: defaultFallbackFont()
 }));
 
-module.exports = { detectPython, checkDeps, locate, PROFILES };
+module.exports = { detectPython, checkDeps, locate, findDirNamed, PROFILES };

@@ -135,6 +135,7 @@ contextBridge.exposeInMainWorld('kh1', {
   },
   bbsfont: {
     pickArcDir:  () => ipcRenderer.invoke('bbsfont:pickArcDir'),
+    autoArc:     () => ipcRenderer.invoke('bbsfont:autoArc'),
     pickHdDir:   () => ipcRenderer.invoke('bbsfont:pickHdDir'),
     listFonts:   (dir) => ipcRenderer.invoke('bbsfont:listFonts', dir),
     loadFont:    (fontFiles) => ipcRenderer.invoke('bbsfont:loadFont', fontFiles),

@@ -76,13 +76,10 @@ export function bfRefreshButtons() {
 export function bfSetStatus(text) { if (bfStatus) bfStatus.textContent = text || ''; }
 export function bfSetInfo(text)   { if (bfInfo)   bfInfo.textContent   = text || ''; }
 
-if (bfPickArcBtn) bfPickArcBtn.addEventListener('click', async () => {
-  const r = await window.kh1.bbsfont.pickArcDir();
-  if (r.canceled) return;
-  if (r.error) { toast(r.error, 'error'); return; }
+// Застосувати теку з розпакованим FontEn.arc (+ опційно HD-PNG теку з гри).
+async function bfUseArcResult(r) {
   bfState.arcDir = r.dir;
   bfSetStatus(r.dir);
-  // Заповнюємо список шрифтів
   const lr = await window.kh1.bbsfont.listFonts(r.dir);
   if (lr.error) { toast(lr.error, 'error'); return; }
   bfState.fonts = lr.fonts || [];
@@ -96,17 +93,28 @@ if (bfPickArcBtn) bfPickArcBtn.addEventListener('click', async () => {
     o.textContent = f.name;
     bfFontSel.appendChild(o);
   }
+  if (r.hdDir) await bfLoadHdDir(r.hdDir);
   bfRefreshButtons();
-  toast('Знайдено шрифтів: ' + bfState.fonts.length, 'success', 2500);
+  const src = r.arcFile ? ' (розпаковано з ' + r.arcFile.split(/[\\/]/).slice(-4).join('/') + ')' : '';
+  toast('Знайдено шрифтів: ' + bfState.fonts.length + src, bfState.fonts.length ? 'success' : 'error', 4000);
+}
+
+if (bfPickArcBtn) bfPickArcBtn.addEventListener('click', async () => {
+  // Спершу — з розпакованої гри (Setup), без діалогу; діалог лише як запасний варіант.
+  let r = null;
+  try { r = await window.kh1.bbsfont.autoArc(); } catch (_) { /* нема IPC — підемо через діалог */ }
+  if (!r || r.error) {
+    if (r && r.error) toast(r.error, 'info', 4000);
+    r = await window.kh1.bbsfont.pickArcDir();
+    if (r.canceled) return;
+    if (r.error) { toast(r.error, 'error', 7000); return; }
+  }
+  await bfUseArcResult(r);
 });
 
-if (bfPickHdBtn) bfPickHdBtn.addEventListener('click', async () => {
-  const r = await window.kh1.bbsfont.pickHdDir();
-  if (r.canceled) return;
-  if (r.error) { toast(r.error, 'error'); return; }
-  bfState.hdDir = r.dir;
-  // Список PNG
-  const lr = await window.kh1.bbsfont.listHdPngs(r.dir);
+async function bfLoadHdDir(dir) {
+  bfState.hdDir = dir;
+  const lr = await window.kh1.bbsfont.listHdPngs(dir);
   if (lr.error) { toast(lr.error, 'error'); return; }
   while (bfPngSel.firstChild) bfPngSel.removeChild(bfPngSel.firstChild);
   const blank = document.createElement('option');
@@ -119,6 +127,13 @@ if (bfPickHdBtn) bfPickHdBtn.addEventListener('click', async () => {
     bfPngSel.appendChild(o);
   }
   bfRefreshButtons();
+}
+
+if (bfPickHdBtn) bfPickHdBtn.addEventListener('click', async () => {
+  const r = await window.kh1.bbsfont.pickHdDir();
+  if (r.canceled) return;
+  if (r.error) { toast(r.error, 'error'); return; }
+  await bfLoadHdDir(r.dir);
 });
 
 if (bfFontSel) bfFontSel.addEventListener('change', async () => {

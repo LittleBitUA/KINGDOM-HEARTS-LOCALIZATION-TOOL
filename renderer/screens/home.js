@@ -28,6 +28,8 @@ export const gamesConfig = [
     id: 'kh1-final-mix',
     title: 'KINGDOM HEARTS\nFINAL MIX',
     name: 'Kingdom Hearts Final Mix',
+    // Обкладинка (SteamGridDB, 920×430) замість намальованого hero; на ній уже є логотип.
+    image: 'assets/covers/kh1-final-mix.png',
     platform: 'PC (Steam / Epic Games)',
     format: '.bin / .ard',
     theme: 'final-mix',
@@ -244,6 +246,8 @@ export function renderGameCard(game) {
   cover.appendChild(ovl);
   const ct = document.createElement('div');
   ct.className = 'game-cover-title';
+  // На готовій обкладинці логотип уже є — свій заголовок не малюємо.
+  if (game.image) ct.hidden = true;
   const lines = String(game.title).split('\n');
   lines.forEach((line, i) => {
     if (i) ct.appendChild(document.createElement('br'));

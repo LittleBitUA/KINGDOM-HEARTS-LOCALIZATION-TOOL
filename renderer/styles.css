@@ -2630,7 +2630,8 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .hub .game-card.theme-re-com    .game-cover { background: linear-gradient(160deg, #8a6414 0%, #4a350a 45%, #1c1608 100%); }
 .hub .game-card.theme-ddd       .game-cover { background: linear-gradient(160deg, #8a4ba1 0%, #582a73 45%, #27113f 100%); }
 .hub .game-card.theme-bbs       .game-cover { background: linear-gradient(160deg, #14596b 0%, #073744 50%, #0b2630 100%); }
-.hub .game-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hub .game-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.hub .game-cover:has(img) .game-cover-overlay { background: linear-gradient(180deg, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.22) 100%); }
 .hub .game-cover-art { position: absolute; inset: 0; pointer-events: none; }
 .hub .game-cover-art svg { width: 100%; height: 100%; display: block; }
 .hub .game-cover-heart {

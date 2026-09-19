@@ -9,8 +9,11 @@ const fsSync = require('fs');
 const win = require('./window');
 const { runWorker } = require('./worker-pool');
 const codec = require('../shared/codec');
-const { loadSettings, saveSettings } = require('./settings');
+const { loadSettings, saveSettings, loadSettingsRaw, migrateIfNeeded } = require('./settings');
 const bbsFont = require('../tools/lib/bbs-font');
+const { unpackArc } = require('../tools/lib/bbs-arc');
+const { findDirNamed } = require('./ipc-uafonts');
+const { app } = require('electron');
 const { dl } = require('./menu');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -19,12 +22,72 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 // Load: користувач вибирає теку розпакованого FontEn.arc → повертаємо
 // список фонтів. Дані самих entries беруться окремим викликом per-font.
 
+// Тека з розпакованим FontEn.arc для редактора. Приймає будь-що з цього:
+//   • теку з *.inf/*.cod (вже розпаковано) — як є;
+//   • теку, де лежить файл FontEn.arc (original/arc_en/system) — розпаковуємо;
+//   • теку HD-PNG (remastered/…/FontEn.arc/) — шукаємо оригінальний .arc поруч.
+// Розпаковуємо у <Documents>/KH-Localization/FONTS/kh-bbs-final-mix/FontEn.arc_unpack.
+function unpackDirFor() {
+  return path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', 'kh-bbs-final-mix', 'FontEn.arc_unpack');
+}
+function findHedOutAbove(p) {
+  let cur = path.resolve(p);
+  for (let i = 0; i < 8; i++) {
+    if (/\.hed_out$/i.test(path.basename(cur))) return cur;
+    const parent = path.dirname(cur);
+    if (parent === cur) break;
+    cur = parent;
+  }
+  return null;
+}
+function resolveArcDir(picked) {
+  const hasFonts = (d) => { try { return fsSync.readdirSync(d).some(f => /\.(inf|cod)$/i.test(f)); } catch (_) { return false; } };
+  if (hasFonts(picked)) return { ok: true, dir: picked, hdDir: null };
+  let arcFile = null, hdDir = null;
+  const direct = path.join(picked, 'FontEn.arc');
+  if (fsSync.existsSync(direct) && fsSync.statSync(direct).isFile()) arcFile = direct;
+  else if (fsSync.existsSync(picked) && fsSync.statSync(picked).isFile() && /\.arc$/i.test(picked)) arcFile = picked;
+  else {
+    // remastered/arc_en/system/FontEn.arc (PNG) → original/arc_en/system/FontEn.arc
+    const hedOut = findHedOutAbove(picked);
+    if (hedOut) {
+      const cand = path.join(hedOut, 'original', 'arc_en', 'system', 'FontEn.arc');
+      if (fsSync.existsSync(cand)) arcFile = cand;
+    }
+  }
+  if (!arcFile) return { error: 'У цій теці нема ні *.inf/*.cod, ні файла FontEn.arc — вкажи original/arc_en/system або розпаковану теку' };
+  const hedOut = findHedOutAbove(arcFile);
+  if (hedOut) {
+    const png = path.join(hedOut, 'remastered', 'arc_en', 'system', 'FontEn.arc');
+    if (fsSync.existsSync(png)) hdDir = png;
+  }
+  const out = unpackDirFor();
+  const names = unpackArc(arcFile, out);
+  return { ok: true, dir: out, hdDir, arcFile, unpacked: names.length };
+}
+
 ipcMain.handle('bbsfont:pickArcDir', async () => {
   const r = await dialog.showOpenDialog(win.get(), {
     title: dl('pickArcDir'),
     properties: ['openDirectory']
   });
-  return r.canceled || !r.filePaths.length ? { canceled: true } : { ok: true, dir: r.filePaths[0] };
+  if (r.canceled || !r.filePaths.length) return { canceled: true };
+  try { return resolveArcDir(r.filePaths[0]); }
+  catch (e) { return { error: 'FontEn.arc: ' + (e.message || e) }; }
+});
+
+// Без діалогу: взяти FontEn.arc із розпакованої гри (Setup → bbs_first.hed_out).
+ipcMain.handle('bbsfont:autoArc', async () => {
+  try {
+    const raw = migrateIfNeeded(loadSettingsRaw());
+    const gameDir = (raw.gameDirectories || {})['kh-bbs-final-mix'];
+    if (!gameDir || !fsSync.existsSync(gameDir)) return { error: 'Теку гри BBS не вказано (Setup)' };
+    const hedOut = findDirNamed(gameDir, 'bbs_first.hed_out', 4);
+    if (!hedOut) return { error: 'У грі нема розпакованої bbs_first.hed_out — спершу розпакуй гру у Setup' };
+    const arc = path.join(hedOut, 'original', 'arc_en', 'system', 'FontEn.arc');
+    if (!fsSync.existsSync(arc)) return { error: 'Не знайдено ' + arc };
+    return resolveArcDir(path.dirname(arc));
+  } catch (e) { return { error: 'FontEn.arc: ' + (e.message || e) }; }
 });
 
 ipcMain.handle('bbsfont:pickHdDir', async () => {
