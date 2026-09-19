@@ -14,3 +14,4 @@
 | `ddd-toolkit-readme.md` | Dream Drop Distance: швидкий старт, `text_all.txt`, шрифти `.bcfnt`. |
 | `ddd-session-notes.md` | Нотатки сесії DDD: формати, пастки (CMAP catch-all, Pillow stroke), калібрування. |
 | `kh1-menu-text.md` | KH1 ReMIX (PC): `Message v361` (`sysmsg.binl`, буфер гри 0x4800), керівні коди тексту меню з коду exe, пари `_offset/_data`, де в грі лежить текст меню/журналу (`.kmb`). Ghidra-скрипти — `tools/ghidra/`. |
+| `kh1-dialog-text.md` | KH1: байткод діалогів `EvMsg` з коду exe (u16 у 05/06/07/12, умовні 0A/0B/0D, двобайтові гліфи `19 NN`), формат `kanji.knj` (336 слотів ширин, атлас 21×16), 112 вільних гліфів для нативної кирилиці. |
