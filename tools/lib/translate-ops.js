@@ -63,14 +63,26 @@ function glossaryLookup(glossary, key) {
 
 function toUiSlot(s) {
   // Не віддаємо _fullText/key у renderer — UI працює з english/offset.
+  // legacyKey — стара форма (2-байтові 05/06/07-токени), щоб UI переписав
+  // значення зі старих TSV у нову форму.
+  const legacy = legacyCommandKey(s.english);
   return {
     index: s.index,
     offset: s.offset,
     absOffset: s.absOffset,
     byteLen: s.byteLen,
     english: s.english,
-    linkedCount: s.linkedCount
+    linkedCount: s.linkedCount,
+    legacyKey: legacy || undefined
   };
+}
+
+// Значення зі старих per-file TSV мають 2-байтову форму токенів 05/06/07 —
+// переписуємо у нову, інакше structural guard їх відкине.
+function upgradeUkForSlot(slot, uk) {
+  if (!uk) return uk;
+  const legacy = legacyCommandKey(slot.english);
+  return legacy ? upgradeLegacyUk(slot.english, legacy, uk) : uk;
 }
 
 // extractFile(engPath, env) → { slots, stats, engSize, rusSize, kind }
@@ -106,7 +118,7 @@ async function composeFile(engPath, replacements, outPath, env) {
   for (const r of replacements || []) {
     if (!r || typeof r.offset !== 'number' || !r.ukText || !r.ukText.length) continue;
     const slot = byOffset.get(r.offset);
-    let uk = r.ukText;
+    let uk = slot ? upgradeUkForSlot(slot, r.ukText) : r.ukText;
     if (slot && h.prepareUk) uk = h.prepareUk(slot, uk);
     if (slot && h.structuralGuard && (!env || env.strictTokens !== false)) {
       const issue = structuralIssue(slot.english, uk);
@@ -237,7 +249,7 @@ async function composeAll(files, env) {
       const ukByOffset = new Map();
       const guardErrors = [];
       for (const s of parsed.slots) {
-        let uk = (overrides && overrides.get(s.offset)) || '';
+        let uk = upgradeUkForSlot(s, (overrides && overrides.get(s.offset)) || '');
         if (!uk) uk = glossaryLookup(glossary, s.key);
         if (!uk || !uk.trim() || uk === s.english) continue;
         if (h.prepareUk) uk = h.prepareUk(s, uk);

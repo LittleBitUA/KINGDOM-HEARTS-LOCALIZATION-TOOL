@@ -327,8 +327,12 @@ export function mergeTsvIntoSlots(content) {
   if (!tsvByOff) return 0;
   let merged = 0;
   for (const slot of tState.slots) {
-    const uk = tsvByOff.get(slot.offset);
-    if (uk) { slot.ukText = uk; merged++; }
+    let uk = tsvByOff.get(slot.offset);
+    if (uk) {
+      // Старі TSV: 2-байтова форма токенів 05/06/07 → нова (як в EN слота).
+      if (slot.legacyKey) uk = window.KH.textStructure.upgradeLegacyUk(slot.english, slot.legacyKey, uk);
+      slot.ukText = uk; merged++;
+    }
   }
   return merged;
 }
