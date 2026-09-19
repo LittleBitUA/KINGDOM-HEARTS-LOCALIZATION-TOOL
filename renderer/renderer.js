@@ -30,6 +30,15 @@
 })();
 
 // =====================================================================
+// Спільні чисті модулі (shared/*.js, UMD → window.KH)
+// =====================================================================
+const {
+  preserveStructure, tokensOf, validateTokens, tokenIssueText,
+  segmentByTokens, autoFixStructure, syncPaddingFromEn, LETTER_RE
+} = window.KH.textStructure;
+const tsvFormat = window.KH.tsv;
+
+// =====================================================================
 // DOM refs
 // =====================================================================
 const viewEditor = document.getElementById('view-editor');
@@ -1412,52 +1421,6 @@ function isRealTranslation(slot) {
 // токени з EN — {Color X}, {VarItem}, {0x04}, {lf}, {Triangle} тощо.
 // Втрачений токен у грі = краш або порожнє місце.
 // =====================================================================
-function tokensOf(text) {
-  const set = new Map(); // token → count
-  if (!text) return set;
-  // Curly braces tokens: {anything but {} or newline}
-  const reCurly = /\{([^{}\n]+)\}/g;
-  let m;
-  while ((m = reCurly.exec(text)) !== null) {
-    const t = '{' + m[1] + '}';
-    // {lf} (перенос рядка) — НЕ обов'язковий до збігу між EN і UK:
-    // перекладач легально розбиває рядки інакше (укр. синтаксис стискає
-    // 4 EN-рядки у 2 укр. речення тощо). Реальна структура потім
-    // вирівнюється через 📐 Auto-wrap (за EN). Викидаємо з валідації,
-    // щоб НЕ відсікати такі пари при HTML-імпорті.
-    if (t === '{lf}') continue;
-    set.set(t, (set.get(t) || 0) + 1);
-  }
-  return set;
-}
-function validateTokens(en, uk) {
-  const enT = tokensOf(en);
-  const ukT = tokensOf(uk);
-  const missing = []; // в EN є, в UK нема (або менше)
-  const extra = [];   // в UK є зайві
-  for (const [t, n] of enT) {
-    const have = ukT.get(t) || 0;
-    if (have < n) missing.push({ token: t, expected: n, got: have });
-  }
-  for (const [t, n] of ukT) {
-    if (!enT.has(t)) extra.push({ token: t, count: n });
-  }
-  return { missing, extra, ok: missing.length === 0 };
-}
-function tokenIssueText(en, uk) {
-  const v = validateTokens(en, uk);
-  if (v.ok && v.extra.length === 0) return '';
-  const parts = [];
-  if (v.missing.length) {
-    parts.push('Missing: ' + v.missing.map(x =>
-      x.expected > 1 ? x.token + '×' + (x.expected - x.got) : x.token).join(', '));
-  }
-  if (v.extra.length) {
-    parts.push('Extra: ' + v.extra.map(x => x.token).join(', '));
-  }
-  return parts.join(' · ');
-}
-
 // =====================================================================
 // Auto-save: TSV (per-file) і Glossary, з дебаунсом
 // =====================================================================
@@ -1508,37 +1471,9 @@ if (window.kh1.app && window.kh1.app.onBeforeClose) {
   });
 }
 
-// Зберегти leading/trailing whitespace з оригіналу — гра використовує
-// провідні пробіли як форматування. Якщо користувач випадково знищив
-// (наприклад через Ctrl+A + новий текст), повертаємо їх.
-function preserveStructure(originalEng, userUk) {
-  if (!userUk || !originalEng) return userUk || '';
-  let r = userUk;
-  const lead = originalEng.match(/^[ \t]+/);
-  if (lead && !/^[ \t]/.test(r)) r = lead[0] + r;
-  const trail = originalEng.match(/[ \t]+$/);
-  if (trail && !/[ \t]$/.test(r)) r = r + trail[0];
-  return r;
-}
-
 function mergeTsvIntoSlots(content) {
-  const lines = content.split(/\r?\n/);
-  if (lines.length < 1) return 0;
-  const header = lines[0].split('\t');
-  const idxOff = header.indexOf('offset');
-  const idxUk = header.indexOf('ukrainian');
-  if (idxOff < 0 || idxUk < 0) return 0;
-
-  const tsvByOff = new Map();
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cols = lines[i].split('\t');
-    const off = parseInt(cols[idxOff], 16);
-    let uk = cols[idxUk] || '';
-    uk = uk.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-    if (Number.isFinite(off) && uk) tsvByOff.set(off, uk);
-  }
-
+  const tsvByOff = tsvFormat.overridesByOffset(content);
+  if (!tsvByOff) return 0;
   let merged = 0;
   for (const slot of tState.slots) {
     const uk = tsvByOff.get(slot.offset);
@@ -1725,16 +1660,8 @@ tRows.addEventListener('input', (e) => {
 
 // ---- Save TSV progress ----
 function buildTsvContent() {
-  const lines = ['index\toffset\tbytes\tenglish\tukrainian'];
-  for (const s of tState.slots) {
-    const off = '0x' + s.offset.toString(16).toUpperCase().padStart(4, '0');
-    const en = s.english.replace(/\t/g, '\\t').replace(/\r?\n/g, '\\n');
-    // Не зберігаємо stub-и (ukText === english) — у TSV лишається тільки реальний переклад
-    const ukRaw = isRealTranslation(s) ? s.ukText : '';
-    const uk = ukRaw.replace(/\t/g, '\\t').replace(/\r?\n/g, '\\n');
-    lines.push([s.index, off, s.byteLen, en, uk].join('\t'));
-  }
-  return lines.join('\n') + '\n';
+  // Не зберігаємо stub-и (ukText === english) — у TSV лишається тільки реальний переклад
+  return tsvFormat.build(tState.slots, { ukOf: s => (isRealTranslation(s) ? s.ukText : '') });
 }
 
 async function saveTsvProgress(silent) {
@@ -3228,123 +3155,6 @@ function parseGlossaryTxt(content) {
   }
   commitBlock(); // на випадок якщо файл закінчується без === END ===
   return { pairs, errors };
-}
-
-// =====================================================================
-// Auto-fix structure — реконструює UK з EN-skeleton'у.
-//
-// ПРИНЦИП: гра очікує ВСЕ окрім англ. тексту 1:1 з EN (всі {...}-токени,
-// `{lf}`, контрольні байти, whitespace-padding). Перекладач замінює лише
-// «реальний» текст (з літерами); решта — структурна.
-//
-// АЛГОРИТМ:
-// 1. Розбиваємо EN та UK на сегменти: TOKEN (`{...}`) і TEXT (решта).
-// 2. EN-skeleton = всі токени + whitespace-only-text сегменти у тій же
-//    послідовності. Цей skeleton копіюємо буквально.
-// 3. Реальний текст (real-text = TEXT з не-whitespace символами) — беремо
-//    з UK по позиції (по індексу у списку real-texts).
-//    Edge-whitespace кожного EN-real-text сегмента переноситься у результат.
-// 4. Якщо real-text count в EN ≠ в UK → auto-fix не може чесно мапити
-//    (перекладач злив/розщепив текст). Повертаємо null — потрібен manual fix.
-// =====================================================================
-function segmentByTokens(text) {
-  const out = [];
-  let i = 0;
-  let lastTextStart = 0;
-  while (i < text.length) {
-    if (text[i] === '{') {
-      const close = text.indexOf('}', i);
-      if (close < 0) { i++; continue; }
-      if (i > lastTextStart) {
-        out.push({ type: 'text', value: text.slice(lastTextStart, i) });
-      }
-      out.push({ type: 'token', value: text.slice(i, close + 1) });
-      i = close + 1;
-      lastTextStart = i;
-    } else {
-      i++;
-    }
-  }
-  if (text.length > lastTextStart) {
-    out.push({ type: 'text', value: text.slice(lastTextStart) });
-  }
-  return out;
-}
-
-// Регекс для «літер» — кириллиця + латиниця. Якщо в text-сегменті є хоч 1
-// літера — це «контентний» текст (перекладається). Інакше це punctuation /
-// digits / whitespace — частина skeleton-у, копіюємо з EN.
-const LETTER_RE = /[a-zA-Zа-яА-ЯёЁїЇіІєЄґҐ]/;
-
-function autoFixStructure(en, uk) {
-  if (!en || !uk) return null;
-  const enSeg = segmentByTokens(en);
-  const ukSeg = segmentByTokens(uk);
-  // «Літерні» text-сегменти — ті, що містять літери (їх перекладає людина).
-  const enLetters = enSeg.filter(s => s.type === 'text' && LETTER_RE.test(s.value));
-  const ukLetters = ukSeg.filter(s => s.type === 'text' && LETTER_RE.test(s.value));
-
-  // UK НЕ МОЖЕ мати БІЛЬШЕ letter-сегментів ніж EN — translator додав
-  // текст де його не повинно бути, не fixable.
-  if (ukLetters.length > enLetters.length) return null;
-  // Якщо UK letter count МЕНШЕ ніж EN AND > 0 — translator злив сегменти,
-  // не вгадаємо куди підкласти (Ethers-кейс).
-  if (ukLetters.length > 0 && ukLetters.length < enLetters.length) return null;
-  // Лишається: UK letters == EN letters (1:1) АБО UK letters == 0.
-
-  let result = '';
-  let letterIdx = 0;
-  for (const seg of enSeg) {
-    if (seg.type === 'token') {
-      result += seg.value;
-    } else if (LETTER_RE.test(seg.value)) {
-      // Літерний text-сегмент: беремо UK по позиції. Якщо UK не має —
-      // skip (translator залишив порожнечу, ми НЕ підставляємо англ.).
-      if (letterIdx < ukLetters.length) {
-        const enText = seg.value;
-        const ukText = ukLetters[letterIdx++].value;
-        const enLead = (enText.match(/^[ \t]+/) || [''])[0];
-        const enTrail = (enText.match(/[ \t]+$/) || [''])[0];
-        const ukCore = ukText.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '');
-        result += enLead + ukCore + enTrail;
-      }
-    } else {
-      // Non-letter (punctuation/whitespace/digits): копіюємо з EN буквально.
-      // Це фіксить випадок коли translator випадково видалив `.`, `,`,
-      // leading/trailing пробіли тощо.
-      result += seg.value;
-    }
-  }
-  return result;
-}
-
-// =====================================================================
-// Sync padding from EN — копіює leading/trailing/post-{lf} whitespace з EN
-// у UK для записів де UK його втратив (типово після HTML-імпорту).
-// Корисно для меню в exchange/ файлах де пробіли = візуальне центрування.
-// =====================================================================
-function syncPaddingFromEn(en, uk) {
-  const enLines = en.split('{lf}');
-  const ukLines = uk.split('{lf}');
-  // Якщо line-counts різні, наша наївна per-line padding-логіка дасть
-  // некоректний результат (типу trailing space у самому кінці UK після
-  // всіх токенів). У такому разі краще нічого не робити — користувач
-  // мусить спочатку запустити 📐 Auto-wrap (за EN) щоб структура
-  // вирівнялась, і вже тоді padding застосовувався би коректно.
-  if (enLines.length !== ukLines.length) return null;
-  let changed = false;
-  for (let i = 0; i < Math.min(enLines.length, ukLines.length); i++) {
-    const enLine = enLines[i];
-    let ukLine = ukLines[i];
-    // Leading whitespace
-    const enLead = (enLine.match(/^[ \t]+/) || [''])[0];
-    if (enLead && !/^[ \t]/.test(ukLine)) { ukLine = enLead + ukLine; changed = true; }
-    // Trailing whitespace
-    const enTrail = (enLine.match(/[ \t]+$/) || [''])[0];
-    if (enTrail && !/[ \t]$/.test(ukLine)) { ukLine = ukLine + enTrail; changed = true; }
-    ukLines[i] = ukLine;
-  }
-  return changed ? ukLines.join('{lf}') : null;
 }
 
 const gFixStructureBtn = document.getElementById('g-fix-structure');

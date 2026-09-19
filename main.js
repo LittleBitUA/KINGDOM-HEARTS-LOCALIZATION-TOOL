@@ -6,6 +6,9 @@ const fs = require('fs/promises');
 const fsSync = require('fs');
 const { Worker } = require('worker_threads');
 const { writeFileAtomic, writeFileAtomicSync } = require('./shared/safe-fs');
+const tsv = require('./shared/tsv');
+const { preserveStructure } = require('./shared/text-structure');
+const codec = require('./shared/codec');
 
 // electron-updater є опціональним: якщо нема (наприклад dev запуск без npm install) —
 // просто вимикаємо auto-update, не падаємо.
@@ -571,7 +574,6 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
       };
     }
     if (cls.kind === 'ev') {
-      const codec = require('./shared/codec');
       const ofsBuf = await fs.readFile(engPath);
       const parsed = parseEv(ofsBuf, codec);
       // Показуємо UI лише translatable слоти (без padding-{eol}-байтів).
@@ -599,7 +601,6 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
       };
     }
     if (cls.kind === 'mesofs') {
-      const codec = require('./shared/codec');
       const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
       if (!dataPath || !fsSync.existsSync(dataPath)) {
         return { error: 'Не знайдено пару _mes_data.bin для ' + path.basename(engPath) };
@@ -626,12 +627,6 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
         ukText: '',
         linkedCount: info.count
       }));
-      // Зберігаємо meta для compose-step:
-      mesOfsMetaCache.set(engPath, {
-        ofsLength: ofsBuf.length,
-        dataLength: dataBuf.length,
-        cellLengthByOffset: parsed.cellLengthByOffset
-      });
       return {
         slots: uiSlots,
         stats: {
@@ -660,10 +655,6 @@ ipcMain.handle('translate:extract', async (_e, payload) => {
     return { error: (e && e.message) || String(e) };
   }
 });
-
-// Кеш мета-даних *_mes_ofs.bin парсів для подальшого compose
-// (зберігаємо ofsLength/dataLength/cellLengthByOffset, щоб не парсити двічі).
-const mesOfsMetaCache = new Map();
 
 ipcMain.handle('translate:compose', async (_e, payload) => {
   const engPath = payload && payload.engPath;
@@ -734,7 +725,6 @@ ipcMain.handle('translate:compose', async (_e, payload) => {
       };
     }
     if (cls.kind === 'ev') {
-      const codec = require('./shared/codec');
       const evBuf = await fs.readFile(engPath);
       const parsed = parseEv(evBuf, codec);
       // Replacements мапляться по slot.offset (relative to textOffset).
@@ -764,7 +754,6 @@ ipcMain.handle('translate:compose', async (_e, payload) => {
       };
     }
     if (cls.kind === 'mesofs') {
-      const codec = require('./shared/codec');
       const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
       const ofsBuf = await fs.readFile(engPath);
       const dataBuf = await fs.readFile(dataPath);
@@ -1507,9 +1496,8 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
         return { rel, status: 'ok' };
       }
       if (cls.kind === 'ev') {
-        const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
-        const parsed = parseEv(evBuf, codecLocal);
+        const parsed = parseEv(evBuf, codec);
         for (const slot of parsed.slots) {
           if (!slot.translatable) continue;
           addSlot(rel, slot);
@@ -1517,7 +1505,6 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
         return { rel, status: 'ok' };
       }
       if (cls.kind === 'mesofs') {
-        const codecLocal = require('./shared/codec');
         const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
         if (!dataPath || !fsSync.existsSync(dataPath)) {
           skipped++;
@@ -1525,7 +1512,7 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
         }
         const ofsBuf = await fs.readFile(engPath);
         const dataBuf = await fs.readFile(dataPath);
-        const parsed = parseMesOfs(ofsBuf, dataBuf, codecLocal);
+        const parsed = parseMesOfs(ofsBuf, dataBuf, codec);
         const seen = new Set();
         for (const slot of parsed.slots) {
           if (seen.has(slot.offset)) continue;
@@ -1671,7 +1658,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           if (fsSync.existsSync(tsvPath)) {
             try {
               const txt = await fs.readFile(tsvPath, 'utf8');
-              perFileMap = parseTsvOverrides(txt);
+              perFileMap = tsv.overridesByOffset(txt);
             } catch (_) {}
           }
         }
@@ -1715,7 +1702,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           if (fsSync.existsSync(tsvPath)) {
             try {
               const txt = await fs.readFile(tsvPath, 'utf8');
-              perFileMap = parseTsvOverrides(txt);
+              perFileMap = tsv.overridesByOffset(txt);
             } catch (_) {}
           }
         }
@@ -1749,16 +1736,15 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
       }
       // ===== Спецгілка для .ev/.evdl =====
       if (cls.kind === 'ev') {
-        const codecLocal = require('./shared/codec');
         const evBuf = await fs.readFile(engPath);
-        const parsed = parseEv(evBuf, codecLocal);
+        const parsed = parseEv(evBuf, codec);
         let perFileMap = null;
         if (tsvDir) {
           const tsvPath = path.join(tsvDir, rel) + '.tsv';
           if (fsSync.existsSync(tsvPath)) {
             try {
               const txt = await fs.readFile(tsvPath, 'utf8');
-              perFileMap = parseTsvOverrides(txt);
+              perFileMap = tsv.overridesByOffset(txt);
             } catch (_) {}
           }
         }
@@ -1780,7 +1766,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           skippedNoTranslations++;
           return { rel, status: 'no-translations' };
         }
-        const composed = composeEv(evBuf, slotsForCompose, codecLocal);
+        const composed = composeEv(evBuf, slotsForCompose, codec);
         await fs.mkdir(path.dirname(outPath), { recursive: true });
         await fs.writeFile(outPath, composed.buf);
         written++;
@@ -1789,7 +1775,6 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
       }
       // ===== Спецгілка для *_mes_ofs.bin =====
       if (cls.kind === 'mesofs') {
-        const codecLocal = require('./shared/codec');
         const dataPath = cls.extractOpts && cls.extractOpts.dataPath;
         if (!dataPath || !fsSync.existsSync(dataPath)) {
           errors.push({ rel, error: 'mesofs: pair _mes_data.bin not found' });
@@ -1797,14 +1782,14 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         }
         const ofsBuf = await fs.readFile(engPath);
         const dataBuf = await fs.readFile(dataPath);
-        const parsed = parseMesOfs(ofsBuf, dataBuf, codecLocal);
+        const parsed = parseMesOfs(ofsBuf, dataBuf, codec);
         let perFileMap = null;
         if (tsvDir) {
           const tsvPath = path.join(tsvDir, rel) + '.tsv';
           if (fsSync.existsSync(tsvPath)) {
             try {
               const txt = await fs.readFile(tsvPath, 'utf8');
-              perFileMap = parseTsvOverrides(txt);
+              perFileMap = tsv.overridesByOffset(txt);
             } catch (_) {}
           }
         }
@@ -1830,7 +1815,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
           ofsLength: ofsBuf.length,
           dataLength: dataBuf.length,
           cellLengthByOffset: parsed.cellLengthByOffset
-        }, codecLocal);
+        }, codec);
         const outDataPath = path.join(path.dirname(outPath), pairedDataName(path.basename(outPath)));
         await fs.mkdir(path.dirname(outPath), { recursive: true });
         await fs.writeFile(outPath, composed.ofsBuf);
@@ -1855,7 +1840,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
         if (fsSync.existsSync(tsvPath)) {
           try {
             const txt = await fs.readFile(tsvPath, 'utf8');
-            perFileMap = parseTsvOverrides(txt);
+            perFileMap = tsv.overridesByOffset(txt);
           } catch (_) {}
         }
       }
@@ -1917,35 +1902,6 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
     errors
   };
 });
-
-function preserveStructure(originalEng, userUk) {
-  if (!userUk || !originalEng) return userUk || '';
-  let r = userUk;
-  const lead = originalEng.match(/^[ \t]+/);
-  if (lead && !/^[ \t]/.test(r)) r = lead[0] + r;
-  const trail = originalEng.match(/[ \t]+$/);
-  if (trail && !/[ \t]$/.test(r)) r = r + trail[0];
-  return r;
-}
-
-function parseTsvOverrides(content) {
-  const lines = content.split(/\r?\n/);
-  if (lines.length < 1) return null;
-  const header = lines[0].split('\t');
-  const idxOff = header.indexOf('offset');
-  const idxUk = header.indexOf('ukrainian');
-  if (idxOff < 0 || idxUk < 0) return null;
-  const map = new Map();
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const cols = lines[i].split('\t');
-    const off = parseInt(cols[idxOff], 16);
-    let uk = cols[idxUk] || '';
-    uk = uk.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-    if (Number.isFinite(off) && uk) map.set(off, uk);
-  }
-  return map;
-}
 
 ipcMain.handle('translate:getWorldsMap', async () => {
   try {
@@ -2233,7 +2189,6 @@ ipcMain.handle('app:getCharMap', async () => {
 // автоматично вставити {lf} між словами де UK-переклад не вміщується
 // в задану максимальну ширину (~440 px типово).
 // =====================================================================
-const codecForWrap = require('./shared/codec');
 const WRAP_KERNING_OFFSET = 0x40080;
 const WRAP_SPACE_PX = 10;
 const WRAP_MAX_GLYPHS = 230;
@@ -2252,7 +2207,7 @@ function measureBytesWithKnj(bytes, knj) {
 }
 
 function safeEncode(text) {
-  try { return codecForWrap.encode(text); }
+  try { return codec.encode(text); }
   catch (_) { return new Uint8Array(0); }
 }
 

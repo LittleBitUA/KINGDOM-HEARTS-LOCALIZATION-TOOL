@@ -1,6 +1,7 @@
 'use strict';
 
 const { decode } = require('../../shared/codec');
+const tsv = require('../../shared/tsv');
 
 function splitStrings(buf, headerLen, footerLen) {
   if (buf.length < headerLen + footerLen) return [];
@@ -86,13 +87,7 @@ function extract(eng, rus, opts = {}) {
 }
 
 function slotsToTsv(slots) {
-  const lines = ['index\toffset\tbytes\tenglish\tukrainian'];
-  for (const slot of slots) {
-    const offHex = '0x' + slot.offset.toString(16).toUpperCase().padStart(4, '0');
-    const en = slot.english.replace(/\t/g, '\\t').replace(/\r?\n/g, '\\n');
-    lines.push([slot.index, offHex, slot.byteLen, en, ''].join('\t'));
-  }
-  return lines.join('\n') + '\n';
+  return tsv.build(slots, { ukOf: () => '' });
 }
 
 module.exports = { extract, splitStrings, slotsToTsv, containsExactSegment };
