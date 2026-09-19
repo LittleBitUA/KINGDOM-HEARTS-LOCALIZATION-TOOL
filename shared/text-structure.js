@@ -165,8 +165,40 @@
     return changed ? ukLines.join('{lf}') : null;
   }
 
+  // Пари [старий токен, новий токен] між новим ключем (`{0x06,0x2C,0x01}`) і
+  // старим (`{0x06,0x2C}` + символ третього байта: ' ', {lf}, {0xNN} чи літера).
+  // Текст навколо токенів однаковий, тож ідемо по обох рядках синхронно.
+  const RE_U16_TOKEN = /\{0x0[567],0x[0-9A-F]{2},0x[0-9A-F]{2}\}/g;
+  function legacyTokenPairs(newKey, oldKey) {
+    const pairs = [];
+    let shift = 0;
+    RE_U16_TOKEN.lastIndex = 0;
+    let m;
+    while ((m = RE_U16_TOKEN.exec(newKey)) !== null) {
+      const tok = m[0];
+      const at = m.index + shift;
+      const head = tok.slice(0, 10) + '}';            // `{0x06,0x2C}` (11 символів)
+      if (oldKey.slice(at, at + 11) !== head) return pairs;
+      const j = at + 11;
+      const tail = oldKey[j] === '{' ? oldKey.slice(j, oldKey.indexOf('}', j) + 1) : (oldKey[j] || '');
+      const oldTok = head + tail;
+      pairs.push([oldTok, tok]);
+      shift += oldTok.length - tok.length;
+    }
+    return pairs;
+  }
+  // Переписати UK зі старої форми токенів у нову (щоб token-guard не відкинув переклад).
+  function upgradeLegacyUk(newKey, oldKey, uk) {
+    if (!uk || !oldKey || oldKey === newKey) return uk;
+    let out = uk;
+    for (const [oldTok, newTok] of legacyTokenPairs(newKey, oldKey)) out = out.split(oldTok).join(newTok);
+    return out;
+  }
+
   return {
     LETTER_RE,
+    legacyTokenPairs,
+    upgradeLegacyUk,
     preserveStructure,
     tokensOf,
     validateTokens,

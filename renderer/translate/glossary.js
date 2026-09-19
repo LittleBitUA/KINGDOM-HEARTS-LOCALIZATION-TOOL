@@ -119,32 +119,12 @@ export function alignEol(entryKey, uk) {
   if (!/\{eol\}$/.test(entryKey) && /\{eol\}$/.test(uk)) return uk.replace(/\{eol\}$/, '');
   return uk;
 }
-// Пари [старий токен, новий токен] між новим ключем (`{0x06,0x2C,0x01}`) і
-// старим (`{0x06,0x2C}` + символ третього байта: ' ', {lf}, {0xNN} чи літера).
-// Текст навколо токенів однаковий, тож ідемо по обох рядках синхронно.
-const RE_U16 = /\{0x0[567],0x[0-9A-F]{2},0x[0-9A-F]{2}\}/g;
-export function legacyTokenPairs(newKey, oldKey) {
-  const pairs = [];
-  let shift = 0;   // старий рядок коротший/довший на суму різниць попередніх токенів
-  for (const m of newKey.matchAll(RE_U16)) {
-    const tok = m[0];
-    const at = m.index + shift;
-    const head = tok.slice(0, 10) + '}';            // `{0x06,0x2C}` (11 символів)
-    if (oldKey.slice(at, at + 11) !== head) return pairs;
-    const j = at + 11;
-    const tail = oldKey[j] === '{' ? oldKey.slice(j, oldKey.indexOf('}', j) + 1) : (oldKey[j] || '');
-    const oldTok = head + tail;
-    pairs.push([oldTok, tok]);
-    shift += oldTok.length - tok.length;
-  }
-  return pairs;
-}
-// Переписати UK зі старої форми токенів у нову (щоб token-guard не відкинув переклад).
+// Пари токенів старий→новий і переписування UK живуть у shared/text-structure.js
+// (той самий код у main при compose).
+export const legacyTokenPairs = (newKey, oldKey) => window.KH.textStructure.legacyTokenPairs(newKey, oldKey);
 export function upgradeLegacyUk(entry, uk) {
   if (!uk || !entry.legacyKey) return uk;
-  let out = uk;
-  for (const [oldTok, newTok] of legacyTokenPairs(entry.english, entry.legacyKey)) out = out.split(oldTok).join(newTok);
-  return out;
+  return window.KH.textStructure.upgradeLegacyUk(entry.english, entry.legacyKey, uk);
 }
 export function migrateLegacyKeys() {
   let n = 0;
@@ -661,6 +641,8 @@ export function parseGlossaryTxt(content, opts) {
     // гри, і будь-який trim його з'їсть. А export → import має бути lossless.
     let en = enLines.join('\n');
     let uk = ukLines.join('\n');
+    // Кривий маркер кінця блоку, що потрапив у текст (старі експорти з опискою).
+    uk = uk.replace(/\n?=+\s*END\s*=+\s*$/i, '');
     // Реальні переноси → {lf} (якщо користувач не лишив {lf} вручну)
     if (en && !en.includes('{lf}') && en.includes('\n')) en = en.replace(/\r?\n/g, '{lf}');
     if (uk && !uk.includes('{lf}') && uk.includes('\n')) uk = uk.replace(/\r?\n/g, '{lf}');
@@ -682,7 +664,7 @@ export function parseGlossaryTxt(content, opts) {
     }
     if (ln.trim() === '--- EN ---') { section = 'en'; continue; }
     if (ln.trim() === '--- UK ---') { section = 'uk'; continue; }
-    if (ln.trim() === '=== END ===') { commitBlock(); continue; }
+    if (/^=+\s*END\s*=+$/i.test(ln.trim())) { commitBlock(); continue; }   // толерантно до «=== END ==»
 
     if (section === 'en') enLines.push(ln);
     else if (section === 'uk') ukLines.push(ln);

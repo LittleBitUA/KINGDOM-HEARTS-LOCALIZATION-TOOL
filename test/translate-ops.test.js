@@ -198,7 +198,8 @@ test('legacy keys: index exposes legacyKey and lookup bridges old 2-byte 05/06/0
     assert.equal(wake.legacyKey, 'Wake up!{0x06,0x2C} ');
     assert.equal(idx.entries.find(e => e.english === 'Plain').legacyKey, undefined);
     // Старий глосарій (ключ у 2-байтовій формі) далі знаходиться при compose.
-    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} ': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{0x06,0x2C,0x01}'), 'Прокинься!{0x06,0x2C} ');
+    // значення теж переписується у нову форму токена (інакше guard відкине)
+    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} ': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{0x06,0x2C,0x01}'), 'Прокинься!{0x06,0x2C,0x01}');
     assert.equal(codec.legacyCommandKey('x{0x07,0x0C,0x02}y'), 'x{0x07,0x0C}{lf}y');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

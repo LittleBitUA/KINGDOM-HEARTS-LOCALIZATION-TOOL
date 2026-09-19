@@ -10,7 +10,7 @@ const fsP = require('fs/promises');
 const path = require('path');
 const { classifyFile, parseFile } = require('./formats');
 const { legacyCommandKey } = require('../../shared/codec');
-const { preserveStructure, validateTokens } = require('../../shared/text-structure');
+const { preserveStructure, validateTokens, upgradeLegacyUk } = require('../../shared/text-structure');
 
 // Структурний guard (ідея з OpenKh PR #1275 ValidateBody): переклад не має
 // губити керівні токени оригіналу і не може додавати «структурні» команди
@@ -51,9 +51,13 @@ function glossaryLookup(glossary, key) {
     const v = glossary[key + '{eol}'] || '';
     return v.endsWith('{eol}') ? v.slice(0, -5) : v;
   }
-  // Старі ключі з 2-байтовими 05/06/07-токенами (до u16-параметрів).
+  // Старі ключі з 2-байтовими 05/06/07-токенами (до u16-параметрів): значення
+  // теж у старій формі — переписуємо токени, інакше structural guard відкине.
   const legacy = legacyCommandKey(key);
-  if (legacy) return glossaryLookup(glossary, legacy);
+  if (legacy) {
+    const v = glossaryLookup(glossary, legacy);
+    return v ? upgradeLegacyUk(key, legacy, v) : '';
+  }
   return '';
 }
 
