@@ -14,6 +14,7 @@ const {
   writeSettingsRaw, loadSettingsRaw, migrateIfNeeded
 } = require('./settings');
 const { dl } = require('./menu');
+const { detectGames, COLLECTIONS } = require('./game-detect');
 
 // ---- Setup-onboarding -----------------------------------------------
 //
@@ -179,6 +180,40 @@ function getSetupDefaults() {
   };
 }
 
+// Робоча тека оригіналів гри (куди setup копіює текстові файли):
+// <textAssetsDir>/<base>/<ENG|FILES>.
+function gameSourceDir(gameId, textAssetsDir) {
+  const layout = GAME_DIR_LAYOUT[gameId];
+  const cfg = HED_PATHS[gameId];
+  if (!layout || !cfg || !textAssetsDir) return null;
+  return path.join(textAssetsDir, layout.base, cfg.copy.subdir);
+}
+function dirHasFiles(dir) {
+  try { return fsSync.readdirSync(dir).length > 0; } catch (_) { return false; }
+}
+// Гра «підготовлена», якщо в її робочій теці вже є скопійовані файли.
+function isGamePrepared(gameId, textAssetsDir) {
+  const d = gameSourceDir(gameId, textAssetsDir);
+  return !!d && dirHasFiles(d);
+}
+// KHPCPatchManager: щойно завантажений → збережений у settings → toolsDir/.
+function resolveKhpcpmExe(downloaded, raw, toolsDir) {
+  const cands = [
+    downloaded && downloaded.path,
+    raw && raw.tools && raw.tools.khpcpm && raw.tools.khpcpm.path,
+    toolsDir && path.join(toolsDir, 'KHPCPatchManager.exe')
+  ];
+  for (const c of cands) if (c && fsSync.existsSync(c)) return c;
+  return null;
+}
+
+// Автопошук збірок KH (Steam на всіх дисках, Epic). Повертає
+// { collections: [{name, path, source, games}], games: {gameId: {path, collection, source}} }.
+ipcMain.handle('setup:detectGames', async () => {
+  try { return detectGames(); }
+  catch (e) { return { collections: [], games: {}, error: e.message || String(e) }; }
+});
+
 // Повертає поточний стан setup'а: чи завершений + поточні шляхи.
 ipcMain.handle('setup:status', async () => {
   const raw = migrateIfNeeded(loadSettingsRaw());
@@ -201,8 +236,11 @@ ipcMain.handle('setup:status', async () => {
     textAssetsDir: textAssetsDir ? fsSync.existsSync(textAssetsDir) : false,
     gameDirectories: {}
   };
+  // prepared[gid] — чи вже розпаковано/скопійовано файли гри у робочу теку.
+  const prepared = {};
   for (const [gid, dir] of Object.entries(gameDirectories)) {
     validity.gameDirectories[gid] = dir ? fsSync.existsSync(dir) : false;
+    if (dir && HED_PATHS[gid]) prepared[gid] = isGamePrepared(gid, textAssetsDir);
   }
   return {
     completed,
@@ -212,6 +250,7 @@ ipcMain.handle('setup:status', async () => {
     textAssetsDir,
     defaults,
     validity,
+    prepared,
     tools: raw.tools || {}
   };
 });
@@ -232,20 +271,35 @@ ipcMain.handle('setup:reset', async () => {
 });
 
 // Знайти .hed: preferred rel → alt rel → рекурсивний пошук за patternом.
-function locateHed(gameRoot, hed) {
+function locateHed(gameRoot, hed, quiet) {
   const candidates = [hed.rel].concat(hed.alt || []).map(r => path.join(gameRoot, r));
   for (const c of candidates) if (fsSync.existsSync(c)) return c;
   const found = findFileByPattern(gameRoot, hed.namePattern, 6);
   if (found.length === 1) {
-    sendSetupProgress({ phase: 'unpack-game', key: 'spHedFoundAuto', params: { path: found[0] } });
+    if (!quiet) sendSetupProgress({ phase: 'unpack-game', key: 'spHedFoundAuto', params: { path: found[0] } });
     return found[0];
   }
   if (found.length > 1) {
-    sendSetupProgress({ phase: 'unpack-game', key: 'spHedFoundMany', params: { n: found.length, path: found[0] } });
+    if (!quiet) sendSetupProgress({ phase: 'unpack-game', key: 'spHedFoundMany', params: { n: found.length, path: found[0] } });
     return found[0];
   }
   return null;
 }
+
+// Чи є у вказаній теці архів цієї гри (напр. DDD шукаємо у 2.8, а не в 1.5+2.5).
+// Повертає { ok, hed, expected, collection } — для підказки у Setup.
+ipcMain.handle('setup:checkGameDir', async (_e, payload) => {
+  const gameId = String((payload && payload.gameId) || '');
+  const dir = String((payload && payload.dir) || '').trim();
+  const cfg = HED_PATHS[gameId];
+  const coll = COLLECTIONS.find(c => c.games.includes(gameId));
+  const expected = cfg ? cfg.heds[0].rel : '';
+  const collection = coll ? coll.name : '';
+  if (!cfg || !dir) return { ok: false, expected, collection };
+  if (!fsSync.existsSync(dir)) return { ok: false, missing: true, expected, collection };
+  const hed = locateHed(dir, cfg.heds[0], true);
+  return { ok: !!hed, hed, expected, collection };
+});
 
 // KHPCPatchManager при ПЕРШОМУ запуску створює resources/ поряд з exe — без
 // неї розпакування не працює. Запускаємо без аргументів, чекаємо до 10с,
@@ -311,9 +365,67 @@ async function unpackOneHed(exePath, hedAbs) {
   return { ok: true, hed: hedAbs, exe: exePath, elapsedSec: elapsed, newFiles: newCount };
 }
 
+// Підготувати одну гру: розпакувати її .hed через KHPCPatchManager (якщо
+// <hed>.hed_out ще порожня або opts.reunpack) і скопіювати оригінальні
+// текстові файли у робочу теку. Повертає unpackInfo
+// ({ ok, heds, copyFiles, hed } або { skipped, reason }).
+async function prepareGame(gameId, gameRoot, textAssetsDir, exePath, opts) {
+  opts = opts || {};
+  const cfg = HED_PATHS[gameId];
+  if (!cfg) return { skipped: true, reason: 'no unpack config for ' + gameId };
+  if (!gameRoot || !fsSync.existsSync(gameRoot)) return { skipped: true, reason: 'game dir not found: ' + gameRoot };
+  if (!exePath || !fsSync.existsSync(exePath)) {
+    sendSetupProgress({ phase: 'unpack-game', key: 'spExeMissing', params: { path: exePath || 'KHPCPatchManager.exe' } });
+    return { skipped: true, reason: 'KHPCPatchManager not found: ' + (exePath || '') };
+  }
+  const initErr = await ensurePatchManagerResources(exePath);
+  if (initErr) return { skipped: true, reason: initErr };
+
+  const info = { ok: true, gameId, heds: [], copyFiles: { copied: 0, skippedExisting: 0, scanned: 0, errors: [] } };
+  const filesDst = gameSourceDir(gameId, textAssetsDir);
+  for (const hed of cfg.heds) {
+    const hedAbs = locateHed(gameRoot, hed);
+    if (!hedAbs) {
+      const expected = path.join(gameRoot, hed.rel);
+      info.heds.push({ rel: hed.rel, skipped: true, reason: 'not found' });
+      sendSetupProgress({ phase: 'unpack-game', key: 'spHedNotFound', params: { dir: gameRoot, expected } });
+      continue;
+    }
+    const hedBase = path.basename(hedAbs, path.extname(hedAbs));
+    const unpackOutDir = path.join(path.dirname(hedAbs), hedBase + '.hed_out');
+    if (!opts.reunpack && dirHasFiles(unpackOutDir)) {
+      // Вже розпаковано раніше (напр., користувачем вручну) — не ганяємо
+      // KHPCPatchManager повторно, лише копіюємо.
+      sendSetupProgress({ phase: 'unpack-game', key: 'spUnpackSkipExisting', params: { path: unpackOutDir } });
+      info.heds.push({ ok: true, hed: hedAbs, reused: true });
+    } else {
+      info.heds.push(await unpackOneHed(exePath, hedAbs));
+    }
+    // Копіюємо оригінальні текстові файли з <base>.hed_out у робочу теку.
+    if (!fsSync.existsSync(unpackOutDir)) {
+      sendSetupProgress({ phase: 'copy-files', key: 'spCopyOutMissing', params: { path: unpackOutDir } });
+      continue;
+    }
+    const dst = cfg.copy.withPrefix ? path.join(filesDst, hedBase + '.hed_out') : filesDst;
+    sendSetupProgress({ phase: 'copy-files', key: 'spCopyStart', params: { dst } });
+    await fs.mkdir(dst, { recursive: true });
+    const cr = await _copyMatchingFiles(unpackOutDir, dst, cfg.copy.filter, (p) => {
+      sendSetupProgress({ phase: 'copy-files', key: 'spCopyProgress', params: { n: p.copied, lastRel: p.lastRel || '' } });
+    }, cfg.copy.mapRel);
+    info.copyFiles.copied += cr.copied;
+    info.copyFiles.scanned += cr.scanned;
+    info.copyFiles.errors.push(...cr.errors);
+    sendSetupProgress({ phase: 'copy-files', key: 'spCopyDone', params: { n: cr.copied, dst } });
+  }
+  info.hed = info.heds.map(h => h.hed).filter(Boolean).join('; ');
+  return info;
+}
+
 // Запуск повного setup-flow. payload:
 //   { activeGame, gameDirectories: {gameId:path}, toolsDir, textAssetsDir,
-//     skipDownload?: boolean }
+//     skipDownload?: boolean, prepareGames?: [gameId] }
+// prepareGames — які ігри розпакувати (галочки у Setup). Якщо не передано —
+// активна гра + ті, чия робоча тека ще порожня.
 // Прогрес йде через 'setup:progress' з фазами:
 //   'check' / 'tools-dir' / 'fetch-openkh' / 'download-openkh' /
 //   'fetch-khpcpm' / 'download-khpcpm' / 'persist' / 'done' / 'error'
@@ -324,6 +436,7 @@ ipcMain.handle('setup:run', async (_e, payload) => {
   const toolsDir = String(payload.toolsDir || '').trim();
   const textAssetsDir = String(payload.textAssetsDir || '').trim();
   const skipDownload = !!payload.skipDownload;
+  const prepareGames = Array.isArray(payload.prepareGames) ? payload.prepareGames.map(String) : null;
 
   // ----- Перевірка вхідних даних -----
   // activeGame опційна — користувач може налаштувати теки одразу для
@@ -484,62 +597,30 @@ ipcMain.handle('setup:run', async (_e, payload) => {
     return { error: msg };
   }
 
-  // ----- Запуск KHPCPatchManager для розпакування ресурсів активної гри -----
-  // KHPCPatchManager — GUI-утиліта (Windows Forms): передаємо .hed як
-  // аргумент і запускаємо detached, щоб setup не блокувався очікуванням
-  // закриття її вікна. Користувач сам бачить вікно tool'а і працює з ним.
+  // ----- Розпакування ресурсів через KHPCPatchManager -----
+  // Готуємо активну гру + кожну іншу гру з текою, у якої робоча тека ще
+  // порожня (додану пізніше через «Перевідкрити setup»). Пропуск завантаження
+  // не скасовує розпакування — беремо вже наявний KHPCPatchManager.
   let unpackInfo = null;
-  if (activeGame && HED_PATHS[activeGame] && downloadResults.khpcpm) {
-    const gameRoot = gameDirectories[activeGame];
-    const cfg = HED_PATHS[activeGame];
-    const exePath = downloadResults.khpcpm.path;
-    unpackInfo = { ok: true, heds: [], copyFiles: { copied: 0, skippedExisting: 0, scanned: 0, errors: [] } };
+  const prepared = {};
+  const exePath = resolveKhpcpmExe(downloadResults.khpcpm, migrateIfNeeded(loadSettingsRaw()), toolsDir);
+  const toPrepare = filledGames.map(([id]) => id)
+    .filter(id => HED_PATHS[id] && (prepareGames
+      ? prepareGames.includes(id)
+      : (id === activeGame || !isGamePrepared(id, textAssetsDir))))
+    .sort((a, b) => (a === activeGame ? -1 : b === activeGame ? 1 : 0));
+  for (let i = 0; i < toPrepare.length; i++) {
+    const gid = toPrepare[i];
+    sendSetupProgress({ phase: 'unpack-game', key: 'spPrepareGame', params: { game: gid, i: i + 1, n: toPrepare.length } });
     try {
-      if (!fsSync.existsSync(exePath)) {
-        unpackInfo = { skipped: true, reason: 'KHPCPatchManager not found: ' + exePath };
-        sendSetupProgress({ phase: 'unpack-game', key: 'spExeMissing', params: { path: exePath } });
-      } else {
-        const initErr = await ensurePatchManagerResources(exePath);
-        if (initErr) {
-          unpackInfo = { skipped: true, reason: initErr };
-          downloadErrors.push('Unpack: ' + initErr);
-        }
-      }
-      if (!unpackInfo.skipped) {
-        const filesDst = path.join(textAssetsDir, GAME_DIR_LAYOUT[activeGame].base, cfg.copy.subdir);
-        for (const hed of cfg.heds) {
-          const hedAbs = locateHed(gameRoot, hed);
-          if (!hedAbs) {
-            const expected = path.join(gameRoot, hed.rel);
-            unpackInfo.heds.push({ rel: hed.rel, skipped: true, reason: 'not found' });
-            sendSetupProgress({ phase: 'unpack-game', key: 'spHedNotFound', params: { dir: gameRoot, expected } });
-            continue;
-          }
-          const r = await unpackOneHed(exePath, hedAbs);
-          unpackInfo.heds.push(r);
-          // Копіюємо оригінальні текстові файли з <base>.hed_out у робочу теку.
-          const hedBase = path.basename(hedAbs, path.extname(hedAbs));
-          const unpackOutDir = path.join(path.dirname(hedAbs), hedBase + '.hed_out');
-          if (!fsSync.existsSync(unpackOutDir)) {
-            sendSetupProgress({ phase: 'copy-files', key: 'spCopyOutMissing', params: { path: unpackOutDir } });
-            continue;
-          }
-          const dst = cfg.copy.withPrefix ? path.join(filesDst, hedBase + '.hed_out') : filesDst;
-          sendSetupProgress({ phase: 'copy-files', key: 'spCopyStart', params: { dst } });
-          await fs.mkdir(dst, { recursive: true });
-          const cr = await _copyMatchingFiles(unpackOutDir, dst, cfg.copy.filter, (p) => {
-            sendSetupProgress({ phase: 'copy-files', key: 'spCopyProgress', params: { n: p.copied, lastRel: p.lastRel || '' } });
-          }, cfg.copy.mapRel);
-          unpackInfo.copyFiles.copied += cr.copied;
-          unpackInfo.copyFiles.scanned += cr.scanned;
-          unpackInfo.copyFiles.errors.push(...cr.errors);
-          sendSetupProgress({ phase: 'copy-files', key: 'spCopyDone', params: { n: cr.copied, dst } });
-        }
-        unpackInfo.hed = unpackInfo.heds.map(h => h.hed).filter(Boolean).join('; ');
-      }
+      const r = await prepareGame(gid, gameDirectories[gid], textAssetsDir, exePath, {});
+      prepared[gid] = r;
+      if (r && r.skipped) downloadErrors.push('Unpack ' + gid + ': ' + r.reason);
+      if (gid === activeGame) unpackInfo = r;
     } catch (e) {
-      unpackInfo = { error: e.message || String(e) };
-      const msg = 'Unpack: ' + (e.message || e);
+      const msg = 'Unpack ' + gid + ': ' + (e.message || e);
+      prepared[gid] = { error: e.message || String(e) };
+      if (gid === activeGame) unpackInfo = prepared[gid];
       sendSetupProgress({ phase: 'error', key: 'spError', params: { msg } });
       downloadErrors.push(msg);
     }
@@ -554,6 +635,7 @@ ipcMain.handle('setup:run', async (_e, payload) => {
     textAssetsDir,
     tools: downloadResults,
     unpack: unpackInfo,
+    prepared,
     warnings: downloadErrors,
     skippedDownload: skipDownload
   };

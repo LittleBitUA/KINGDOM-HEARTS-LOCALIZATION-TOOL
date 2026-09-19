@@ -167,18 +167,34 @@ async function runSmoke(win) {
       return { visible, count, restored, sidebar: !!document.getElementById('hub-nav-settings') };
     })()`);
     check('renderer: hub search filters cards', search.visible.length === 1 && search.visible[0] === 'kh-ddd' && /1/.test(search.count) && search.restored === 4 && search.sidebar, search);
-    // Перехід у редактор KH1 і перемикання режимів — це проганяє більшість модулів.
-    const modeOk = await call(`(async () => {
+    // Картка «Потрібен setup» (без теки гри) відкриває Setup для цієї гри; «Назад» повертає на hub.
+    const setupOk = await call(`(async () => {
       const home = document.getElementById('home-screen');
-      const card = document.querySelector('#home-grid .game-card');
-      const wasDisabled = card.disabled;
-      card.disabled = false; card.classList.remove('disabled');
-      // enterEditor через експорт модуля недоступний глобально — клікаємо картку якщо вона активна,
-      // інакше перевіряємо лише, що екран home існує.
-      if (!wasDisabled) card.click();
-      return { homeHidden: home.classList.contains('hidden'), wasDisabled };
+      const setup = document.getElementById('setup-screen');
+      const card = document.querySelector('#home-grid .game-card.needs-setup');
+      if (!card) return { noCard: true };
+      card.click();
+      await new Promise(r => setTimeout(r, 900));
+      const active = setup.querySelector('.setup-game.active');
+      const res = {
+        gameId: card.dataset.gameId,
+        setupShown: !setup.classList.contains('hidden'),
+        homeHidden: home.classList.contains('hidden'),
+        activeGame: active && active.dataset.gameId,
+        rows: setup.querySelectorAll('.setup-game').length,
+        detectBtn: !!document.getElementById('setup-detect'),
+        backShown: !document.getElementById('setup-back').hidden
+      };
+      document.getElementById('setup-back').click();
+      res.homeBack = !home.classList.contains('hidden') && setup.classList.contains('hidden');
+      return res;
     })()`);
-    check('renderer: home screen present', typeof modeOk.homeHidden === 'boolean', modeOk);
+    check('renderer: needs-setup card opens Setup for that game and Back returns',
+      setupOk.setupShown && setupOk.homeHidden && setupOk.activeGame === setupOk.gameId && setupOk.rows === 4 && setupOk.detectBtn && setupOk.backShown && setupOk.homeBack, setupOk);
+    const detect = await call('window.kh1.setup.detectGames()');
+    check('setup.detectGames returns collections', detect && Array.isArray(detect.collections) && detect.games && typeof detect.games === 'object', detect);
+    const chk = await call(`window.kh1.setup.checkGameDir(${J({ gameId: 'kh-ddd', dir: engDir })})`);
+    check('setup.checkGameDir rejects a folder without the game archive', chk && chk.ok === false && /kh3d_first/.test(chk.expected) && /2\.8/.test(chk.collection), chk);
     const noErrors = await call('window.__khRendererErrors || []');
     check('renderer: no uncaught errors', Array.isArray(noErrors) && noErrors.length === 0, noErrors);
   } catch (e) {

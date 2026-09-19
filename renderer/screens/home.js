@@ -1,5 +1,4 @@
 import { enterEditor } from '../app-shell.js';
-import { toast } from '../core/log.js';
 import { hideSetup } from './setup.js';
 
 // =====================================================================
@@ -173,16 +172,23 @@ function heroArt(theme) {
 // Кеш gameDirectories з settings (оновлюється у bootstrapApp / після setup).
 // Гра вважається "готовою до перекладу" лише якщо її директорію вказано.
 export let _gameDirsCache = {};
-export function setGameDirsCache(v) { _gameDirsCache = v || {}; }
+// prepared[gameId] — файли гри вже скопійовано у робочу теку (setup:status).
+export let _gamePreparedCache = {};
+export function setGameDirsCache(v, prepared) { _gameDirsCache = v || {}; _gamePreparedCache = prepared || {}; }
 export async function refreshGameDirsCache() {
   try {
     const s = await window.kh1.setup.status();
     _gameDirsCache = (s && s.gameDirectories) || {};
-  } catch (_) { _gameDirsCache = {}; }
+    _gamePreparedCache = (s && s.prepared) || {};
+  } catch (_) { _gameDirsCache = {}; _gamePreparedCache = {}; }
 }
 export function _gameHasDir(gameId) {
   const v = _gameDirsCache && _gameDirsCache[gameId];
   return !!(v && String(v).trim());
+}
+// false лише коли setup явно знає, що робоча тека порожня.
+export function _gameIsPrepared(gameId) {
+  return !(_gamePreparedCache && _gamePreparedCache[gameId] === false);
 }
 
 export function renderGameCard(game) {
@@ -191,20 +197,26 @@ export function renderGameCard(game) {
   // Гра доступна тільки якщо: (a) gamesConfig.enabled (статичний support flag),
   // (b) користувач указав директорію цієї гри у setup'і.
   const hasDir = _gameHasDir(game.id);
-  const isReady = game.enabled && hasDir;
-  card.className = 'game-card theme-' + (game.theme || 'final-mix') + (isReady ? '' : ' disabled');
+  const prepared = _gameIsPrepared(game.id);
+  const isReady = game.enabled && hasDir && prepared;
+  // Підтримувана гра без теки або з нерозпакованими файлами — не disabled
+  // (disabled-кнопка не отримує click), а стан needs-setup: клік відкриває
+  // Setup для цієї гри (вибір теки / кнопка «Розпакувати»).
+  const needsSetup = game.enabled && !isReady;
+  card.className = 'game-card theme-' + (game.theme || 'final-mix') +
+    (isReady ? '' : (needsSetup ? ' needs-setup' : ' disabled'));
   card.dataset.gameId = game.id;
   card.setAttribute('role', 'listitem');
-  if (!isReady) {
+  if (!game.enabled) {
     card.disabled = true;
     card.setAttribute('aria-disabled', 'true');
-    if (!game.enabled) {
-      card.setAttribute('data-i18n-title', 'gameSoonTooltip');
-      card.title = t('gameSoonTooltip', 'Підтримка з’явиться пізніше');
-    } else {
-      card.setAttribute('data-i18n-title', 'gameNoDirTooltip');
-      card.title = t('gameNoDirTooltip', 'Спочатку вкажи директорію цієї гри в Settings → ↺ Перевідкрити setup');
-    }
+    card.setAttribute('data-i18n-title', 'gameSoonTooltip');
+    card.title = t('gameSoonTooltip', 'Підтримка з’явиться пізніше');
+  } else if (needsSetup) {
+    const tipKey = hasDir ? 'gameNotPreparedTooltip' : 'gameNoDirTooltip';
+    card.setAttribute('data-i18n-title', tipKey);
+    card.title = t(tipKey, hasDir ? 'Натисни, щоб розпакувати файли цієї гри (Setup)' : 'Натисни, щоб вказати теку цієї гри (Setup)');
+    card.setAttribute('aria-label', game.name + ' — ' + t(hasDir ? 'gameNeedsPrepare' : 'gameNeedsSetup', 'Потрібен setup'));
   } else {
     card.setAttribute('aria-label', game.name);
   }
@@ -278,14 +290,15 @@ export function renderGameCard(game) {
   const badges = document.createElement('div');
   badges.className = 'game-badges';
   badges.appendChild(status);
-  if (game.enabled && !hasDir) {
-    // «Підтримується» + окремий warning: одноразове налаштування теки гри.
+  if (needsSetup) {
+    // «Підтримується» + окремий warning: нема теки гри або файли ще не розпаковано.
+    const needKey = hasDir ? 'gameNeedsPrepare' : 'gameNeedsSetup';
     const need = document.createElement('span');
     need.className = 'game-status status-setup';
     need.innerHTML = WARN_SVG;
     const needText = document.createElement('span');
-    needText.setAttribute('data-i18n', 'gameNeedsSetup');
-    needText.textContent = t('gameNeedsSetup', 'Потрібен setup');
+    needText.setAttribute('data-i18n', needKey);
+    needText.textContent = t(needKey, hasDir ? 'Не розпаковано' : 'Потрібен setup');
     need.appendChild(needText);
     badges.appendChild(need);
   }
@@ -301,12 +314,11 @@ export function renderGameCard(game) {
 
   if (isReady && typeof game.onSelect === 'function') {
     card.addEventListener('click', () => game.onSelect());
-  } else if (game.enabled && !hasDir) {
-    // Клік по сірій картці — підказати куди йти.
+  } else if (needsSetup) {
+    // Клік по картці без теки — відкрити Setup з цією грою (слухач у setup.js;
+    // подія замість імпорту, бо setup.js сам імпортує home.js).
     card.addEventListener('click', () => {
-      if (typeof toast === 'function') {
-        toast(card.title, 'info', 5000);
-      }
+      document.dispatchEvent(new CustomEvent('kh:setup-game', { detail: { gameId: game.id } }));
     });
   }
   return card;
