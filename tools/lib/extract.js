@@ -68,7 +68,10 @@ function extract(eng, rus, opts = {}) {
   const MIN_LEN = opts.minLen != null ? opts.minLen : 3;
 
   const engStrs = splitStrings(eng, HEADER, FOOTER);
-  const rusSegs = segmentSet(rus);
+  // Неперекладні сегменти: з reference-файла (якщо є) + вбудований еталон
+  // (opts.preservedSegs, data/kh1_oracle.json) — тека RUS більше не потрібна.
+  const rusSegs = segmentSet(rus || Buffer.alloc(0));
+  for (const str of (opts.preservedSegs || [])) rusSegs.add(str);
 
   const stats = {
     engStrings: engStrs.length,

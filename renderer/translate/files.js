@@ -171,7 +171,8 @@ export async function loadFile(rel) {
   }
 
   const engPath = joinPath(tState.settings.engDir, rel);
-  const rusPath = joinPath(tState.settings.rusDir, rel);
+  // MYFILES опційна — без неї extract бере вбудований еталон.
+  const rusPath = tState.settings.rusDir ? joinPath(tState.settings.rusDir, rel) : undefined;
 
   tStatus.textContent = window.i18n.t('tLoading', { rel });
   renderEmpty(window.i18n.t('tProcessing', { rel }));

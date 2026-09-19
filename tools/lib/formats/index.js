@@ -27,6 +27,7 @@
 
 const path = require('path');
 const { classifyFile, clearCache } = require('./classify');
+const kh1Oracle = require('../kh1-oracle');
 
 const handlers = {
   binl:   require('./binl'),
@@ -54,7 +55,11 @@ async function parseFile(engPath, env) {
     err.kind = cls.kind;
     throw err;
   }
-  const parsed = await h.parse(engPath, Object.assign({}, e, { cls }));
+  // Вбудований еталон неперекладних рядків KH1 (замість теки RUS); handler'и,
+  // яким він не потрібен, просто ігнорують opts.preservedSegs.
+  const preservedSegs = e.preservedSegs || kh1Oracle.preservedFor(engPath);
+  const opts = preservedSegs.length ? Object.assign({}, e.opts || {}, { preservedSegs }) : e.opts;
+  const parsed = await h.parse(engPath, Object.assign({}, e, { cls, opts }));
   parsed.kind = cls.kind;
   parsed.handler = h;
   return parsed;

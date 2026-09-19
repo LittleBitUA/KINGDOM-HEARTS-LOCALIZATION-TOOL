@@ -278,3 +278,24 @@ test('composeAll outLayout kh1-hedout writes DONE in the game layout (remastered
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('built-in KH1 oracle: preservedSegs replace the RUS reference; data file covers real KH1 names', async () => {
+  const oracle = require('../tools/lib/kh1-oracle');
+  // Еталон зберігає сирі (закодовані) байти сегмента як latin1-рядок.
+  const raw = (t) => Buffer.from(codec.encode(t, { overlay: false })).toString('latin1');
+  // Без RUS усі рядки стали б слотами; еталон вилучає 'Potion' так само, як RUS-файл.
+  const noRef = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), {});
+  assert.deepEqual(noRef.slots.map(s => s.english), ['Potion', 'Attack', 'Traverse Town']);
+  const withOracle = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { preservedSegs: [raw('Potion')] });
+  assert.deepEqual(withOracle.slots.map(s => s.english), ['Attack', 'Traverse Town']);
+  // RUS і еталон об'єднуються.
+  const both = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { rusPath: path.join(rusDir, 'sub', 'a.binl'), preservedSegs: [raw('Attack')] });
+  assert.deepEqual(both.slots.map(s => s.english), ['Traverse Town']);
+  // data/kh1_oracle.json: ключ — basename без урахування регістру; лише байти з ENG (нема кирилиці).
+  const real = oracle.preservedFor('remastered/tw01.ard/UK_TW01_ARD3E8.binl');
+  assert.ok(real.length >= 10, 'tw01 has preserved item-get strings');
+  assert.deepEqual(oracle.preservedFor('nope.bin'), []);
+  const all = Object.values(oracle.load()).flat();
+  assert.ok(all.length > 500);
+  assert.ok(all.every(s => !/[Ѐ-ӿ]/.test(s)), 'oracle holds latin1 game bytes only');
+});

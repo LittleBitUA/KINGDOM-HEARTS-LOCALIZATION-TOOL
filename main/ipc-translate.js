@@ -96,8 +96,9 @@ ipcMain.handle('translate:listFiles', (_e, rusDir) => {
 
 ipcMain.handle('translate:extract', async (_e, payload) => {
   const engPath = payload && payload.engPath;
-  const rusPath = payload && payload.rusPath;
-  if (!engPath || !rusPath) return { error: 'Не вказано шляхи' };
+  // rusPath опційний: без нього працює вбудований еталон (data/kh1_oracle.json).
+  const rusPath = (payload && payload.rusPath) || undefined;
+  if (!engPath) return { error: 'Не вказано шляхи' };
   try {
     return await ops.extractFile(engPath, { rusPath, opts: payload.opts || {}, runWorker });
   } catch (e) {

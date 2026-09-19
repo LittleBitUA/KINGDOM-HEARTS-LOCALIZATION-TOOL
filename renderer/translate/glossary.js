@@ -1,4 +1,4 @@
-import { getCurrentGame, getCurrentGameId } from '../app-shell.js';
+import { getCurrentGameId } from '../app-shell.js';
 import { gBuild, gComposeAll, gDashBarFill, gDashDone, gDashIssues, gDashPct, gDashSameEn, gDashTotal, gDashUntrans, gDashboard, gRows, gSave, gStat, tProgress, tStatus } from '../core/dom.js';
 import { toast } from '../core/log.js';
 import { autoFixStructure, syncPaddingFromEn, tokenIssueText, validateTokens } from '../core/shared.js';
@@ -24,11 +24,8 @@ export async function loadGlossaryFromDisk() {
 
 export async function buildGlossary() {
   if (gState.busy) return;
-  // Required dirs варіюються по грі: KH1 = engDir + rusDir, BBS = тільки engDir.
-  const game = getCurrentGame();
-  const requiredDirs = (game && game.dirs && game.dirs.includes('rusDir'))
-    ? ['engDir', 'rusDir']
-    : ['engDir'];
+  // Обов'язкова лише ENG-тека; MYFILES (rusDir) для KH1 опційна — є вбудований еталон.
+  const requiredDirs = ['engDir'];
   for (const k of requiredDirs) {
     if (!tState.settings[k]) {
       toast(window.i18n.t('toastConfigEngRus'), 'error');
@@ -289,11 +286,9 @@ export function refreshGlossaryProgress() {
   }
 
   gSave.disabled = !tState.settings.tsvDir;
-  // compose precondition залежить від гри (BBS не потребує rusDir)
-  const _g = getCurrentGame();
-  const _needsRus = !!(_g && _g.dirs && _g.dirs.includes('rusDir'));
+  // compose precondition: ENG + DONE (MYFILES опційна для всіх ігор)
   gComposeAll.disabled = total === 0 || done === 0 ||
-    !tState.settings.engDir || (_needsRus && !tState.settings.rusDir) || !tState.settings.outDir;
+    !tState.settings.engDir || !tState.settings.outDir;
 }
 
 // edit handler for glossary rows — event delegation
@@ -352,10 +347,8 @@ export async function saveGlossary(silent) {
 
 export async function composeAllFiles() {
   if (gState.busy) return;
-  // BBS не вимагає rusDir; KH1 вимагає engDir+rusDir+outDir.
-  const game = getCurrentGame();
-  const needsRus = !!(game && game.dirs && game.dirs.includes('rusDir'));
-  if (!tState.settings.engDir || (needsRus && !tState.settings.rusDir) || !tState.settings.outDir) {
+  // Потрібні engDir + outDir; MYFILES (rusDir) опційна.
+  if (!tState.settings.engDir || !tState.settings.outDir) {
     toast(window.i18n.t('toastConfigEngRusUa'), 'error');
     openSettings();
     return;
