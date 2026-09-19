@@ -114,6 +114,17 @@ async function runSmoke(win) {
     check('renderer: home cards rendered', cards === 4, cards);
     const ver = await call('document.getElementById("tb-version").textContent');
     check('renderer: title-bar version filled', /^v\d+\.\d+/.test(ver), ver);
+    // Hub toolbar: пошук фільтрує картки, лічильник відображає стан.
+    const search = await call(`(() => {
+      const i = document.getElementById('home-search');
+      i.value = 'drop'; i.dispatchEvent(new Event('input'));
+      const visible = [...document.querySelectorAll('#home-grid .game-card:not(.hidden)')].map(c => c.dataset.gameId);
+      const count = document.getElementById('home-count').textContent;
+      i.value = ''; i.dispatchEvent(new Event('input'));
+      const restored = document.querySelectorAll('#home-grid .game-card:not(.hidden)').length;
+      return { visible, count, restored, sidebar: !!document.getElementById('hub-nav-settings') };
+    })()`);
+    check('renderer: hub search filters cards', search.visible.length === 1 && search.visible[0] === 'kh-ddd' && /1/.test(search.count) && search.restored === 4 && search.sidebar, search);
     // Перехід у редактор KH1 і перемикання режимів — це проганяє більшість модулів.
     const modeOk = await call(`(async () => {
       const home = document.getElementById('home-screen');

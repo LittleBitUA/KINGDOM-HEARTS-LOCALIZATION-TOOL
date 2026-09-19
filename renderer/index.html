@@ -126,21 +126,93 @@
   </section>
 
   <!-- ============ HOME / GAME SELECTION ============ -->
-  <section id="home-screen" class="home-screen hidden" aria-label="Game selection">
-    <div class="home-bg-decor" aria-hidden="true"></div>
-    <header class="home-hero">
-      <div class="home-heart" aria-hidden="true">
-        <svg viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="72" height="80">
-          <path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/>
-        </svg>
+  <section id="home-screen" class="home-screen hub hidden" aria-label="Game selection">
+    <!-- ==== Sidebar ==== -->
+    <aside class="hub-sidebar" aria-label="Navigation">
+      <div class="hub-brand">
+        <div class="hub-brand-emblem" aria-hidden="true">
+          <svg class="hub-brand-heart" viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="46" height="50" aria-hidden="true"><path fill="currentColor" d="M373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg>
+          <span class="hub-brand-crown"><svg viewBox="0 0 32 22" width="26" height="18" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></span>
+        </div>
+        <div class="hub-brand-name">KH UA HUB</div>
+        <div id="hub-version" class="hub-brand-version"></div>
       </div>
-      <h1 class="home-title" data-i18n="homeTitle">KINGDOM HEARTS UKRAINIAN LOCALIZATION HUB</h1>
-      <p class="home-subtitle" data-i18n="homeSubtitle">Виберіть гру серії Kingdom Hearts для локалізації</p>
-    </header>
-    <div class="home-grid" id="home-grid" role="list"></div>
-    <footer class="home-footer">
-      <span data-i18n="homeFooter">Більше ігор серії з’являться у наступних оновленнях</span>
-    </footer>
+      <nav class="hub-nav" role="navigation">
+        <button id="hub-nav-home" class="hub-nav-item active" type="button" aria-current="page">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span data-i18n="hubNavHome">Головна</span>
+        </button>
+        <button id="hub-nav-settings" class="hub-nav-item" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span data-i18n="hubNavSettings">Налаштування</span>
+        </button>
+        <button id="hub-nav-about" class="hub-nav-item" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6" fill="currentColor"/></svg><span data-i18n="hubNavAbout">Про проєкт</span>
+        </button>
+        <button id="hub-nav-help" class="hub-nav-item" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8"/><circle cx="12" cy="16.8" r=".6" fill="currentColor"/></svg><span data-i18n="hubNavHelp">Допомога</span>
+        </button>
+      </nav>
+      <div class="hub-sidebar-foot">
+        <span class="hub-sidebar-crown" aria-hidden="true"><svg viewBox="0 0 32 22" width="26" height="18" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></span>
+        <p class="hub-motto" data-i18n="hubMotto">May your heart be your guiding key.</p>
+        <div class="hub-sidebar-rule" aria-hidden="true"></div>
+        <p class="hub-sidebar-line"><span data-i18n="hubTogether">Разом сильніші</span> <svg class="hub-inline-heart" viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="11" height="12" aria-hidden="true"><path fill="currentColor" d="M373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg></p>
+        <p class="hub-sidebar-line"><span data-i18n="hubGlory">Слава Україні!</span> <svg viewBox="0 0 18 12" width="16" height="11" aria-hidden="true"><rect width="18" height="6" fill="#2f6fdb"/><rect y="6" width="18" height="6" fill="#f2c94c"/></svg></p>
+      </div>
+    </aside>
+
+    <!-- ==== Main ==== -->
+    <div class="hub-main">
+      <div class="hub-bg-sparks" aria-hidden="true">
+        <span class="hub-bg-spark s1"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span><span class="hub-bg-spark s2"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span>
+        <span class="hub-bg-spark s3"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span><span class="hub-bg-spark s4"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span>
+        <span class="hub-bg-spark s5"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span><span class="hub-bg-spark s6"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span>
+      </div>
+      <div class="hub-content">
+        <header class="hub-hero">
+          <div class="home-bg-decor hub-bg-heart" aria-hidden="true"></div>
+          <div class="hub-hero-emblem" aria-hidden="true">
+            <span class="hub-hero-crown"><svg viewBox="0 0 32 22" width="26" height="18" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></span>
+            <svg class="hub-hero-heart" viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="54" height="58" aria-hidden="true"><path fill="currentColor" d="M373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg>
+            <span class="hub-hero-spark l"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span><span class="hub-hero-spark r"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span>
+          </div>
+          <h1 class="hub-title">
+            <span class="hub-title-main" data-i18n="hubTitleMain">Kingdom Hearts</span>
+            <span class="hub-title-sub" data-i18n="hubTitleSub">Ukrainian Localization Hub</span>
+          </h1>
+          <p class="hub-subtitle">
+            <span class="hub-subtitle-rule" aria-hidden="true"></span>
+            <span class="hub-subtitle-spark" aria-hidden="true"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span>
+            <span data-i18n="homeSubtitle">Оберіть гру серії Kingdom Hearts для локалізації</span>
+            <span class="hub-subtitle-spark" aria-hidden="true"><svg class="hub-spark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z" fill="currentColor"/></svg></span>
+            <span class="hub-subtitle-rule" aria-hidden="true"></span>
+          </p>
+        </header>
+
+        <div class="hub-toolbar" role="toolbar" aria-label="Projects">
+          <div class="hub-count">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg><span id="home-count">4 проєкти</span>
+          </div>
+          <div class="hub-toolbar-right">
+            <label class="hub-search">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+              <input id="home-search" type="search" autocomplete="off" spellcheck="false"
+                     data-i18n-placeholder="hubSearchPlaceholder" placeholder="Пошук проєкту..." aria-label="Пошук проєкту">
+            </label>
+            <div class="hub-view" role="group" aria-label="View">
+              <button class="hub-view-btn active" type="button" data-view="grid" aria-pressed="true" data-i18n-title="hubViewGrid" title="Сітка"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2"/></svg></button>
+              <button class="hub-view-btn" type="button" data-view="list" aria-pressed="false" data-i18n-title="hubViewList" title="Список"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4.5" cy="6" r=".9" fill="currentColor"/><circle cx="4.5" cy="12" r=".9" fill="currentColor"/><circle cx="4.5" cy="18" r=".9" fill="currentColor"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="home-grid hub-grid" id="home-grid" role="list"></div>
+        <p id="home-empty" class="hub-empty hidden" data-i18n="hubNoResults">Нічого не знайдено — спробуй іншу назву.</p>
+
+        <footer class="hub-footer">
+          <span data-i18n="homeFooter">Більше ігор серії з’являться у наступних оновленнях</span>
+        </footer>
+      </div>
+    </div>
   </section>
 
   <div class="app hidden">
@@ -588,20 +660,6 @@
             </button>
             <button type="button" class="lang-opt" data-lang="en" role="radio" aria-checked="false">
               <span class="lang-flag" aria-hidden="true">🇬🇧</span><span>English</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="setting-section">
-        <h3 class="setting-section-title" data-i18n="themeSectionTitle">Тема оформлення</h3>
-        <div class="setting-row">
-          <div class="lang-toggle" role="radiogroup" aria-label="Theme">
-            <button type="button" class="theme-opt" data-theme="dark" role="radio" aria-checked="false">
-              <span class="lang-flag" aria-hidden="true">🌙</span><span data-i18n="themeDark">Темна</span>
-            </button>
-            <button type="button" class="theme-opt" data-theme="light" role="radio" aria-checked="false">
-              <span class="lang-flag" aria-hidden="true">☀️</span><span data-i18n="themeLight">Світла</span>
             </button>
           </div>
         </div>

@@ -47,159 +47,6 @@
   --khn-tb-height:     32px;
 }
 
-/* =====================================================================
-   LIGHT THEME — м'яка кремово-пергаментна палітра, золото лишається.
-   Активується через <body class="theme-light"> (зберігається у settings).
-   ===================================================================== */
-body.theme-light {
-  /* Тепла, але світла та контрастна палітра. Колишня надто мутно-кремова
-     версія була нечитабельна — підняли яскравість фону, поглибили текст,
-     посилили gold-borders. */
-  --khn-bg-deep:       #f4ecd0;        /* світліший cream */
-  --khn-bg-panel:      #fbf6e3;        /* майже біла парчмент-панель */
-  --khn-bg-elev:       #fffcf0;        /* підняті контроли — світліше */
-  --khn-gold:          #a8780a;        /* darker goldenrod — нормальний контраст на світлому */
-  --khn-gold-light:    #c89a18;
-  --khn-gold-dark:     #5a3f00;
-  --khn-gold-border:   rgba(168, 120, 10, 0.75);
-  --khn-text:          #1a1408;        /* майже чорний з теплим відтінком */
-  --khn-text-muted:    #574420;        /* приглушений умбра, читабельний */
-  --khn-glow-amber:    rgba(168, 120, 10, 0.35);
-  --khn-shadow-deep:   0 6px 18px rgba(80, 60, 20, 0.18);
-  --khn-shadow-glow:   0 0 12px rgba(168, 120, 10, 0.25);
-
-  /* Red modal палітра — насичена */
-  --khn-red-top:       #a01818;
-  --khn-red-bot:       #6a0a0a;
-  --khn-red-glow:      rgba(200, 60, 60, 0.4);
-
-  /* Legacy токени */
-  --bg-deep:       #f4ecd0;
-  --bg-mid:        #fbf6e3;
-  --bg-light:      #fffcf0;
-  --panel:         rgba(251, 246, 227, 0.95);
-  --panel-border:  rgba(168, 120, 10, 0.65);
-  --accent:        #a8780a;
-  --accent-strong: #5a3f00;
-  --kh-yellow:     #c89a18;
-  --kh-gold:       #a8780a;
-  --gold:          #a8780a;
-  --text:          #1a1408;
-  --text-muted:    #574420;
-  --shadow-glow:   0 0 14px rgba(168, 120, 10, 0.22);
-  --kh-shadow-gold: 0 0 10px rgba(168, 120, 10, 0.30);
-}
-
-/* Світла тема: кореневий gradient — теплий, світлий */
-body.theme-light {
-  background:
-    radial-gradient(ellipse 60% 40% at 15% -10%, rgba(168, 120, 10, 0.14), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 110%, rgba(168, 120, 10, 0.10), transparent 60%),
-    linear-gradient(180deg, #f4ecd0 0%, #faf3dc 50%, #f4ecd0 100%) !important;
-}
-body.theme-light .kh-titlebar {
-  background: linear-gradient(180deg, #ebdfb8 0%, #d8c898 100%);
-  border-bottom-color: var(--khn-gold-border);
-}
-body.theme-light .kh-titlebar-title { text-shadow: 0 0 6px rgba(184, 134, 11, 0.35); }
-body.theme-light .kh-tb-btn:hover {
-  background: rgba(184, 134, 11, 0.12);
-  color: var(--khn-gold-dark);
-}
-
-/* Editor textarea — приємний кремовий фон */
-body.theme-light #editor { color: var(--khn-text); caret-color: var(--khn-gold); }
-body.theme-light #editor::selection { background: rgba(184, 134, 11, 0.30); }
-
-/* Кнопки primary в світлій темі — лишаємо червоні (вони акцент) */
-body.theme-light .kh-btn-primary { color: #fff; }
-
-/* Toast у світлій темі — світліший фон */
-body.theme-light .toast {
-  background: linear-gradient(180deg, rgba(240, 232, 210, 0.96), rgba(220, 210, 184, 0.96));
-  color: var(--khn-text);
-}
-
-/* Декоративний фоновий шар: зробимо темніший gold-tint, інакше на світлому
-   фоні буде непомітно. */
-body.theme-light::before { background-color: rgba(107, 77, 0, 0.07); }
-body.theme-light::after  { background-color: rgba(107, 77, 0, 0.08); }
-
-/* Mode-tab active у світлій темі — плаский goldenrod fill, без chrome */
-body.theme-light .mode-btn.active {
-  background: var(--khn-gold-dark);
-  color: #fffaf0;
-  border-color: var(--khn-gold-dark);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  box-shadow:
-    0 0 10px rgba(184, 134, 11, 0.35),
-    inset 0 0 0 1px rgba(255, 250, 240, 0.18);
-}
-body.theme-light .mode-toggle {
-  background: rgba(255, 250, 240, 0.55);
-  border-color: rgba(184, 134, 11, 0.5);
-}
-body.theme-light .mode-btn { color: var(--khn-text-muted); }
-body.theme-light .mode-btn:hover {
-  color: var(--khn-gold-dark);
-  background: rgba(184, 134, 11, 0.10);
-  border-color: rgba(184, 134, 11, 0.35);
-}
-
-/* Scrollbar — теплий */
-body.theme-light ::-webkit-scrollbar-track { background: rgba(184, 134, 11, 0.08); }
-body.theme-light ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(184, 134, 11, 0.5), rgba(140, 100, 8, 0.6));
-  border-color: transparent;
-}
-
-/* Topbar / toolbar / panels у світлій темі — без inset chrome */
-body.theme-light .topbar,
-body.theme-light .toolbar {
-  background: var(--khn-bg-panel);
-  border-color: var(--khn-gold-border);
-  box-shadow:
-    var(--khn-shadow-deep),
-    inset 0 0 0 1px rgba(255, 252, 240, 0.5);
-}
-body.theme-light .editor-wrap,
-body.theme-light .t-rows,
-body.theme-light .statusbar {
-  background: var(--khn-bg-panel);
-  border-color: var(--khn-gold-border);
-}
-body.theme-light .t-en {
-  background: var(--khn-bg-elev);
-  border-color: rgba(168, 120, 10, 0.45);
-  color: var(--khn-text);
-}
-body.theme-light .t-uk {
-  background: #ffffff;
-  border-color: var(--khn-gold-border);
-  color: var(--khn-text);
-}
-body.theme-light .t-uk:focus {
-  border-color: var(--khn-gold);
-  box-shadow: 0 0 8px rgba(168, 120, 10, 0.4);
-}
-
-/* Threshold/numeric inputs у kerning-режимі — мали hardcoded dark bg */
-body.theme-light .k-threshold-input,
-body.theme-light .k-input {
-  background: #ffffff;
-  border-color: var(--khn-gold-border);
-  color: var(--khn-text);
-}
-body.theme-light .k-threshold-input:focus,
-body.theme-light .k-input:focus {
-  border-color: var(--khn-gold);
-  box-shadow: 0 0 8px rgba(168, 120, 10, 0.4);
-}
-
-/* Progress bar track у світлій темі */
-body.theme-light .g-dash-bar {
-  background: rgba(168, 120, 10, 0.15);
-}
 
 /* =====================================================================
    STAGE 1 — Custom title bar (frame: false)
@@ -213,8 +60,8 @@ body.theme-light .g-dash-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
-  border-bottom: 1px solid var(--khn-gold-border);
+  background: linear-gradient(180deg, #182033 0%, #111827 100%);
+  border-bottom: 1px solid rgba(213, 173, 85, 0.35);
   -webkit-app-region: drag;        /* drag по всій плашці */
   user-select: none;
   z-index: 9999;
@@ -1078,8 +925,6 @@ body::after {
 .t-row.translated:hover {
   background: rgba(255, 179, 0, 0.05);
 }
-body.theme-light .t-row.translated { border-left-color: var(--khn-gold-dark); }
-body.theme-light .t-row.translated:hover { background: rgba(184, 134, 11, 0.07); }
 .t-row.error {
   background: rgba(248, 113, 113, 0.10);
 }
@@ -1221,8 +1066,7 @@ body.theme-light .t-row.translated:hover { background: rgba(184, 134, 11, 0.07);
   border-radius: 999px;
   padding: 4px;
 }
-.lang-opt,
-.theme-opt {
+.lang-opt {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1238,13 +1082,11 @@ body.theme-light .t-row.translated:hover { background: rgba(184, 134, 11, 0.07);
   cursor: pointer;
   transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.22s;
 }
-.lang-opt:hover,
-.theme-opt:hover {
+.lang-opt:hover {
   color: var(--khn-gold-light);
   background: rgba(255, 179, 0, 0.06);
 }
-.lang-opt[aria-checked="true"],
-.theme-opt[aria-checked="true"] {
+.lang-opt[aria-checked="true"] {
   background: linear-gradient(180deg,
     rgba(255, 215, 90, 0.18) 0%,
     rgba(140, 90, 0, 0.55) 50%,
@@ -1682,107 +1524,6 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   .event-log { width: min(100vw, 380px); }
 }
 
-/* === Event log: світла тема === */
-body.theme-light .event-log {
-  background:
-    linear-gradient(180deg, rgba(184, 134, 11, 0.08) 0%, #f0e8d2 12%, #e6dcc4 100%);
-  border-left: 1px solid rgba(184, 134, 11, 0.55);
-  box-shadow: -10px 0 32px rgba(80, 60, 20, 0.25), -3px 0 12px rgba(184, 134, 11, 0.18);
-}
-body.theme-light .event-log-head {
-  background: linear-gradient(180deg, rgba(184, 134, 11, 0.12), transparent);
-  border-bottom: 1px solid rgba(184, 134, 11, 0.35);
-}
-body.theme-light .event-log-title {
-  color: var(--khn-gold-dark);
-  text-shadow: 0 1px 0 rgba(255, 250, 240, 0.6);
-}
-body.theme-light .event-log-empty { color: var(--khn-text-muted); }
-body.theme-light .event-log-item {
-  background: rgba(255, 250, 240, 0.55);
-  border-left-color: var(--khn-text-muted);
-}
-body.theme-light .event-log-item .ev-time { color: var(--khn-text-muted); }
-body.theme-light .event-log-item .ev-msg  { color: var(--khn-text); }
-body.theme-light .event-log-item.kind-success { border-left-color: #2f7a3a; background: rgba(134, 239, 172, 0.18); }
-body.theme-light .event-log-item.kind-error   { border-left-color: #b03030; background: rgba(248, 113, 113, 0.18); }
-body.theme-light .event-log-item.kind-info    { border-left-color: var(--khn-gold-dark); }
-
-/* === Modals: світла тема === */
-body.theme-light .overlay {
-  background: rgba(60, 45, 15, 0.45);
-  backdrop-filter: blur(4px);
-}
-body.theme-light .modal {
-  background: linear-gradient(160deg, #f5edd5 0%, #ebe0c2 100%);
-  border: 1px solid var(--khn-gold);
-  box-shadow:
-    0 14px 44px rgba(60, 45, 15, 0.45),
-    0 0 28px rgba(184, 134, 11, 0.30);
-  color: var(--khn-text);
-}
-body.theme-light .modal h2,
-body.theme-light .modal h3,
-body.theme-light .setting-section-title {
-  color: var(--khn-gold-dark);
-}
-body.theme-light .modal input[type="text"],
-body.theme-light .dir-row input,
-body.theme-light .kh-input,
-body.theme-light .kh-select {
-  background: rgba(255, 250, 240, 0.85);
-  border-color: rgba(184, 134, 11, 0.55);
-  color: var(--khn-text);
-}
-body.theme-light .dir-row input::placeholder,
-body.theme-light .modal input[type="text"]::placeholder {
-  color: rgba(107, 90, 53, 0.7);
-}
-body.theme-light .setting-row > label,
-body.theme-light .setting-hint,
-body.theme-light .find-message,
-body.theme-light .about-body { color: var(--khn-text-muted); }
-body.theme-light .about-body strong { color: var(--khn-text); }
-
-/* Lang/theme toggle background у світлій темі */
-body.theme-light .lang-toggle {
-  background: rgba(255, 250, 240, 0.6);
-  border-color: rgba(184, 134, 11, 0.5);
-}
-body.theme-light .lang-opt,
-body.theme-light .theme-opt { color: var(--khn-text-muted); }
-body.theme-light .lang-opt:hover,
-body.theme-light .theme-opt:hover {
-  color: var(--khn-gold-dark);
-  background: rgba(184, 134, 11, 0.10);
-}
-body.theme-light .lang-opt[aria-checked="true"],
-body.theme-light .theme-opt[aria-checked="true"] {
-  color: #fffaf0;
-  background: var(--khn-gold-dark);
-  border-color: var(--khn-gold-dark);
-  box-shadow:
-    0 0 8px rgba(184, 134, 11, 0.3),
-    inset 0 0 0 1px rgba(255, 250, 240, 0.18);
-}
-
-/* Default kh-btn у світлій темі (наприклад "Вибрати...") */
-body.theme-light .kh-btn {
-  background: linear-gradient(180deg, #f5edd5 0%, #e6dcc4 60%, #d8cdb3 100%);
-  color: var(--khn-text);
-  border-color: rgba(184, 134, 11, 0.55);
-}
-body.theme-light .kh-btn:hover:not(:disabled) {
-  border-color: var(--khn-gold-dark);
-  color: var(--khn-gold-dark);
-  background: linear-gradient(180deg, #fff5dc 0%, #f0e8d2 60%, #e6dcc4 100%);
-  box-shadow: 0 0 12px rgba(184, 134, 11, 0.45);
-}
-body.theme-light .kh-btn:disabled {
-  background: linear-gradient(180deg, #e6dcc4 0%, #d8cdb3 100%);
-  color: rgba(107, 90, 53, 0.55);
-  border-color: rgba(184, 134, 11, 0.25);
-}
 
 /* =====================================================================
    STAGE 8 — Home / Game Selection screen
@@ -1887,27 +1628,6 @@ body.theme-light .kh-btn:disabled {
   max-width: 540px;
 }
 
-.home-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 340px));
-  gap: 26px;
-  justify-content: center;
-  width: 100%;
-  max-width: 1100px;
-}
-
-.home-footer {
-  position: relative;
-  z-index: 1;
-  margin-top: 36px;
-  font-size: 11px;
-  color: var(--khn-text-muted);
-  letter-spacing: 0.5px;
-  text-align: center;
-  opacity: 0.7;
-}
 
 /* === Setup-onboarding screen === */
 .setup-screen .setup-shell {
@@ -2048,201 +1768,12 @@ body.theme-light .kh-btn:disabled {
 .setup-progress.error .setup-progress-message { color: #ffb0b0; }
 .setup-progress.done { border-color: rgba(120, 200, 80, 0.5); }
 
-/* === Game card === */
-.game-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(180deg, #1a1305 0%, #0a0a0a 60%, #050505 100%);
-  border: 1.5px solid var(--khn-gold-border);
-  border-radius: 16px;
-  overflow: hidden;
-  cursor: pointer;
-  transition:
-    transform 0.32s cubic-bezier(.4,0,.2,1),
-    box-shadow 0.32s ease,
-    border-color 0.22s ease;
-  box-shadow:
-    var(--khn-shadow-deep),
-    inset 0 1px 0 rgba(255, 215, 90, 0.12);
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
-  padding: 0;
-}
-.game-card:hover:not(.disabled) {
-  transform: translateY(-6px) scale(1.015);
-  border-color: var(--khn-gold-light);
-  box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.7),
-    0 0 28px rgba(255, 179, 0, 0.45),
-    inset 0 1px 0 rgba(255, 215, 90, 0.3);
-}
-.game-card:focus-visible {
-  outline: 2px solid var(--khn-gold-light);
-  outline-offset: 3px;
-}
-.game-card:active:not(.disabled) {
-  transform: translateY(-2px) scale(1.005);
-}
 
-/* Cover area — стилізована "обкладинка" */
-.game-cover {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-bottom: 1px solid rgba(255, 179, 0, 0.4);
-  background: var(--cover-grad, linear-gradient(135deg, #1a2c5e 0%, #0a1a3f 50%, #0d1a35 100%));
-}
-.game-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.game-cover-overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.55), transparent 70%),
-    linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.45) 100%);
-  pointer-events: none;
-}
-.game-cover-heart {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.22;
-  color: #fffaf0;
-  filter: drop-shadow(0 0 24px rgba(255, 255, 255, 0.55));
-  pointer-events: none;
-}
-.game-cover-heart svg { width: 100%; height: 100%; }
-.game-cover-title {
-  position: relative;
-  z-index: 2;
-  font-size: clamp(16px, 1.6vw, 22px);
-  font-weight: 800;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  color: #fff;
-  text-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.85),
-    0 0 14px rgba(255, 255, 255, 0.35);
-  text-align: center;
-  padding: 0 14px;
-  line-height: 1.1;
-}
-
-/* Інфо-секція внизу картки */
-.game-info {
-  padding: 16px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.game-info .game-name {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--khn-text);
-  letter-spacing: 0.4px;
-}
-.game-info .game-subtitle {
-  margin: 0;
-  font-size: 12px;
-  color: var(--khn-text-muted);
-  line-height: 1.45;
-  min-height: 32px;
-}
-.game-info .game-status {
-  margin-top: 8px;
-  display: inline-flex;
-  align-self: flex-start;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.game-info .game-status.status-ready {
-  background: rgba(134, 239, 172, 0.10);
-  color: #86efac;
-  border: 1px solid rgba(134, 239, 172, 0.4);
-}
-.game-info .game-status.status-soon {
-  background: rgba(255, 179, 0, 0.08);
-  color: var(--khn-gold-light);
-  border: 1px solid rgba(255, 179, 0, 0.4);
-}
-
-/* Disabled state — лишаємо колір та heart-fill, лише ледь тушимо.
-   Помітно "не клікабельна" завдяки ribbon + cursor + zero hover. */
-.game-card.disabled {
-  cursor: not-allowed;
-  opacity: 0.85;
-}
-.game-card.disabled:hover { transform: none; box-shadow: var(--khn-shadow-deep), inset 0 1px 0 rgba(255, 215, 90, 0.12); border-color: var(--khn-gold-border); }
-
-/* "Coming Soon" ribbon у верхньому правому куті */
-.game-ribbon {
-  position: absolute;
-  top: 14px;
-  right: -38px;
-  transform: rotate(38deg);
-  background: linear-gradient(180deg, #c81818 0%, #8b1010 100%);
-  color: #fff;
-  padding: 5px 44px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 215, 90, 0.3);
-  border-top: 1px solid var(--khn-gold);
-  border-bottom: 1px solid var(--khn-gold);
-  pointer-events: none;
-  z-index: 3;
-}
-/* "Setup needed" ribbon — янтарно-золотий (м'якіший за червоний "Coming Soon") */
-.game-ribbon.game-ribbon-setup {
-  background: linear-gradient(180deg, #b88a14 0%, #6b4f08 100%);
-  color: #fffbe6;
-  border-top: 1px solid var(--khn-gold-light);
-  border-bottom: 1px solid var(--khn-gold-dark);
-}
-
-/* Light theme adjustments */
-body.theme-light .home-screen {
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 30%, rgba(184, 134, 11, 0.20), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 20% 90%, rgba(184, 134, 11, 0.12), transparent 65%),
-    linear-gradient(180deg, #d8cdb3 0%, #e0d4b8 50%, #d8cdb3 100%);
-}
-body.theme-light .home-bg-decor { background-color: rgba(107, 77, 0, 0.07); }
-body.theme-light .home-title {
-  background: linear-gradient(180deg, #d4a020 0%, var(--khn-gold) 50%, var(--khn-gold-dark) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-body.theme-light .game-card {
-  background: linear-gradient(180deg, #f0e8d2 0%, #e6dcc4 100%);
-}
 
 /* Адаптивність для маленьких вікон */
 @media (max-width: 720px) {
   .home-screen { padding: 24px 16px; }
   .home-hero { margin-bottom: 28px; }
-  .home-grid { gap: 18px; grid-template-columns: minmax(260px, 340px); }
 }
 
 /* === BBS Font Editor view === */
@@ -2367,3 +1898,679 @@ body.theme-light .game-card {
 .uf-report { font-size: 12px; }
 .uf-report table { border-collapse: collapse; }
 .uf-report td, .uf-report th { padding: 2px 10px 2px 0; text-align: left; }
+
+/* =====================================================================
+   HUB — Home / Game Selection (redesign)
+   Kingdom Hearts × premium desktop: ivory main area, navy sidebar,
+   champagne-gold accents, themed hero-cards. Setup-екран лишається на
+   старих .home-* класах; усе нижче скоуплено під #home-screen.hub.
+   ===================================================================== */
+:root {
+  --kh-bg:            #eadcbd;
+  --kh-bg-light:      #f5ecd9;
+  --kh-bg-deep:       #e0cfa8;
+  --kh-sidebar:       #0c111d;
+  --kh-sidebar-light: #141b2b;
+  --kh-sidebar-text:  #e9dfc9;
+  --kh-sidebar-muted: #9a917f;
+  --kh-gold:          #bd8b20;
+  --kh-gold-light:    #d7b65c;
+  --kh-gold-dark:     #876013;
+  --kh-gold-pale:     #ecd9a6;
+  --kh-text:          #2b2113;
+  --kh-text-muted:    #5e4f39;
+  --kh-card:          #fffdf6;
+  --kh-card-border:   rgba(180, 130, 30, 0.38);
+  --kh-card-border-hover: rgba(190, 140, 35, 0.75);
+  --kh-card-shadow:   0 8px 24px rgba(73, 52, 17, 0.12), 0 1px 2px rgba(73, 52, 17, 0.08);
+  --kh-card-shadow-hover: 0 16px 36px rgba(73, 52, 17, 0.20), 0 0 0 3px rgba(199, 153, 52, 0.14);
+  --kh-warn-text:     #8a5a00;
+  --kh-warn-bg:       #fff1cc;
+  --kh-success:       #159447;
+  --kh-success-text:  #168344;
+  --kh-success-bg:    #d9f5df;
+  --kh-chip-bg:       rgba(255, 253, 246, 0.72);
+  --kh-font-display:  "Cinzel", "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", serif;
+  --kh-font-ui:       Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --kh-sidebar-w:     176px;
+  --kh-ease:          200ms ease;
+}
+
+#home-screen.hub {
+  display: grid;
+  grid-template-columns: var(--kh-sidebar-w) minmax(0, 1fr);
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  overflow: hidden;
+  background: var(--kh-bg);
+  color: var(--kh-text);
+  font-family: var(--kh-font-ui);
+}
+#home-screen.hub.hidden { display: none; }
+
+/* ---------- Sidebar ---------- */
+.hub-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 26px 12px 20px;
+  background: linear-gradient(180deg, var(--kh-sidebar-light) 0%, var(--kh-sidebar) 100%);
+  border-right: 1px solid rgba(213, 173, 85, 0.28);
+  box-shadow: 4px 0 18px rgba(20, 14, 4, 0.18);
+  color: var(--kh-sidebar-text);
+  user-select: none;
+  overflow: hidden;
+}
+.hub-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 26px;
+}
+.hub-brand-emblem {
+  position: relative;
+  color: var(--kh-gold-light);
+  filter: drop-shadow(0 0 10px rgba(215, 182, 92, 0.35));
+  margin-bottom: 6px;
+}
+.hub-brand-heart { display: block; }
+.hub-brand-crown {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translateX(-50%) scale(0.72);
+  color: var(--kh-gold-light);
+  line-height: 0;
+}
+.hub-brand-name {
+  font-family: var(--kh-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--kh-gold-light);
+  text-transform: uppercase;
+}
+.hub-brand-version {
+  font-size: 10.5px;
+  color: var(--kh-sidebar-muted);
+  letter-spacing: 0.04em;
+  min-height: 13px;
+}
+.hub-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hub-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 14px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(233, 223, 201, 0.72);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--kh-ease), color var(--kh-ease), border-color var(--kh-ease);
+}
+.hub-nav-item svg { flex: 0 0 auto; opacity: 0.85; }
+.hub-nav-item:hover {
+  background: rgba(199, 153, 52, 0.08);
+  color: #f5ecd8;
+}
+.hub-nav-item.active {
+  background: linear-gradient(90deg, rgba(199, 153, 52, 0.20), rgba(199, 153, 52, 0.05));
+  border-left-color: #d5ad55;
+  color: #f7efdc;
+  box-shadow: inset 0 0 18px rgba(199, 153, 52, 0.08);
+}
+.hub-nav-item.active svg { color: var(--kh-gold-light); opacity: 1; }
+.hub-nav-item:focus-visible {
+  outline: 2px solid var(--kh-gold-light);
+  outline-offset: -2px;
+}
+.hub-sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding-top: 18px;
+}
+.hub-sidebar-crown { color: var(--kh-gold-light); line-height: 0; opacity: 0.9; }
+.hub-motto {
+  margin: 0;
+  font-family: var(--kh-font-display);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(233, 223, 201, 0.7);
+}
+.hub-sidebar-rule {
+  width: 72%;
+  height: 1px;
+  margin: 4px 0;
+  background: linear-gradient(90deg, transparent, rgba(213, 173, 85, 0.6), transparent);
+}
+.hub-sidebar-line {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: rgba(233, 223, 201, 0.72);
+}
+.hub-inline-heart { color: #6aa9ff; }
+
+/* ---------- Main ---------- */
+.hub-main {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  background:
+    radial-gradient(circle at 50% 0%, #f8f1e2 0%, #eee2c6 42%, #e3d2ad 100%);
+}
+.hub-main::-webkit-scrollbar { width: 10px; height: 0; }
+.hub-main::-webkit-scrollbar-thumb { background: rgba(160, 120, 40, 0.28); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.hub-main::-webkit-scrollbar-track { background: transparent; }
+
+/* Великий watermark-серце (перевизначаємо старий decor: без анімації, тихіше). */
+.hub-hero .home-bg-decor {
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background-color: rgba(150, 110, 30, 0.06);
+  -webkit-mask-position: center center;
+          mask-position: center center;
+  -webkit-mask-size: auto 96%;
+          mask-size: auto 96%;
+  filter: none;
+  animation: none;
+  pointer-events: none;
+}
+
+/* Кілька золотих іскор, дуже повільне мерехтіння (тільки opacity). */
+.hub-bg-sparks { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.hub-bg-spark {
+  position: absolute;
+  color: var(--kh-gold);
+  opacity: 0.28;
+  animation: hubTwinkle 7s ease-in-out infinite;
+}
+.hub-bg-spark svg { width: 14px; height: 14px; }
+.hub-bg-spark.s1 { left: 9%;  top: 9%;  animation-delay: 0s; }
+.hub-bg-spark.s2 { left: 22%; top: 30%; animation-delay: 1.6s; transform: scale(0.6); }
+.hub-bg-spark.s3 { left: 78%; top: 8%;  animation-delay: 3.1s; transform: scale(1.4); }
+.hub-bg-spark.s4 { left: 88%; top: 34%; animation-delay: 2.2s; transform: scale(0.8); }
+.hub-bg-spark.s5 { left: 68%; top: 22%; animation-delay: 4.4s; transform: scale(0.55); }
+.hub-bg-spark.s6 { left: 40%; top: 6%;  animation-delay: 5.3s; transform: scale(0.7); }
+@keyframes hubTwinkle {
+  0%, 100% { opacity: 0.12; }
+  50%      { opacity: 0.42; }
+}
+
+.hub-content {
+  position: relative;
+  z-index: 1;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 22px 40px 32px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ---------- Hero / header ---------- */
+.hub-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 16px;
+  padding-top: 6px;
+}
+.hub-hero > :not(.home-bg-decor) { position: relative; z-index: 1; }
+.hub-hero-emblem {
+  position: relative;
+  color: var(--kh-gold);
+  line-height: 0;
+  margin-bottom: 4px;
+  transform: scale(0.8);
+  filter: drop-shadow(0 3px 10px rgba(189, 139, 32, 0.28));
+  animation: hubGlow 6s ease-in-out infinite;
+}
+@keyframes hubGlow {
+  0%, 100% { filter: drop-shadow(0 3px 10px rgba(189, 139, 32, 0.22)); }
+  50%      { filter: drop-shadow(0 3px 16px rgba(215, 182, 92, 0.48)); }
+}
+.hub-hero-crown {
+  position: absolute;
+  left: 50%;
+  top: -17px;
+  transform: translateX(-50%) scale(0.8);
+  color: var(--kh-gold);
+}
+.hub-hero-spark { position: absolute; top: 22px; color: var(--kh-gold-light); opacity: 0.85; }
+.hub-hero-spark.l { left: -40px; }
+.hub-hero-spark.r { right: -40px; }
+.hub-title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--kh-text);
+}
+.hub-title-main {
+  font-family: var(--kh-font-display);
+  font-variant-caps: small-caps;
+  font-size: clamp(34px, 3.1vw, 46px);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: 0.06em;
+  color: #322717;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6), 0 6px 18px rgba(120, 90, 30, 0.18);
+}
+.hub-title-sub {
+  font-family: var(--kh-font-display);
+  font-size: clamp(13px, 1.1vw, 17px);
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #3a2c18;
+}
+.hub-subtitle {
+  margin: 8px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--kh-font-display);
+  font-size: 14.5px;
+  color: var(--kh-text-muted);
+  letter-spacing: 0.01em;
+}
+.hub-subtitle-rule {
+  width: 84px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--kh-gold) 60%, var(--kh-gold));
+}
+.hub-subtitle-rule:last-child { transform: scaleX(-1); }
+.hub-subtitle-spark { color: var(--kh-gold); line-height: 0; }
+.hub-subtitle-spark svg { width: 11px; height: 11px; }
+
+/* ---------- Toolbar ---------- */
+.hub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 8px 10px;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 14px;
+  background: rgba(255, 253, 246, 0.42);
+  box-shadow: 0 1px 2px rgba(73, 52, 17, 0.06);
+}
+.hub-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 9px;
+  background: var(--kh-chip-bg);
+  color: var(--kh-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.hub-count svg { color: var(--kh-gold); }
+.hub-toolbar-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hub-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  width: 260px;
+  max-width: 40vw;
+  padding: 0 12px;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 9px;
+  background: var(--kh-chip-bg);
+  color: var(--kh-text-muted);
+  transition: border-color var(--kh-ease), box-shadow var(--kh-ease), background-color var(--kh-ease);
+}
+.hub-search:focus-within {
+  border-color: var(--kh-card-border-hover);
+  box-shadow: 0 0 0 3px rgba(199, 153, 52, 0.16);
+  background: var(--kh-card);
+}
+.hub-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kh-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.hub-search input::placeholder { color: var(--kh-text-muted); opacity: 0.8; }
+.hub-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.hub-view {
+  display: inline-flex;
+  height: 34px;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 9px;
+  background: var(--kh-chip-bg);
+  overflow: hidden;
+}
+.hub-view-btn {
+  width: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--kh-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--kh-ease), color var(--kh-ease);
+}
+.hub-view-btn + .hub-view-btn { border-left: 1px solid var(--kh-card-border); }
+.hub-view-btn:hover { color: var(--kh-gold-dark); background: rgba(199, 153, 52, 0.10); }
+.hub-view-btn.active { background: linear-gradient(180deg, #e2c46f, #c79a31); color: #2a200c; }
+.hub-view-btn:focus-visible { outline: 2px solid var(--kh-gold); outline-offset: -2px; }
+
+/* ---------- Grid ---------- */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+.hub-empty {
+  margin: 28px 0 0;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--kh-text-muted);
+}
+.hub-empty.hidden { display: none; }
+.hub-footer {
+  margin-top: auto;
+  padding-top: 34px;
+  text-align: center;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  color: var(--kh-text-muted);
+  opacity: 0.85;
+}
+
+/* ---------- Game card ---------- */
+.hub .game-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 16px;
+  background: var(--kh-card);
+  box-shadow: var(--kh-card-shadow);
+  color: var(--kh-text);
+  font-family: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+.hub .game-card.hidden { display: none; }
+.hub .game-card::before {
+  /* тонка золота лінія зверху, з'являється на hover/focus */
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  z-index: 4;
+  background: linear-gradient(90deg, transparent, var(--kh-gold-light) 30%, #f1dc9a 50%, var(--kh-gold-light) 70%, transparent);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.hub .game-card:hover:not(.disabled),
+.hub .game-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--kh-card-border-hover);
+  box-shadow: var(--kh-card-shadow-hover);
+}
+.hub .game-card:hover:not(.disabled)::before,
+.hub .game-card:focus-visible::before { opacity: 1; }
+.hub .game-card:active:not(.disabled) { transform: translateY(-1px); transition-duration: 80ms; }
+.hub .game-card:focus-visible {
+  outline: 2px solid var(--kh-gold-dark);
+  outline-offset: 2px;
+}
+.hub .game-card.disabled {
+  cursor: not-allowed;
+}
+.hub .game-card.disabled .game-cover { filter: saturate(0.85) brightness(0.94); }
+.hub .game-card.disabled:hover { transform: translateY(-1px); border-color: var(--kh-card-border-hover); box-shadow: var(--kh-card-shadow); }
+.hub .game-card.disabled .game-open { opacity: 0.35; }
+
+/* Hero area */
+.hub .game-cover {
+  position: relative;
+  height: 182px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(180, 130, 30, 0.35);
+  background: linear-gradient(160deg, #12376a 0%, #081c42 55%, #071329 100%);
+}
+.hub .game-card.theme-final-mix .game-cover { background: linear-gradient(160deg, #12376a 0%, #081c42 55%, #071329 100%); }
+.hub .game-card.theme-re-com    .game-cover { background: linear-gradient(160deg, #8a6414 0%, #4a350a 45%, #1c1608 100%); }
+.hub .game-card.theme-ddd       .game-cover { background: linear-gradient(160deg, #8a4ba1 0%, #582a73 45%, #27113f 100%); }
+.hub .game-card.theme-bbs       .game-cover { background: linear-gradient(160deg, #14596b 0%, #073744 50%, #0b2630 100%); }
+.hub .game-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hub .game-cover-art { position: absolute; inset: 0; pointer-events: none; }
+.hub .game-cover-art svg { width: 100%; height: 100%; display: block; }
+.hub .game-cover-heart {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0.13;
+  pointer-events: none;
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.35));
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.hub .game-cover-heart svg { width: 62%; height: 62%; }
+.hub .game-card:hover:not(.disabled) .game-cover-heart { opacity: 0.2; transform: scale(1.03); }
+.hub .game-cover-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.42) 100%);
+}
+.hub .game-cover-title {
+  position: relative;
+  z-index: 2;
+  padding: 0 22px;
+  font-family: var(--kh-font-display);
+  font-size: clamp(17px, 1.35vw, 21px);
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #fff8ea;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 22px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* Info */
+.hub .game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 15px 18px 16px;
+}
+.hub .game-name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--kh-text);
+  letter-spacing: 0.005em;
+  line-height: 1.3;
+}
+.hub .game-subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--kh-text-muted);
+}
+.hub .game-info-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+.hub .game-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.hub .game-status.status-ready {
+  background: var(--kh-success-bg);
+  color: var(--kh-success-text);
+  border: 1px solid rgba(30, 170, 80, 0.2);
+}
+.hub .game-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.hub .game-status.status-setup {
+  background: var(--kh-warn-bg);
+  color: var(--kh-warn-text);
+  border: 1px solid rgba(199, 153, 52, 0.45);
+}
+.hub .game-status.status-soon {
+  background: rgba(199, 153, 52, 0.12);
+  color: var(--kh-gold-dark);
+  border: 1px solid rgba(199, 153, 52, 0.35);
+}
+.hub .game-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--kh-card-border);
+  background: var(--kh-chip-bg);
+  color: var(--kh-gold-dark);
+  transition: background-color var(--kh-ease), color var(--kh-ease), border-color var(--kh-ease), transform var(--kh-ease);
+}
+.hub .game-card:hover:not(.disabled) .game-open {
+  background: linear-gradient(180deg, #e2c46f, #c79a31);
+  border-color: var(--kh-gold);
+  color: #2a200c;
+  transform: translateX(2px);
+}
+
+/* Corner ribbon: «Потрібен setup» / «Coming soon» */
+.hub .game-ribbon {
+  position: absolute;
+  top: 22px;
+  right: -46px;
+  z-index: 3;
+  width: 176px;
+  padding: 4px 0;
+  transform: rotate(38deg);
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2a200c;
+  background: linear-gradient(135deg, #e9c45b, #b78213);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+.hub .game-ribbon:not(.game-ribbon-setup) {
+  background: linear-gradient(135deg, #d43a3a, #8b1010);
+  color: #fff6f0;
+}
+
+/* ---------- List view ---------- */
+.hub.view-list .hub-grid { grid-template-columns: 1fr; gap: 14px; }
+.hub.view-list .game-card { flex-direction: row; align-items: stretch; }
+.hub.view-list .game-cover {
+  flex: 0 0 280px;
+  height: 128px;
+  border-bottom: 0;
+  border-right: 1px solid rgba(180, 130, 30, 0.35);
+}
+.hub.view-list .game-cover-title { font-size: 15px; }
+.hub.view-list .game-info {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 20px;
+  align-items: center;
+  padding: 14px 22px;
+}
+.hub.view-list .game-name { grid-column: 1; }
+.hub.view-list .game-subtitle { grid-column: 1; }
+.hub.view-list .game-info-foot { grid-column: 2; grid-row: 1 / span 2; margin: 0; gap: 16px; }
+.hub.view-list .game-ribbon { top: 14px; right: -54px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1380px) {
+  .hub-grid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
+}
+@media (max-width: 1180px) {
+  .hub-content { padding: 28px 28px 30px; }
+  .hub-hero-spark { display: none; }
+}
+@media (max-width: 880px) {
+  .hub-grid { grid-template-columns: minmax(0, 1fr); }
+  .hub-search { width: 200px; }
+  .hub.view-list .game-cover { flex-basis: 220px; }
+}
+@media (max-width: 720px) {
+  #home-screen.hub { grid-template-columns: 1fr; }
+  .hub-sidebar { display: none; }
+  .hub-content { padding: 20px 16px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-bg-spark, .hub-hero-emblem { animation: none; }
+}

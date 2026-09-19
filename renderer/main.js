@@ -4,7 +4,7 @@ import { _logBadgeUpdate, _logRender, eventLog, toast } from './core/log.js';
 import { state, tState } from './core/state.js';
 import { doOpen, doSave, findNextFromShortcut, hideAbout, hideFind, performFind, showAbout, showFind } from './editor.js';
 import { decodeDds, kApplyKnjLoaded, kRefreshStatus, kRenderGrid, kState } from './kerning/kerning.js';
-import { renderHome } from './screens/home.js';
+import { applyHomeFilter, initHomeNav, renderHome } from './screens/home.js';
 import { bootstrapApp } from './screens/setup.js';
 import { hideSettings, openSettings } from './settings-modal.js';
 import { saveTsvProgress, setSubtab } from './translate/files.js';
@@ -199,6 +199,8 @@ export async function applyLanguage(lang, persist) {
   const finalLang = (lang === 'en') ? 'en' : 'uk';
   if (window.i18n) window.i18n.setLang(finalLang);
   setLangOptsUi(finalLang);
+  // Лічильник проєктів на головній — не data-i18n (має плейсхолдер {n}).
+  try { applyHomeFilter(); } catch (_) {}
   if (persist) {
     try { await window.kh1.translate.saveSettings({ language: finalLang }); } catch (_) {}
     try { await window.kh1.app.setLanguage(finalLang); } catch (_) {}
@@ -229,30 +231,6 @@ langOpts.forEach(btn => {
   btn.addEventListener('click', () => applyLanguage(btn.dataset.lang, true));
 });
 
-// Theme switcher
-export const themeOpts = document.querySelectorAll('.theme-opt');
-export function setThemeOptsUi(theme) {
-  themeOpts.forEach(b => b.setAttribute('aria-checked', b.dataset.theme === theme ? 'true' : 'false'));
-}
-export async function applyTheme(theme, persist) {
-  const finalTheme = (theme === 'light') ? 'light' : 'dark';
-  document.body.classList.toggle('theme-light', finalTheme === 'light');
-  setThemeOptsUi(finalTheme);
-  if (persist) {
-    try { await window.kh1.translate.saveSettings({ theme: finalTheme }); } catch (_) {}
-  }
-}
-export async function initTheme() {
-  try {
-    const s = await window.kh1.translate.getSettings();
-    await applyTheme((s && s.theme) || 'dark', false);
-  } catch (_) {
-    await applyTheme('dark', false);
-  }
-}
-themeOpts.forEach(btn => {
-  btn.addEventListener('click', () => applyTheme(btn.dataset.theme, true));
-});
 
 // Title-bar settings button + first-run auto-open.
 export const tbSettingsBtn = document.getElementById('tb-settings');
@@ -261,6 +239,19 @@ if (tbSettingsBtn) tbSettingsBtn.addEventListener('click', openSettings);
 // Title-bar brand (KH heart) → повернутися на головну.
 export const tbHomeBtn = document.getElementById('tb-home');
 if (tbHomeBtn) tbHomeBtn.addEventListener('click', goHome);
+
+// Sidebar головного екрана → наявні handlers (settings-модал, about-діалог,
+// README на GitHub через shell.openExternal).
+export const HELP_URL = 'https://github.com/LittleBitUA/KH1-Localization-tool#readme';
+initHomeNav({
+  onSettings: openSettings,
+  onAbout: showAbout,
+  onHelp: () => {
+    const p = window.kh1 && window.kh1.app && window.kh1.app.openExternal
+      ? window.kh1.app.openExternal(HELP_URL) : Promise.resolve({ ok: false });
+    p.then((r) => { if (!r || !r.ok) toast(HELP_URL, 'info', 6000); }).catch(() => toast(HELP_URL, 'info', 6000));
+  }
+});
 
 // Event log drawer wiring.
 eventLog.drawer  = document.getElementById('event-log');
@@ -306,11 +297,10 @@ export async function maybeFirstRunSettings() {
   } catch (_) {}
 }
 
-// Послідовний старт: тема (sync) → мова (await, щоб усі i18n-рядки
+// Послідовний старт: мова (await, щоб усі i18n-рядки
 // у setup/home рендерились на правильній мові) → home-картки → bootstrap
 // (вирішує showSetup() vs showHome() за setupCompleted у main.js).
 (async () => {
-  try { initTheme(); } catch (_) {}
   try { await initLanguage(); } catch (_) {}
   try { renderHome(); } catch (_) {}
   try { await bootstrapApp(); } catch (_) {}
