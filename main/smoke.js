@@ -15,7 +15,13 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 
 async function runSmoke(win) {
-  const synth = require(path.join(ROOT, 'test', 'helpers', 'synth'));
+  let synth;
+  try { synth = require(path.join(ROOT, 'test', 'helpers', 'synth')); }
+  catch (_) {
+    console.log('SMOKE SKIP: test/helpers/synth.js is not shipped in packaged builds — run against the source tree (npm run test:smoke).');
+    app.exit(2);
+    return;
+  }
   const codec = require(path.join(ROOT, 'shared', 'codec'));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-smoke-'));
   const engDir = path.join(root, 'ENG'), rusDir = path.join(root, 'RUS');
