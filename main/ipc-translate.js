@@ -15,6 +15,7 @@ const { writeFileAtomic } = require('../shared/safe-fs');
 const { classifyFile } = require('../tools/lib/formats');
 const ops = require('../tools/lib/translate-ops');
 const codec = require('../shared/codec');
+const { nativeMapPathFor } = require('./native-map');
 const { readGlossary, saveGlossary } = require('../tools/lib/glossary');
 const { importFile: importTranslationsFile } = require('../tools/lib/import-translations');
 const { dl } = require('./menu');
@@ -64,6 +65,8 @@ function walkDirSync(root) {
 // налаштувань гри (renderer читає їх при вході в гру та після змін).
 function applyFontScheme(settings) {
   codec.setDefaultScheme((settings && settings.fontScheme) || 'overlay');
+  // Карта нативних гліфів, яку записав генератор шрифту (додаткові символи).
+  if (!codec.getNativeMapPath()) codec.setNativeMapPath(nativeMapPathFor());
   return settings;
 }
 ipcMain.handle('translate:getSettings', (_e, gameId) => {

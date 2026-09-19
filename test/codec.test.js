@@ -159,3 +159,30 @@ test('native scheme: Cyrillic ↔ 19 NN glyph codes, Latin stays Latin, hybrid s
   finally { codec.setDefaultScheme('overlay'); }
   assert.equal(codec.getDefaultScheme(), 'overlay');
 });
+
+test('native scheme: a custom map (generator output with extra letters) overrides the built-in one', () => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-native-map-'));
+  const file = path.join(dir, 'kh1-native-map.json');
+  try {
+    // Без файла — статична карта: Ё невідома у native.
+    codec.setNativeMapPath(file);
+    assert.equal(codec.loadNative().source, 'static');
+    assert.equal(codec.loadNative().encodeMap.has('Ё'), false);
+    // З файлом — беремо його: українські коди ті самі, Ё → 19 42.
+    const base = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'kh1_native.json'), 'utf8'));
+    base.map['Ё'] = [0x19, 0x42];
+    fs.writeFileSync(file, JSON.stringify(base));
+    const nat = codec.loadNative();
+    assert.equal(nat.source, 'custom');
+    assert.deepEqual(nat.encodeMap.get('Ё'), [0x19, 0x42]);
+    assert.deepEqual(nat.encodeMap.get('А'), [0x19, 0x00]);
+    const enc = codec.encode('Ё', { scheme: 'native' });
+    assert.deepEqual([...enc], [0x19, 0x42]);
+    assert.equal(codec.decode(Buffer.from([0x19, 0x42, 0x19, 0x00]), { scheme: 'native' }), 'ЁА');
+  } finally {
+    codec.setNativeMapPath(null);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  assert.equal(codec.loadNative().source, 'static');
+});

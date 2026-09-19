@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const codec = require('../shared/codec');
 const { Worker } = require('worker_threads');
 
 // =====================================================================
@@ -22,7 +23,8 @@ function rejectWorkerPending(slot, reason) {
 }
 
 function makeWorkerSlot() {
-  const w = new Worker(path.join(__dirname, '..', 'workers', 'codec-worker.js'));
+  // Користувацька карта нативних гліфів — та сама, що й у main (див. codec.setNativeMapPath).
+  const w = new Worker(path.join(__dirname, '..', 'workers', 'codec-worker.js'), { workerData: { nativeMapPath: codec.getNativeMapPath() } });
   const slot = { worker: w, pending: new Map() };
   w.on('message', (msg) => {
     const id = msg && msg.id;

@@ -2828,3 +2828,10 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 @media (prefers-reduced-motion: reduce) {
   .hub-bg-spark, .hub-hero-emblem { animation: none; }
 }
+
+/* Шрифти UA: поле додаткових символів (KH1) */
+.uf-extra-input { width: min(420px, 100%); font-family: ui-monospace, Consolas, monospace; font-size: 13px; letter-spacing: 1px; }
+.uf-extra-hint { display: block; margin-top: 4px; font-size: 11px; color: var(--khn-text-muted); }
+.uf-extra-hint.bad { color: #ffb0b0; }
+#uf-extra-font-row .uf-v { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#uf-extra-font-row .uf-extra-hint { flex-basis: 100%; margin-top: 0; }

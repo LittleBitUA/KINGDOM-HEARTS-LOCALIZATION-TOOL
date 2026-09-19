@@ -615,6 +615,23 @@
           <div class="uf-row"><span class="uf-k" data-i18n="ufInputs">Вхідні файли:</span><span id="uf-inputs" class="uf-v mono"></span></div>
           <div class="uf-row"><span class="uf-k" data-i18n="ufBuildDir">Build:</span><span id="uf-build-dir" class="uf-v mono"></span></div>
           <div class="uf-row"><span class="uf-k" data-i18n="ufBackupDir">Backup:</span><span id="uf-backup-dir" class="uf-v mono"></span></div>
+          <div class="uf-row" id="uf-extra-row" hidden>
+            <label class="uf-k" for="uf-extra-letters" data-i18n="ufExtraLetters">Додаткові символи:</label>
+            <span class="uf-v">
+              <input type="text" id="uf-extra-letters" class="uf-extra-input" autocomplete="off" spellcheck="false"
+                     placeholder="ЁёЪъЫыЭэ ĞğŞş Ää…" data-i18n-placeholder="ufExtraLettersPlaceholder">
+              <span id="uf-extra-hint" class="uf-extra-hint"></span>
+            </span>
+          </div>
+          <div class="uf-row" id="uf-extra-font-row" hidden>
+            <span class="uf-k" data-i18n="ufExtraFont">Шрифт для них:</span>
+            <span class="uf-v">
+              <span id="uf-extra-font" class="mono"></span>
+              <button id="uf-extra-font-pick" class="kh-btn" type="button" data-i18n="setupBrowse">Вибрати…</button>
+              <button id="uf-extra-font-reset" class="kh-btn" type="button" data-i18n="ufExtraFontReset">Типовий</button>
+              <span class="uf-extra-hint" data-i18n="ufExtraFontHint">Символи, яких нема у ComicHearts (Ё Ы Э, Ğ Ş…), беруться з цього TTF/OTF; розмір підбирається автоматично.</span>
+            </span>
+          </div>
         </div>
         <p class="uf-hint" data-i18n="ufHint">Кирилиця домальовується у вільні/невживані комірки ігрових шрифтів (ComicHearts для діалогів, KHMenu для інтерфейсу) і кодується на ті самі коди, що й текстовий кодек цієї гри — тому текст і шрифт узгоджені автоматично. Після генерації перевір результат у грі.</p>
         <pre id="uf-log" class="uf-log" aria-live="polite"></pre>

@@ -1,11 +1,12 @@
 'use strict';
 
-const { parentPort } = require('worker_threads');
-const { decode, encode, loadMap, setDefaultScheme } = require('../shared/codec');
+const { parentPort, workerData } = require('worker_threads');
+const { decode, encode, loadMap, setDefaultScheme, setNativeMapPath } = require('../shared/codec');
 const { extract } = require('../tools/lib/extract');
 const { compose } = require('../tools/lib/build');
 
 loadMap();
+if (workerData && workerData.nativeMapPath) setNativeMapPath(workerData.nativeMapPath);
 
 function arrayBufferOf(buf) {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);

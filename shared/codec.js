@@ -21,6 +21,17 @@ const NATIVE_PATH = path.join(__dirname, '..', 'data', 'kh1_native.json');
 const SCHEMES = ['overlay', 'native'];
 let defaultScheme = 'overlay';
 let nativeCache = null;
+// Користувацька карта (kh1-native-map.json, яку пише генератор шрифту з
+// додатковими символами) — має пріоритет над data/kh1_native.json, якщо існує.
+let nativeMapPath = null;
+let nativeCacheKey = '';
+
+function setNativeMapPath(p) {
+  nativeMapPath = p ? String(p) : null;
+  nativeCache = null;
+  return nativeMapPath;
+}
+function getNativeMapPath() { return nativeMapPath; }
 
 function setDefaultScheme(scheme) {
   defaultScheme = SCHEMES.includes(scheme) ? scheme : 'overlay';
@@ -33,8 +44,16 @@ function schemeFromOpts(opts) {
 }
 
 function loadNative() {
-  if (nativeCache) return nativeCache;
-  const raw = readJsonOptional(NATIVE_PATH) || { map: {}, lookalike: {} };
+  // Кеш інвалідовується, коли користувацька карта з'явилась/змінилась.
+  let key = 'static';
+  let custom = null;
+  if (nativeMapPath) {
+    try { const st = fs.statSync(nativeMapPath); key = nativeMapPath + ':' + st.mtimeMs + ':' + st.size; custom = nativeMapPath; }
+    catch (_) { /* нема користувацької карти — статична */ }
+  }
+  if (nativeCache && nativeCacheKey === key) return nativeCache;
+  nativeCacheKey = key;
+  const raw = (custom && readJsonOptional(custom)) || readJsonOptional(NATIVE_PATH) || { map: {}, lookalike: {} };
   const encodeMap = new Map();      // літера → [hi, lo]
   const decodeMap = new Map();      // (hi<<8|lo) → літера
   for (const [ch, pair] of Object.entries(raw.map || {})) {
@@ -43,7 +62,7 @@ function loadNative() {
     decodeMap.set(((pair[0] & 0xFF) << 8) | (pair[1] & 0xFF), ch);
   }
   const lookalike = new Map(Object.entries(raw.lookalike || {}));
-  nativeCache = { encodeMap, decodeMap, lookalike };
+  nativeCache = { encodeMap, decodeMap, lookalike, source: custom ? 'custom' : 'static', font: raw.font || '' };
   return nativeCache;
 }
 
@@ -472,4 +491,4 @@ function loadMap() {
   return load('overlay').singleMap;
 }
 
-module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, setDefaultScheme, getDefaultScheme, loadNative, SCHEMES, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };
+module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, setDefaultScheme, getDefaultScheme, loadNative, setNativeMapPath, getNativeMapPath, SCHEMES, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };

@@ -7,8 +7,44 @@ import { getCurrentGameId } from '../app-shell.js';
 const el = (id) => document.getElementById(id);
 const t = (k, v) => (window.i18n ? window.i18n.t(k, v) : k);
 
-const ufState = { py: null, gameDir: '', buildDir: '', backupDir: '', located: null, busy: false, generated: false };
+const ufState = { py: null, gameDir: '', buildDir: '', backupDir: '', located: null, busy: false, generated: false, extraLetters: '', extraFont: '', defaultExtraFont: '' };
 let _offProgress = null;
+
+// KH1: українська абетка (66) займає комірки 224+; решта вільних — під
+// довільні символи інших мов (336 комірок у шрифті, 224 однобайтові).
+const KH1_UA_COUNT = 66;
+const KH1_FREE_CELLS = 336 - 224;
+
+function uniqueLetters(str) {
+  return [...new Set([...String(str || '').replace(/\s+/g, '')])];
+}
+
+// Поле «Додаткові символи» лише для KH1; підказка рахує вільні комірки.
+function refreshExtraLetters() {
+  const row = el('uf-extra-row');
+  if (!row) return;
+  const isKh1 = getCurrentGameId() === 'kh1-final-mix';
+  row.hidden = !isKh1;
+  if (!isKh1) return;
+  const input = el('uf-extra-letters');
+  const letters = uniqueLetters(input.value);
+  const left = KH1_FREE_CELLS - KH1_UA_COUNT - letters.length;
+  const hint = el('uf-extra-hint');
+  hint.textContent = left >= 0
+    ? t('ufExtraHint', { n: letters.length, left })
+    : t('ufExtraTooMany', { n: -left });
+  hint.classList.toggle('bad', left < 0);
+  ufState.extraLetters = letters.join('');
+  ufState.extraTooMany = left < 0;
+  // Рядок запасного шрифту — лише коли є додаткові символи.
+  const fontRow = el('uf-extra-font-row');
+  if (fontRow) {
+    fontRow.hidden = !letters.length;
+    const cur = ufState.extraFont || ufState.defaultExtraFont;
+    el('uf-extra-font').textContent = cur || t('ufExtraFontNone');
+    el('uf-extra-font-reset').hidden = !ufState.extraFont;
+  }
+}
 
 function log(line, clear) {
   const pre = el('uf-log');
@@ -22,7 +58,7 @@ function refreshButtons() {
   const pyOk = !!(ufState.py && ufState.py.found && !ufState.py.missing.length);
   const canGen = pyOk && ufState.located && !ufState.located.error && !ufState.located.missing.length && !ufState.busy;
   el('uf-pip').disabled = !(ufState.py && ufState.py.found && ufState.py.missing.length) || ufState.busy;
-  el('uf-generate').disabled = !canGen;
+  el('uf-generate').disabled = !canGen || !!ufState.extraTooMany;
   el('uf-install').disabled = !(ufState.generated || ufState.buildDirExists) || ufState.busy;
   el('uf-open-build').disabled = !ufState.buildDir;
 }
@@ -46,10 +82,22 @@ async function refreshPaths() {
   el('uf-game-dir').textContent = gameDir || t('ufNoGameDir');
   try {
     const d = await window.kh1.uafonts.defaults(gameId);
-    ufState.buildDir = d.buildDir; ufState.backupDir = d.backupDir;
+    ufState.buildDir = d.buildDir; ufState.backupDir = d.backupDir; ufState.defaultExtraFont = d.fallbackFont || '';
   } catch (_) {}
   el('uf-build-dir').textContent = ufState.buildDir;
   el('uf-backup-dir').textContent = ufState.backupDir;
+  // Додаткові символи — з налаштувань гри (KH1).
+  const extraInput = el('uf-extra-letters');
+  if (extraInput) {
+    let saved = '';
+    try {
+      const st = await window.kh1.translate.getSettings(gameId);
+      saved = (st && st.extraLetters) || '';
+      ufState.extraFont = (st && st.extraFont) || '';
+    } catch (_) {}
+    extraInput.value = saved;
+    refreshExtraLetters();
+  }
   ufState.located = gameDir ? await window.kh1.uafonts.locate({ gameId, gameDir }) : { error: t('ufNoGameDir') };
   const inp = el('uf-inputs');
   if (ufState.located.error) inp.textContent = '⚠ ' + ufState.located.error;
@@ -71,15 +119,43 @@ export async function initUaFonts() {
         else toast('pip: ' + (r.installed.join(', ') || 'OK'), 'success');
       } finally { ufState.busy = false; await refreshPython(); }
     });
+    const extraInput = el('uf-extra-letters');
+    if (extraInput) {
+      extraInput.addEventListener('input', () => { refreshExtraLetters(); refreshButtons(); });
+      extraInput.addEventListener('change', () => {
+        // Запам'ятати для гри, щоб наступна генерація/компоновка була з тим самим набором.
+        try { window.kh1.translate.saveSettings({ extraLetters: ufState.extraLetters }, getCurrentGameId()); } catch (_) {}
+      });
+    }
+    const fontPick = el('uf-extra-font-pick');
+    if (fontPick) {
+      fontPick.addEventListener('click', async () => {
+        const f = await window.kh1.uafonts.pickFont();
+        if (!f) return;
+        ufState.extraFont = f;
+        try { await window.kh1.translate.saveSettings({ extraFont: f }, getCurrentGameId()); } catch (_) {}
+        refreshExtraLetters();
+      });
+      el('uf-extra-font-reset').addEventListener('click', async () => {
+        ufState.extraFont = '';
+        try { await window.kh1.translate.saveSettings({ extraFont: '' }, getCurrentGameId()); } catch (_) {}
+        refreshExtraLetters();
+      });
+    }
     el('uf-generate').addEventListener('click', async () => {
       const gameId = getCurrentGameId();
       ufState.busy = true; refreshButtons(); log('', true); el('uf-report').classList.add('hidden');
       try {
-        const r = await window.kh1.uafonts.generate({ gameId, gameDir: ufState.gameDir, buildDir: ufState.buildDir });
+        if (gameId === 'kh1-final-mix') {
+          refreshExtraLetters();
+          try { await window.kh1.translate.saveSettings({ extraLetters: ufState.extraLetters }, gameId); } catch (_) {}
+        }
+        const r = await window.kh1.uafonts.generate({ gameId, gameDir: ufState.gameDir, buildDir: ufState.buildDir, extraLetters: ufState.extraLetters, fallbackFont: ufState.extraFont || ufState.defaultExtraFont });
         if (!r.ok) { toast(t('ufGenFail', { msg: r.error }), 'error', 9000); if (r.log) log(r.log); }
         else {
           ufState.generated = true;
           toast(t('ufGenDone', { dir: r.buildDir }), 'success', 7000);
+          if (r.nativeMap) toast(t('ufNativeMapActive', { n: r.nativeMap.letters }), 'info', 6000);
           renderReport(r.report);
         }
       } finally { ufState.busy = false; refreshButtons(); }
@@ -97,6 +173,8 @@ export async function initUaFonts() {
   }
   await refreshPaths();
   await refreshPython();
+  refreshExtraLetters();
+  refreshButtons();
 }
 
 function renderReport(report) {
