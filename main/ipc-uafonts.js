@@ -17,6 +17,7 @@ const path = require('path');
 const fs = require('fs');
 const fsP = require('fs/promises');
 const { spawn } = require('child_process');
+const { kh1OutRel } = require('../shared/text-structure');
 const win = require('./window');
 
 const ROOT = path.join(__dirname, '..');
@@ -288,12 +289,13 @@ ipcMain.handle('translate:installDone', async (_e, payload) => {
       if (e.isDirectory()) { stack.push(childRel); continue; }
       if (!e.isFile() || /\.(tsv|json|bak\.\d+)$/i.test(e.name)) continue;
       const posix = childRel.split(path.sep).join('/');
-      const top = /^exchange\//i.test(posix) ? 'original' : 'remastered';
+      // DONE вже у розкладці гри (remastered/…, original/…); старі плоскі шляхи — мапимо.
+      const gameRel = kh1OutRel(posix);
       const src = path.join(doneDir, childRel);
-      const dst = path.join(hedOut, top, childRel);
+      const dst = path.join(hedOut, gameRel);
       // Кладемо лише туди, де такий файл існує в грі (захист від сміття/чужих шляхів).
-      if (!fs.existsSync(dst)) { stats.skipped++; stats.errors.push('нема в грі: ' + top + '/' + posix); continue; }
-      const bak = path.join(backupDir, 'kh1_first.hed_out', top, childRel);
+      if (!fs.existsSync(dst)) { stats.skipped++; stats.errors.push('нема в грі: ' + gameRel); continue; }
+      const bak = path.join(backupDir, 'kh1_first.hed_out', gameRel);
       try {
         if (!fs.existsSync(bak)) {
           await fsP.mkdir(path.dirname(bak), { recursive: true });
@@ -302,7 +304,7 @@ ipcMain.handle('translate:installDone', async (_e, payload) => {
         }
         await fsP.copyFile(src, dst);
         stats.copied++;
-        sendProgress({ phase: 'install-done', line: top + '/' + posix + '\n' });
+        sendProgress({ phase: 'install-done', line: gameRel + '\n' });
       } catch (err) {
         stats.errors.push(posix + ': ' + (err.message || err));
       }

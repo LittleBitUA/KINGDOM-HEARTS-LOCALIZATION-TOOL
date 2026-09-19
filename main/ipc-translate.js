@@ -249,7 +249,8 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
       opts: payload.opts || {},
       runWorker,
       concurrency: POOL_SIZE * 2,
-      onProgress: sendProgress
+      onProgress: sendProgress,
+      outLayout: payload.outLayout || null
     });
   } catch (e) {
     return { error: (e && e.message) || String(e) };

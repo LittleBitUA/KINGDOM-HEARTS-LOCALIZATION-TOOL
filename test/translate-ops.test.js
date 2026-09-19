@@ -258,3 +258,23 @@ test('text-quality: bytecode fragments are not translatable slots', () => {
     assert.equal(looksLikeText(good), true, good);
   }
 });
+
+test('composeAll outLayout kh1-hedout writes DONE in the game layout (remastered/, original/exchange/)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-layout-'));
+  try {
+    const eng = path.join(dir, 'ENG'), out = path.join(dir, 'DONE');
+    fs.mkdirSync(path.join(eng, 'dh01.ard'), { recursive: true });
+    fs.mkdirSync(path.join(eng, 'exchange'), { recursive: true });
+    fs.writeFileSync(path.join(eng, 'dh01.ard', 'UK_a.binl'), synth.buildBinl(['Wake up!']));
+    fs.writeFileSync(path.join(eng, 'exchange', 'UK_x.bin'), synth.buildBinl(['Potion', 'Ether', 'Elixir'], { header: 0, footer: 0 }));
+    const r = await ops.composeAll(['dh01.ard/UK_a.binl', 'exchange/UK_x.bin'], { engDir: eng, rusDir: path.join(dir, 'none'), outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Potion': 'Зілля' }, safeMode: true, outLayout: 'kh1-hedout' });
+    assert.equal(r.written, 2);
+    assert.ok(fs.existsSync(path.join(out, 'remastered', 'dh01.ard', 'UK_a.binl')));
+    assert.ok(fs.existsSync(path.join(out, 'original', 'exchange', 'UK_x.bin')));
+    const { kh1OutRel } = require('../shared/text-structure');
+    assert.equal(kh1OutRel('remastered/dh01.ard/UK_a.binl'), 'remastered/dh01.ard/UK_a.binl');
+    assert.equal(kh1OutRel('menu/uk/sysmsg.bin/UK_sysmsg.binl'), 'remastered/menu/uk/sysmsg.bin/UK_sysmsg.binl');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

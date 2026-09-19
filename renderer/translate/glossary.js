@@ -389,7 +389,8 @@ export async function composeAllFiles() {
       tsvDir: tState.settings.tsvDir || null,
       files: tState.files.map(f => f.rel),
       glossary: gState.translations,
-      safeMode: tState.safeMode
+      safeMode: tState.safeMode,
+      outLayout: getCurrentGameId() === 'kh1-final-mix' ? 'kh1-hedout' : null
     });
     if (r.error) { toast(window.i18n.t('toastError', {msg: r.error}), 'error', 6000); return; }
 

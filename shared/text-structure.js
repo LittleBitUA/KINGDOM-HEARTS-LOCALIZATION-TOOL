@@ -195,8 +195,18 @@
     return out;
   }
 
+  // KH1: у DONE кладемо файли так, як вони лежать у розпакованій грі
+  // (kh1_first.hed_out): exchange/* → original/exchange/*, решта → remastered/*.
+  // Шляхи, що вже мають префікс, лишаємо.
+  function kh1OutRel(rel) {
+    const r = String(rel || '').replace(/\\/g, '/');
+    if (/^(remastered|original)\//i.test(r)) return r;
+    return (/^exchange\//i.test(r) ? 'original/' : 'remastered/') + r;
+  }
+
   return {
     LETTER_RE,
+    kh1OutRel,
     legacyTokenPairs,
     upgradeLegacyUk,
     preserveStructure,

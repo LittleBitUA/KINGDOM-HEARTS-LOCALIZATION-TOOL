@@ -9,4 +9,4 @@ export const autoFixStructure = ts.autoFixStructure;
 export const syncPaddingFromEn = ts.syncPaddingFromEn;
 export const LETTER_RE = ts.LETTER_RE;
 export const tsvFormat = window.KH.tsv;
-
+export const kh1OutRel = ts.kh1OutRel;

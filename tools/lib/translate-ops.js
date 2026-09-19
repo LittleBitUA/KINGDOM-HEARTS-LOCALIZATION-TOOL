@@ -10,7 +10,7 @@ const fsP = require('fs/promises');
 const path = require('path');
 const { classifyFile, parseFile } = require('./formats');
 const { legacyCommandKey } = require('../../shared/codec');
-const { preserveStructure, validateTokens, upgradeLegacyUk } = require('../../shared/text-structure');
+const { preserveStructure, validateTokens, upgradeLegacyUk, kh1OutRel } = require('../../shared/text-structure');
 
 // Структурний guard (ідея з OpenKh PR #1275 ValidateBody): переклад не має
 // губити керівні токени оригіналу і не може додавати «структурні» команди
@@ -237,7 +237,8 @@ async function composeAll(files, env) {
   async function processOne(rel) {
     const { engPath, cls } = classifyRel(engDir, rel);
     const rusPath = path.join(rusDir, rel);
-    const outPath = path.join(outDir, rel);
+    // env.outLayout === 'kh1-hedout' — розкладка як у kh1_first.hed_out (remastered/, original/exchange/).
+    const outPath = path.join(outDir, env.outLayout === 'kh1-hedout' ? kh1OutRel(rel) : rel);
     if (!fs.existsSync(engPath)) return { rel, status: 'missing' };
     if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
     try {
