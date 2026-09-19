@@ -114,6 +114,8 @@ async function runSmoke(win) {
     check('uafonts.python responds', py && typeof py.found === 'boolean', py);
     const loc = await call(`window.kh1.uafonts.locate(${J({ gameId: 'kh-bbs-final-mix', gameDir: root })})`);
     check('uafonts.locate reports missing hed_out', loc && /bbs_first\.hed_out/.test(loc.error || ''), loc);
+    const loc1 = await call(`window.kh1.uafonts.locate(${J({ gameId: 'kh1-final-mix', gameDir: root })})`);
+    check('uafonts.locate kh1 reports missing hed_out', loc1 && /kh1_first\.hed_out/.test(loc1.error || ''), loc1);
     const dfl = await call('window.kh1.uafonts.defaults("kh-ddd")');
     check('uafonts.defaults', dfl && /FONTS/.test(dfl.buildDir), dfl);
 

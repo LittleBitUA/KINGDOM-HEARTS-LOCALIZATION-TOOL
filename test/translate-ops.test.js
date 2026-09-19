@@ -222,3 +222,28 @@ test('classify: X_offset.bin + X_data.bin pair (wsysmsg/wname) is mesofs/mesdata
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('native scheme: composeAll writes 19 NN codes for KH1 binl and sysmsg uses hybrid', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-native-'));
+  try {
+    const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS'), out = path.join(dir, 'DONE');
+    for (const d of [eng, rus, out]) fs.mkdirSync(d);
+    fs.writeFileSync(path.join(eng, 'n.binl'), synth.buildBinl(['Wake up!', 'Run']));
+    fs.writeFileSync(path.join(rus, 'n.binl'), synth.buildBinl(['Nope']));
+    fs.writeFileSync(path.join(eng, 'UK_sysmsg.binl'), synth.buildMsgV361(['Load this game?', 'Form your party.']));
+    codec.setDefaultScheme('native');
+    try {
+      const r = await ops.composeAll(['n.binl', 'UK_sysmsg.binl'], { engDir: eng, rusDir: rus, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Run': 'Біжи', 'Load this game?': 'Завантажити цю гру?' }, safeMode: true });
+      assert.equal(r.written, 2);
+      assert.deepEqual(r.errors, []);
+      const binl = fs.readFileSync(path.join(out, 'n.binl'));
+      assert.ok(binl.includes(Buffer.from([0x19, 0x13, 0x19, 0x35])), 'П р as 19 NN');
+      assert.match(codec.decode(binl.subarray(11), { scheme: 'native' }), /Прокинься!/);
+      const sys = require('../tools/lib/msg-v361').parseMessageV361(fs.readFileSync(path.join(out, 'UK_sysmsg.binl')));
+      const first = codec.decode(sys.entries[0].bytes, { scheme: 'native', cmd: 'sysmsg' });
+      assert.equal(first, 'Зaвaнтaжити цю гpy?');   // hybrid: а/р/у → латинські a/p/y (1 байт)
+    } finally { codec.setDefaultScheme('overlay'); }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

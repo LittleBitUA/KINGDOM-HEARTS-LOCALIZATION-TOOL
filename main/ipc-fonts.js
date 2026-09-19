@@ -8,6 +8,7 @@ const fs = require('fs/promises');
 const fsSync = require('fs');
 const win = require('./window');
 const { runWorker } = require('./worker-pool');
+const codec = require('../shared/codec');
 const { loadSettings, saveSettings } = require('./settings');
 const bbsFont = require('../tools/lib/bbs-font');
 const { dl } = require('./menu');
@@ -227,7 +228,15 @@ ipcMain.handle('app:getCharMap', async () => {
         if (typeof c === 'string') out[n] = c;
       }
     }
-    return { ok: true, map: out };
+    // Нативна кирилиця: індекси гліфів 224+ (коди 19 NN) → літера, для підписів у Kerning.
+    const native = {};
+    try {
+      const nat = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'kh1_native.json'), 'utf8'));
+      for (const [ch, pair] of Object.entries(nat.map || {})) {
+        if (Array.isArray(pair) && pair.length === 2) native[((pair[0] - 0x19) << 8) + pair[1] + 0xE0] = ch;
+      }
+    } catch (_) {}
+    return { ok: true, map: out, native };
   } catch (e) {
     return { ok: false, error: (e && e.message) || String(e) };
   }
@@ -236,7 +245,7 @@ ipcMain.handle('app:getCharMap', async () => {
 ipcMain.handle('kerning:encodeText', async (_e, text) => {
   if (typeof text !== 'string' || text.length === 0) return { ok: true, bytes: [] };
   try {
-    const r = await runWorker({ op: 'encode', text });
+    const r = await runWorker({ op: 'encode', text, scheme: codec.getDefaultScheme() });
     const arr = Array.from(new Uint8Array(r.bytes));
     return { ok: true, bytes: arr };
   } catch (e) {

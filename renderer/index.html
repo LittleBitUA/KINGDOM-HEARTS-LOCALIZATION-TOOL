@@ -703,6 +703,18 @@
       <p class="setting-hint" id="dirs-hint" data-i18n="dirsHint">MYFILES-тека визначає список файлів. ENG-тека має містити файли з тими самими відносними шляхами. Прогрес зберігається у PROGRESS-теку, готові файли — у DONE-теку.</p>
       </div>
 
+      <div class="setting-section" id="font-scheme-section">
+        <h3 class="setting-section-title" data-i18n="fontSchemeTitle">Кирилиця у шрифті (KH1)</h3>
+        <div class="setting-row">
+          <label for="set-font-scheme" data-i18n="fontSchemeLabel">Схема кодування</label>
+          <select id="set-font-scheme" class="kh-select">
+            <option value="overlay" data-i18n="fontSchemeOverlay">Накладання — кирилиця замість акцентованої латиниці (0xC8+)</option>
+            <option value="native" data-i18n="fontSchemeNative">Нативна — власні гліфи 224+ (коди 19 NN), латиниця недоторкана</option>
+          </select>
+        </div>
+        <p class="setting-hint" data-i18n="fontSchemeHint">Нативна схема потребує шрифту, згенерованого у вкладці «Шрифти UA» (UK_kanji.knj + UK_kanji_knj0.dds). Змінює лише кодування при збірці й читанні файлів; текст перекладу той самий. sysmsg.binl збирається гібридно (схожі на латиницю літери — 1 байт) через буфер гри 0x4800.</p>
+      </div>
+
       <div class="modal-actions">
         <button id="settings-reopen-setup" class="kh-btn" type="button"
                 data-i18n="reopenSetup"

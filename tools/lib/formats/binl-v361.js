@@ -52,7 +52,8 @@ async function parse(engPath) {
           // 0x00 всередині запису допустимий лише як байт параметра команди
           // (оригінали містять `{0x0D,0x06,0x00}`); «голий» {eol}/перенос — помилка.
           if (/\{eol\}|[\r\n]/.test(uk)) throw new Error('текст містить {eol}/перенос рядка — у Message v361 це термінатор запису; для переносу використовуй {lf}');
-          rep.set(s.index, codec.encode(uk));
+          // native-схема: схожі на латинські літери — 1 байтом (буфер гри 0x4800).
+          rep.set(s.index, codec.encode(uk, { hybrid: true }));
         } catch (e) {
           errors.push({ offset: off, message: (e && e.message) || String(e) });
         }

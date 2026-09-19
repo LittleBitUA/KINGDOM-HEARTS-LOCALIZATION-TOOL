@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const win = require('./window');
 const { runWorker } = require('./worker-pool');
+const codec = require('../shared/codec');
 const { dl } = require('./menu');
 
 const filtersOpen = () => [
@@ -38,7 +39,7 @@ ipcMain.handle('file:open', async (_e, opts) => {
       buffer.byteOffset,
       buffer.byteOffset + buffer.byteLength
     );
-    const r = await runWorker({ op: 'decode', bytes: ab, decodeMode }, [ab]);
+    const r = await runWorker({ op: 'decode', bytes: ab, decodeMode, scheme: codec.getDefaultScheme() }, [ab]);
     return {
       canceled: false,
       decodeMode,
@@ -67,7 +68,7 @@ ipcMain.handle('file:save', async (_event, payload) => {
 
   let bytes;
   try {
-    const r = await runWorker({ op: 'encode', text });
+    const r = await runWorker({ op: 'encode', text, scheme: codec.getDefaultScheme() });
     bytes = Buffer.from(r.bytes);
   } catch (e) {
     return { canceled: false, error: (e && e.message) || String(e) };

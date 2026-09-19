@@ -1,7 +1,7 @@
 'use strict';
 
 const { parentPort } = require('worker_threads');
-const { decode, encode, loadMap } = require('../shared/codec');
+const { decode, encode, loadMap, setDefaultScheme } = require('../shared/codec');
 const { extract } = require('../tools/lib/extract');
 const { compose } = require('../tools/lib/build');
 
@@ -15,6 +15,8 @@ parentPort.on('message', (msg) => {
   const id = msg && msg.id;
   const op = msg && msg.op;
   try {
+    // Схема кирилиці (overlay/native) приходить з main разом із кожним запитом.
+    setDefaultScheme((msg && msg.scheme) || 'overlay');
     if (op === 'decode') {
       const buf = Buffer.from(msg.bytes);
       const mode = msg.decodeMode === 'base' ? false : (msg.decodeMode === 'overlay' ? true : 'smart');

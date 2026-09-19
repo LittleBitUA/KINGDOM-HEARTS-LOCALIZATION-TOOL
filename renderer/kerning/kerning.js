@@ -10,7 +10,7 @@ export const CELL_W = 48;
 export const CELL_H = 64;
 export const COLS = Math.floor(ATLAS_W / CELL_W); // 21
 export const ROWS = Math.floor(ATLAS_H / CELL_H); // 16
-export const MAX_GLYPHS = 230;
+export const MAX_GLYPHS = 336;   // 21×16 комірок; 224+ — нативна кирилиця (коди 19 NN)
 export const KERNING_OFFSET = 0x40080;
 export const SCALE = 2; // canvas рендериться у 2x для чіткості та зручності drag
 
@@ -22,20 +22,25 @@ export const kState = {
   glyphs: [],          // { idx, x, y, byteValue, originalByte, canvas }
   dirty: false,
   filterText: '',
-  charMap: null        // { byte: char } — завантажується через IPC
+  charMap: null,       // { byte: char } — завантажується через IPC
+  nativeMap: null      // { glyphIdx: char } для 224+ (нативна кирилиця)
 };
 
 export async function kEnsureCharMap() {
   if (kState.charMap) return;
   try {
     const r = await window.kh1.app.getCharMap();
-    if (r.ok) kState.charMap = r.map;
+    if (r.ok) { kState.charMap = r.map; kState.nativeMap = r.native || {}; }
     else kState.charMap = {};
   } catch (_) { kState.charMap = {}; }
   _kReverseCharMap = null;   // буде перебудовано при першому пошуку за символом
 }
 
 export function kGlyphLabel(idx) {
+  if (idx >= 224) {
+    const nch = kState.nativeMap ? kState.nativeMap[idx] : '';
+    return '#' + idx + ' 19 ' + (idx - 224).toString(16).toUpperCase().padStart(2, '0') + (nch ? ' (' + nch + ')' : '');
+  }
   const byte = idx + BYTE_GLYPH_OFFSET;
   let ch = kState.charMap ? kState.charMap[byte] : '';
   if (typeof ch !== 'string' || !ch) return '#' + idx;
@@ -744,8 +749,14 @@ export async function kRenderPreview() {
   const tctx = tmp.getContext('2d');
 
   const SPACE_PX = 10; // фіксована ширина пробілу для preview
-  for (const byte of bytes) {
+  for (let bi = 0; bi < bytes.length; bi++) {
+    let byte = bytes[bi];
     if (byte === 0x00) continue; // sentinel/end-of-string
+    // Нативна кирилиця: 19..1F NN → індекс (b−0x19)·256 + NN + 0xE0 (як у грі)
+    if (byte >= 0x19 && byte <= 0x1F && bi + 1 < bytes.length) {
+      byte = ((byte - 0x19) << 8) + bytes[bi + 1] + 0xE0 + BYTE_GLYPH_OFFSET;
+      bi++;
+    }
     if (byte === 0x01) { // пробіл
       x += SPACE_PX * SCALE_PV;
       totalWidth += SPACE_PX;

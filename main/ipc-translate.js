@@ -14,6 +14,7 @@ const { loadSettings, saveSettings } = require('./settings');
 const { writeFileAtomic } = require('../shared/safe-fs');
 const { classifyFile } = require('../tools/lib/formats');
 const ops = require('../tools/lib/translate-ops');
+const codec = require('../shared/codec');
 const { readGlossary, saveGlossary } = require('../tools/lib/glossary');
 const { importFile: importTranslationsFile } = require('../tools/lib/import-translations');
 const { dl } = require('./menu');
@@ -58,8 +59,23 @@ function walkDirSync(root) {
 
 // translate:getSettings(gameId?) — повертає merged settings (global + game-scoped).
 
-ipcMain.handle('translate:getSettings', (_e, gameId) => loadSettings(gameId || null));
-ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => saveSettings(payload || {}, gameId || null));
+// Схема кирилиці KH1 (overlay/native) живе у per-game settings; кодек у main
+// і worker'и беруть її як default. Оновлюємо при кожному читанні/записі
+// налаштувань гри (renderer читає їх при вході в гру та після змін).
+function applyFontScheme(settings) {
+  codec.setDefaultScheme((settings && settings.fontScheme) || 'overlay');
+  return settings;
+}
+ipcMain.handle('translate:getSettings', (_e, gameId) => {
+  const s = loadSettings(gameId || null);
+  if (gameId) applyFontScheme(s);
+  return s;
+});
+ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => {
+  const s = saveSettings(payload || {}, gameId || null);
+  if (payload && payload.fontScheme !== undefined) applyFontScheme(s);
+  return s;
+});
 
 ipcMain.handle('translate:pickDirectory', async (_e, title) => {
   const r = await dialog.showOpenDialog(win.get(), {

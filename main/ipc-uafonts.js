@@ -138,6 +138,17 @@ const PROFILES = {
     args: (inp, out) => ['--bin', inp.bin, '--vtm', inp.vtm, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'Recom.hed_out', 'remastered', 'SYS', '0001')],
     outputs: 'Recom.hed_out/remastered/SYS/0001/{SY0001.BIN,SY0001.VTM}/UK_{sys,evt}font*'
   },
+  'kh1-final-mix': {
+    hedOut: 'kh1_first.hed_out',
+    script: path.join('kh1', 'kh1font.py'),
+    inputs: (hedOut) => ({
+      knj: path.join(hedOut, 'original', 'exchange', 'UK_kanji.knj'),
+      dds: path.join(hedOut, 'remastered', 'exchange', 'UK_kanji.knj', 'UK_kanji_knj0.dds')
+    }),
+    args: (inp, out) => ['--knj', inp.knj, '--dds', inp.dds, '--font', FONT_COMIC, '--layout', 'game',
+      '--out', path.join(out, 'kh1_first.hed_out'), '--preview', path.join(out, 'kh1_first.hed_out', 'preview.png')],
+    outputs: 'kh1_first.hed_out/original/exchange/UK_kanji.knj + remastered/exchange/UK_kanji.knj/UK_kanji_knj0.dds (нативна кирилиця, коди 19 NN)'
+  },
   'kh-ddd': {
     hedOut: 'kh3d_first.hed_out',
     script: path.join('ddd', 'make_ua_font.py'),

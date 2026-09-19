@@ -26,7 +26,7 @@ export function enterEditor(gameId) {
 
   const isKh1 = _currentGameId === 'kh1-final-mix';
   const isBbs = _currentGameId === 'kh-bbs-final-mix';
-  const hasUaFonts = ['kh-bbs-final-mix', 'kh-re-com', 'kh-ddd'].includes(_currentGameId);
+  const hasUaFonts = ['kh1-final-mix', 'kh-bbs-final-mix', 'kh-re-com', 'kh-ddd'].includes(_currentGameId);
   // Mode tabs які доступні цій грі.
   // KH1:    Editor + Translate + Kerning.
   // BBS:    Translate + Шрифт BBS (font-hack для UA).

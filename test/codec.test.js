@@ -133,3 +133,27 @@ test('encodeAliases (typographic dashes/quotes) map to bytes', () => {
     assert.doesNotThrow(() => codec.encode(ch), ch);
   }
 });
+
+test('native scheme: Cyrillic ↔ 19 NN glyph codes, Latin stays Latin, hybrid shares look-alikes', () => {
+  const map = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'data', 'kh1_native.json'), 'utf8'));
+  const UA = 'АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯабвгґдеєжзиіїйклмнопрстуфхцчшщьюя';
+  assert.equal(Object.keys(map.map).length, 66);
+  // мапа детермінована: літера i → індекс 224+i → 19 (i)
+  for (let i = 0; i < UA.length; i++) assert.deepEqual(map.map[UA[i]], [0x19, i]);
+
+  const text = 'Привіт, Sora! Ґудзик {ColorRed}A{ColorBase}';
+  const nat = codec.encode(text, { scheme: 'native' });
+  assert.deepEqual([...nat.subarray(0, 4)], [0x19, 0x13, 0x19, 0x35]);            // П р
+  assert.equal(codec.decode(nat, { scheme: 'native' }), text);                     // без втрат
+  assert.match(codec.decode(nat, { overlay: false }), /^\{0x19\}/);                // без схеми — сирі байти
+  // Латиниця у native — звичайні байти таблиці (не overlay-кирилиця)
+  assert.deepEqual([...codec.encode('Sora', { scheme: 'native' })], [...codec.encode('Sora', { overlay: false })]);
+  // hybrid: А/В/С/Е… — 1 байт латинського гліфа; решта — 19 NN
+  const hyb = codec.encode('САД', { scheme: 'native', hybrid: true });
+  assert.deepEqual([...hyb], [...codec.encode('CA', { overlay: false }), 0x19, 0x05]);
+  // default-схема перемикається глобально (main/worker)
+  codec.setDefaultScheme('native');
+  try { assert.deepEqual([...codec.encode('Ї')], [0x19, 0x0C]); }
+  finally { codec.setDefaultScheme('overlay'); }
+  assert.equal(codec.getDefaultScheme(), 'overlay');
+});

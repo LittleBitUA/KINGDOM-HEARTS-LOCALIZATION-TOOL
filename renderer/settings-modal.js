@@ -14,6 +14,11 @@ export function openSettings() {
   setOutDir.value = tState.settings.outDir || '';
   // Сховати/показати dir-rows під обрану гру (BBS не використовує RUS-теку).
   applyGameDirsVisibility();
+  // Схема кирилиці — лише для KH1.
+  const schemeSection = document.getElementById('font-scheme-section');
+  const schemeSel = document.getElementById('set-font-scheme');
+  if (schemeSection) schemeSection.style.display = getCurrentGameId() === 'kh1-final-mix' ? '' : 'none';
+  if (schemeSel) schemeSel.value = tState.settings.fontScheme === 'native' ? 'native' : 'overlay';
   settingsOverlay.classList.remove('hidden');
   settingsOverlay.setAttribute('aria-hidden', 'false');
 }
@@ -76,3 +81,17 @@ settingsOverlay.addEventListener('click', (e) => {
 });
 settingsClose.addEventListener('click', hideSettings);
 
+// Схема кирилиці KH1: зберігається per-game; main перемикає кодек одразу.
+const fontSchemeSel = document.getElementById('set-font-scheme');
+if (fontSchemeSel) {
+  fontSchemeSel.addEventListener('change', async () => {
+    const scheme = fontSchemeSel.value === 'native' ? 'native' : 'overlay';
+    tState.settings.fontScheme = scheme;
+    try {
+      await window.kh1.translate.saveSettings({ fontScheme: scheme }, getCurrentGameId());
+      toast(window.i18n.t('toastFontScheme', { scheme }), 'info', 5000);
+    } catch (e) {
+      toast(window.i18n.t('toastError', { msg: e.message }), 'error', 6000);
+    }
+  });
+}

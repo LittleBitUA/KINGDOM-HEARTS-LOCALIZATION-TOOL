@@ -6,6 +6,46 @@ const fs = require('fs');
 const BASE_PATH = path.join(__dirname, '..', 'data', 'kh1sys_text.json');
 const OVERLAY_PATH = path.join(__dirname, '..', 'data', 'ukrainian.json');
 const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
+const NATIVE_PATH = path.join(__dirname, '..', 'data', 'kh1_native.json');
+
+// =====================================================================
+// Схема шрифту для кирилиці:
+//   'overlay' — кирилиця на комірках акцентованої латиниці (ukrainian.json);
+//   'native'  — власні гліфи у вільних комірках 224+ шрифту діалогів
+//               (tools/py/kh1/kh1font.py), літера = 2 байти `19 NN`
+//               (docs/formats/kh1-dialog-text.md). Латиниця лишається латиницею.
+//   opts.hybrid (лише для native) — літери, що виглядають як латинські (А В С Е…),
+//   пишуться 1 байтом латинського гліфа: для sysmsg.binl з буфером 0x4800.
+// Default-схему виставляє main за налаштуваннями гри (setDefaultScheme).
+// =====================================================================
+const SCHEMES = ['overlay', 'native'];
+let defaultScheme = 'overlay';
+let nativeCache = null;
+
+function setDefaultScheme(scheme) {
+  defaultScheme = SCHEMES.includes(scheme) ? scheme : 'overlay';
+  return defaultScheme;
+}
+function getDefaultScheme() { return defaultScheme; }
+function schemeFromOpts(opts) {
+  const s = opts && opts.scheme;
+  return SCHEMES.includes(s) ? s : defaultScheme;
+}
+
+function loadNative() {
+  if (nativeCache) return nativeCache;
+  const raw = readJsonOptional(NATIVE_PATH) || { map: {}, lookalike: {} };
+  const encodeMap = new Map();      // літера → [hi, lo]
+  const decodeMap = new Map();      // (hi<<8|lo) → літера
+  for (const [ch, pair] of Object.entries(raw.map || {})) {
+    if (!Array.isArray(pair) || pair.length !== 2) continue;
+    encodeMap.set(ch, [pair[0] & 0xFF, pair[1] & 0xFF]);
+    decodeMap.set(((pair[0] & 0xFF) << 8) | (pair[1] & 0xFF), ch);
+  }
+  const lookalike = new Map(Object.entries(raw.lookalike || {}));
+  nativeCache = { encodeMap, decodeMap, lookalike };
+  return nativeCache;
+}
 
 // 2-байтові керівні префікси: після такого байта йде ОБОВʼЯЗКОВО ще один
 // параметр-байт (тривалість паузи, ID кольору тощо). Якщо комбінація
@@ -215,7 +255,10 @@ function hex2(b) {
 //   opts.overlay — режим таблиці (див. MODES)
 //   opts.cmd     — 'evmsg' (default) | 'sysmsg' — діалект керівних команд
 function decode(bytes, opts) {
-  const { singleMap, multiMap } = load(modeFromOpts(opts));
+  const native = schemeFromOpts(opts) === 'native';
+  // native: латиниця читається як латиниця (base), кирилиця — лише з 19 NN
+  const { singleMap, multiMap } = load(native ? 'base' : modeFromOpts(opts));
+  const nat = native ? loadNative() : null;
   const sysmsg = !!(opts && opts.cmd === 'sysmsg');
   const NL = '\n';
   const len = bytes.length;
@@ -224,6 +267,14 @@ function decode(bytes, opts) {
 
   while (i < len) {
     const b = bytes[i];
+
+    if (nat && b >= 0x19 && b <= 0x1F && i + 1 < len) {
+      const ch = nat.decodeMap.get((b << 8) | bytes[i + 1]);
+      if (ch !== undefined) { out += ch; i += 2; continue; }
+      out += '{0x' + hex2(b) + ',0x' + hex2(bytes[i + 1]) + '}';
+      i += 2;
+      continue;
+    }
 
     if (sysmsg && SYSMSG_CMD_LEN[b] !== undefined && i + 1 < len) {
       const n = Math.min(SYSMSG_CMD_LEN[b], len - i);
@@ -303,7 +354,11 @@ function parseRawHexToken(s, i) {
 // Без lenient кидає Error зі СПИСКОМ усіх незакодованих символів (не лише
 // першого), щоб composeAll міг показати перекладачу, що саме виправляти.
 function encodeDetailed(text, opts) {
-  const { byFirstChar } = load(modeFromOpts(opts));
+  const native = schemeFromOpts(opts) === 'native';
+  const hybrid = native && !!(opts && opts.hybrid);
+  // native: reverse-таблиця без overlay (щоб «А» не пішла на акцентовану комірку)
+  const { byFirstChar } = load(native ? 'base' : modeFromOpts(opts));
+  const nat = native ? loadNative() : null;
   const lenient = !!(opts && opts.lenient);
   let s = text == null ? '' : String(text);
 
@@ -331,6 +386,16 @@ function encodeDetailed(text, opts) {
     }
 
     let matched = false;
+    if (nat) {
+      const ch = s[i];
+      if (hybrid && nat.lookalike.has(ch)) {
+        const latin = byFirstChar.get(nat.lookalike.get(ch).charCodeAt(0));
+        const hit = latin && latin.find(e => e[0].length === 1);
+        if (hit) { for (const b of hit[1]) bytes.push(b); i++; continue; }
+      }
+      const pair = nat.encodeMap.get(ch);
+      if (pair) { bytes.push(pair[0], pair[1]); i++; continue; }
+    }
     const bucket = byFirstChar.get(c0);
     if (bucket) {
       for (let j = 0; j < bucket.length; j++) {
@@ -403,4 +468,4 @@ function loadMap() {
   return load('overlay').singleMap;
 }
 
-module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };
+module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, setDefaultScheme, getDefaultScheme, loadNative, SCHEMES, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };
