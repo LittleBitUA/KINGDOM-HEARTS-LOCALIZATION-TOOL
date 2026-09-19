@@ -1625,6 +1625,7 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   background-attachment: fixed;
 }
 .setup-screen .ico { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
+.setup-screen .ico-lg { width: 18px; height: 18px; }
 
 /* --- фон: зорі, серце, силуети замків, підписи (закріплені до вікна) --- */
 .setup-sky { position: fixed; top: var(--khn-tb-height); left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
@@ -1956,6 +1957,7 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   color: #2a1d05;
   font-size: 11.5px; font-weight: 700;
 }
+.setup-run-count[hidden] { display: none; }
 .setup-screen .setup-btn-secondary { color: var(--su-muted); background: rgba(255, 255, 255, 0.03); }
 .setup-screen .setup-btn-secondary:hover:not(:disabled) { color: var(--su-text); }
 
