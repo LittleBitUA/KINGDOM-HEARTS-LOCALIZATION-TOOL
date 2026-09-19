@@ -137,6 +137,40 @@ function buildCtdl(textsIn) {
   return buf;
 }
 
+// Message v361 .binl (sysmsg): header 0x20, u16 offset table (count або count+1
+// із sentinel), текст із 0x00-термінаторами, padding 0xCD/0x00 до кратного 16.
+// opts: { sentinel: bool (default true), cdPad: bool (default true) }
+function buildMsgV361(strings, opts) {
+  const o = opts || {};
+  const sentinel = o.sentinel !== false;
+  const cdPad = o.cdPad !== false;
+  const encoded = strings.map(t => kh1.encode(t));
+  const count = strings.length;
+  const offsetCount = sentinel ? count + 1 : count;
+  const offsetTableLength = offsetCount * 2;
+  const textOffset = 0x20 + offsetTableLength;
+  const offsets = [];
+  let cur = 0;
+  for (const b of encoded) { offsets.push(cur); cur += b.length + 1; }
+  if (sentinel) offsets.push(cur);
+  const textLength = cur + (sentinel ? 1 : 0);
+  const header = Buffer.alloc(textOffset);
+  header.write('Message v361', 0, 'ascii');
+  header.writeUInt32LE(count, 0x0C);
+  header.writeUInt32LE(0x20, 0x10);
+  header.writeUInt32LE(textOffset, 0x14);
+  header.writeUInt32LE(offsetTableLength, 0x18);
+  header.writeUInt32LE(textLength, 0x1C);
+  offsets.forEach((v, i) => header.writeUInt16LE(v, 0x20 + i * 2));
+  const parts = [header];
+  for (const b of encoded) parts.push(b, Buffer.from([0]));
+  if (sentinel) parts.push(Buffer.from([0]));
+  let out = Buffer.concat(parts);
+  const total = alignUp(out.length, 16);
+  if (total > out.length) out = Buffer.concat([out, Buffer.alloc(total - out.length, cdPad ? 0xCD : 0x00)]);
+  return out;
+}
+
 function alignUp(v, m) { const r = v % m; return r === 0 ? v : v + (m - r); }
 
-module.exports = { buildBinl, buildMesOfs, buildEv, buildCtd, buildCtdl };
+module.exports = { buildBinl, buildMesOfs, buildEv, buildCtd, buildCtdl, buildMsgV361 };

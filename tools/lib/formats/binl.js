@@ -73,4 +73,4 @@ async function parse(engPath, env) {
   };
 }
 
-module.exports = { kind: 'binl', preserveWhitespace: true, parse };
+module.exports = { kind: 'binl', preserveWhitespace: true, structuralGuard: true, parse };

@@ -91,7 +91,8 @@ test('ev: growing text relocates footer pointers by sizeDiff and keeps footer by
   assert.equal(c.relocCount, 2);
   assert.equal(c.buf.readUInt32LE(16), footerOffset + c.sizeDiff);
   assert.deepEqual([...c.buf.subarray(c.buf.length - 8)], [...buf.subarray(buf.length - 8)]);
-  assert.equal(c.newTextLength % 4, 0);
+  // Усі оригінальні ENG/RUS .ev/.evdl мають текстову секцію кратну 16.
+  assert.equal(c.newTextLength % 16, 0);
 });
 
 test('ev: cell-preserving mode never changes size and falls back to EN on overflow', () => {

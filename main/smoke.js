@@ -31,6 +31,8 @@ async function runSmoke(win) {
   fs.writeFileSync(path.join(rusDir, 'a.binl'), synth.buildBinl(['Potion']));
   fs.writeFileSync(path.join(engDir, 'b.ctd'), synth.buildCtd([{ id: 1, text: 'Yes' }], 1));
   fs.writeFileSync(path.join(rusDir, 'b.ctd'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(engDir, 'UK_sysmsg.binl'), synth.buildMsgV361(['Load this game?', 'Form your party.']));
+  fs.writeFileSync(path.join(rusDir, 'UK_sysmsg.binl'), Buffer.alloc(1));
 
   const wc = win.webContents;
   const call = (js) => wc.executeJavaScript(js, true);
@@ -46,7 +48,16 @@ async function runSmoke(win) {
     check('about.version', typeof about.version === 'string' && about.version.length > 0, about);
 
     const list = await call(`window.kh1.translate.listFiles(${J(engDir)})`);
-    check('listFiles kinds', list.files.map(f => f.kind).sort().join(',') === 'binl,ctd', list.files);
+    check('listFiles kinds', list.files.map(f => f.kind).sort().join(',') === 'binl,binl-v361,ctd', list.files);
+
+    // Message v361 (sysmsg): extract + compose через IPC.
+    const v3 = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'UK_sysmsg.binl'), rusPath: path.join(rusDir, 'UK_sysmsg.binl') })})`);
+    check('extract v361 slots', v3.slots && v3.slots.length === 2 && v3.slots[0].english === 'Load this game?', v3);
+    const v3c = await call(`window.kh1.translate.compose(${J({ engPath: path.join(engDir, 'UK_sysmsg.binl'), outPath: path.join(outDir, 'UK_sysmsg.binl'), replacements: [{ offset: v3.slots[0].offset, ukText: 'Завантажити гру?' }] })})`);
+    check('compose v361 applied', v3c.ok === true && v3c.applied === 1, v3c);
+    const v3out = fs.readFileSync(path.join(outDir, 'UK_sysmsg.binl'));
+    check('compose v361 bytes', v3out.subarray(0, 12).toString('ascii') === 'Message v361' && codec.decode(v3out.subarray(v3out.readUInt32LE(0x14))).includes('Завантажити гру?'));
+
 
     const ex = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'a.binl'), rusPath: path.join(rusDir, 'a.binl') })})`);
     check('extract binl slots', ex.slots && ex.slots.length === 1 && ex.slots[0].english === 'Attack', ex);
@@ -105,6 +116,24 @@ async function runSmoke(win) {
     check('uafonts.locate reports missing hed_out', loc && /bbs_first\.hed_out/.test(loc.error || ''), loc);
     const dfl = await call('window.kh1.uafonts.defaults("kh-ddd")');
     check('uafonts.defaults', dfl && /FONTS/.test(dfl.buildDir), dfl);
+
+    // Глосарій → «Дописати відсутні у .txt»: наявні блоки не чіпаються, нові нумеруються далі.
+    const app = await call(`(async () => {
+      const m = await import('./translate/glossary.js');
+      const existing = ['# KH1 Glossary Export', '', '[#1]', '--- EN ---', 'Potion', '--- UK ---', 'Зілля', '=== END ===', ''].join(String.fromCharCode(10));
+      const r = m.buildGlossaryTxtAppend(existing, ['Potion', 'Load this game?', 'Two{lf}lines'], { 'Two{lf}lines': 'Два{lf}рядки' });
+      const back = m.parseGlossaryTxt(r.content).pairs;
+      return { added: r.added, translated: r.translated, startsSame: r.content.startsWith(existing), hasN3: r.content.includes('[#3]'), back };
+    })()`);
+    check('glossary append-txt', app.added === 2 && app.translated === 1 && app.startsSame && app.hasN3 && app.back.length === 2 && app.back[1].uk === 'Два{lf}рядки', app);
+
+    // Міграція старих ключів у renderer: пари токенів і переписування UK.
+    const leg = await call(`(async () => {
+      const m = await import('./translate/glossary.js');
+      const e = { english: 'A{0x06,0x2C,0x01}b{0x07,0x0C,0x02}c', legacyKey: 'A{0x06,0x2C} b{0x07,0x0C}{lf}c' };
+      return { pairs: m.legacyTokenPairs(e.english, e.legacyKey), uk: m.upgradeLegacyUk(e, 'Я{0x06,0x2C} б{0x07,0x0C}{lf}в') };
+    })()`);
+    check('glossary legacy token upgrade', leg.pairs.length === 2 && leg.uk === 'Я{0x06,0x2C,0x01}б{0x07,0x0C,0x02}в', leg);
 
     const khGlobal = await call('typeof window.KH.tsv.build === "function" && typeof window.KH.textStructure.validateTokens === "function"');
     check('shared UMD modules loaded in renderer', khGlobal === true);

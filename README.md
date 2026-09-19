@@ -27,7 +27,7 @@
 |---|---|
 | **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game ізольовані налаштування і теки) |
 | **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), українська overlay-карта, lossless round-trip |
-| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню), `.ev`/`.evdl` (event-скрипти) |
+| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.binl` **«Message v361»** (`sysmsg` — 488 системних повідомлень), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню), `.ev`/`.evdl` (event-скрипти) |
 | **Формати Re:CoM** | `.ctdl` (порт `comtext.py`/`comctd.py`, звірено на всіх 30 503 повідомленнях; `{color xx}` `{icon xx}`, **кирилиця на кодах хіраґани `0x829F–0x82E0`**; round-trip 426/426) |
 | **Формати DDD** | `.ctd` v0x1F7 UTF-16LE (порт `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, сторінкова адресація до 1 МіБ; round-trip 37/37) |
 | **Шрифти UA** | Вкладка «Шрифти UA» для BBS / Re:CoM / DDD: растеризує 66 українських літер (ComicHearts для діалогів, KHMenu для інтерфейсу) у вільні комірки ігрових шрифтів еталонними Python-інструментами (`tools/py`), «Встановити у гру» з бекапом оригіналів |
@@ -46,7 +46,10 @@
 ### 📚 Підтримка форматів
 
 #### `.binl` (структуровані діалоги)
-Сигнатура `EvMsg`, header 11 байт + footer 5 байт. Усередині — sequence of null-terminated strings з offset-based індексацією.
+Сигнатура `EvMsg`, header 11 байт + footer 5 байт. Усередині — sequence of null-terminated strings з offset-based індексацією. Керівні команди `05/06/07` мають **u16-параметр** — коли старший байт ≠ 0, він входить у токен (`{0x06,0x2C,0x01}` = 300), щоб не показуватись як «пробіл» і не губитись при перекладі; старі ключі глосарія з 2-байтовою формою переносяться автоматично. При збірці діє структурний guard: переклад, що губить токени EN або додає `05/06/0A/0B`, лишає оригінал і потрапляє у звіт помилок.
+
+#### `.binl` «Message v361» (системні повідомлення)
+`remastered/menu/<lang>/sysmsg.bin/XX_sysmsg.binl`: header `0x20` (count, offsetTable @`0x10`, textOffset @`0x14`, довжини), таблиця `u16`-зсувів (count або count+1 із sentinel), текст із `00`-термінаторами, `02` = перенос, padding `0xCD` до кратного 16. Власний діалект команд (`0D/0E/13/14` = i16, `08` = RGB, `0B` = 3 параметри) — декодується сирими токенами. Звірено з OpenKh PR #1275.
 
 #### `.bin` (raw text)
 Без сигнатури, plain KH1-encoded byte stream. Розпізнається евристично за відсотком printable байтів.
@@ -127,7 +130,7 @@ npm run build:installer # NSIS installer
 - `tools/lib/formats/` — один handler на формат (`parse`/`compose`); `tools/lib/translate-ops.js` — generic extract/compose/glossary/composeAll/text_all поверх реєстру.
 - `tools/lib/{bbs-codec,recom-ctdl-codec,ddd-ctd}.js` — порти еталонних Python-кодеків; `data/{bbs,recom,ddd}/` — таблиці, витягнуті з тих самих .py; `test/fixtures/` — вектори, згенеровані Python-кодом (`test/codecs-reference.test.js` звіряє байт-у-байт).
 - `tools/py/` — самі Python-інструменти (шрифти + CLI для тексту), `assets/fonts/` — ComicHearts/KHMenu OTF.
-- `test/` — тести; `test/helpers/synth.js` будує синтетичні .binl/.ev/mes_ofs/.ctd/.ctdl.
+- `test/` — тести; `test/helpers/synth.js` будує синтетичні .binl/.ev/mes_ofs/.ctd/.ctdl/Message v361; `test/msg-v361.test.js` додатково ганяє справжній `UK_sysmsg.binl`, якщо гра розпакована.
 
 ---
 
@@ -143,7 +146,7 @@ Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: 
 |---|---|
 | **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game isolated settings and folders) |
 | **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), Ukrainian overlay map, lossless round-trip |
-| **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus), `.ev`/`.evdl` (event scripts) |
+| **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.binl` **“Message v361”** (`sysmsg` — 488 system messages), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus), `.ev`/`.evdl` (event scripts) |
 | **Re:CoM formats** | `.ctdl` (port of `comtext.py`/`comctd.py`, verified on all 30 503 messages; `{color xx}` `{icon xx}`, **Ukrainian on hiragana codes `0x829F–0x82E0`**; round-trip 426/426) |
 | **DDD formats** | `.ctd` v0x1F7 UTF-16LE (port of `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, paged addressing up to 1 MiB; round-trip 37/37) |
 | **UA fonts** | "UA fonts" tab for BBS / Re:CoM / DDD: rasterizes the 66 Ukrainian letters (ComicHearts for dialogue, KHMenu for UI) into free cells of the game fonts using the reference Python tools (`tools/py`); "Install into game" with backups |
@@ -162,7 +165,10 @@ Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: 
 ### 📚 Format support
 
 #### `.binl` (structured dialogs)
-`EvMsg` signature, 11-byte header + 5-byte footer. Contains a sequence of null-terminated strings with offset-based indexing.
+`EvMsg` signature, 11-byte header + 5-byte footer. Contains a sequence of null-terminated strings with offset-based indexing. Commands `05/06/07` carry a **u16 parameter** — a non-zero high byte joins the token (`{0x06,0x2C,0x01}` = 300) instead of showing up as a “space” that a translator could drop; glossary keys in the old 2-byte form migrate automatically. Compose runs a structural guard: a translation that loses EN tokens or adds `05/06/0A/0B` keeps the original and is reported.
+
+#### `.binl` “Message v361” (system messages)
+`remastered/menu/<lang>/sysmsg.bin/XX_sysmsg.binl`: `0x20` header (count, offsetTable @`0x10`, textOffset @`0x14`, lengths), `u16` offset table (count or count+1 with sentinel), `00`-terminated text, `02` = line break, `0xCD` padding to 16. Own command dialect (`0D/0E/13/14` = i16, `08` = RGB, `0B` = 3 params) decoded as raw tokens. Verified against OpenKh PR #1275.
 
 #### `.bin` (raw text)
 No signature, plain KH1-encoded byte stream. Detected heuristically by printable-byte ratio.

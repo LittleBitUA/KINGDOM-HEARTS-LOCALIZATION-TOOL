@@ -20,7 +20,8 @@
 //
 // Compose algorithm:
 //   1) Encode each UK slot + 0x00 terminator. Concatenate sequentially.
-//   2) Pad with 0x00 so total newText.length % 4 == 0 (KH1 alignment).
+//   2) Pad with 0x00 so total newText.length % 16 == 0 (усі оригінальні ENG
+//      і RUS-файли мають текстову секцію кратну 16; OpenKh теж тримає 16).
 //   3) sizeDiff = newText.length - oldTextLength.
 //   4) For each header pointer >= oldFooterOffset → +sizeDiff.
 //   5) Final = updatedHeader + newText + originalFooter.
@@ -183,7 +184,7 @@ function composeEv(origBuf, slots, codec, opts) {
   }
   let newText = Buffer.concat(chunks);
   // 2) Pad до %4.
-  const paddingSize = (4 - (newText.length % 4)) % 4;
+  const paddingSize = (16 - (newText.length % 16)) % 16;
   if (paddingSize > 0) {
     newText = Buffer.concat([newText, Buffer.alloc(paddingSize, TEXT_PAD_BYTE)]);
   }

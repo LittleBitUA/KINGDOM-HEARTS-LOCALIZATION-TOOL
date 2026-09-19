@@ -3,6 +3,7 @@
 // Класифікація файлів гри за іменем/розширенням/magic-байтами.
 //
 //  - 'binl'    — структурований .binl з EvMsg-заголовком (header=11, footer=5)
+//  - 'binl-v361' — .binl «Message v361» (sysmsg: таблиця u16-зсувів + текст)
 //  - 'rawbin'  — сирий .bin із KH1-кодованим текстом, без заголовка
 //                (наприклад btltbl.bin/UK_AbilityName.bin тощо)
 //  - 'mesofs'  — парний формат *_mes_ofs.bin + *_mes_data.bin
@@ -23,6 +24,7 @@ const { isEvName } = require('../ev-format');
 const { MAGIC: CTD_MAGIC } = require('../ctd-format');
 const { MAGIC: CTDL_MAGIC } = require('../recom-ctdl-format');
 const { VERSION: DDD_VERSION } = require('../ddd-ctd');
+const { MAGIC: MSG_V361_MAGIC } = require('../msg-v361');
 
 // .binl магічна сигнатура: ASCII "EvMsg" перші 5 байт
 const BINL_MAGIC = Buffer.from([0x45, 0x76, 0x4D, 0x73, 0x67]);
@@ -88,6 +90,9 @@ function classifyUncached(absPath, ext) {
     if (ext === '.binl' && buf.subarray(0, 5).equals(BINL_MAGIC)) {
       kind = 'binl';
       extractOpts = { header: 11, footer: 5 };
+    } else if (ext === '.binl' && n >= MSG_V361_MAGIC.length && buf.subarray(0, MSG_V361_MAGIC.length).equals(MSG_V361_MAGIC)) {
+      kind = 'binl-v361';
+      magic = 'Message v361';
     } else if (ext === '.bin' && !head4.equals(ARD_MAGIC) && !buf.subarray(0, 5).equals(BINL_MAGIC)) {
       // Heuristic для raw text .bin: переважно KH1-printable байти + 0x00-термінатори.
       // 0x00 (sentinel), 0x01-0x0F (control), 0x21-0x79 (ASCII KH1), 0x80-0xFF (extended).

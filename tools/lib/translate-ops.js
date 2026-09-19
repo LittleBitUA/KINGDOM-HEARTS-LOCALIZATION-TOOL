@@ -9,7 +9,23 @@ const fs = require('fs');
 const fsP = require('fs/promises');
 const path = require('path');
 const { classifyFile, parseFile } = require('./formats');
-const { preserveStructure } = require('../../shared/text-structure');
+const { legacyCommandKey } = require('../../shared/codec');
+const { preserveStructure, validateTokens } = require('../../shared/text-structure');
+
+// Структурний guard (ідея з OpenKh PR #1275 ValidateBody): переклад не має
+// губити керівні токени оригіналу і не може додавати «структурні» команди
+// EvMsg (0x05/0x06 — кінець тіла, 0x0A/0x0B — початок запису), інакше гра
+// зламає розбір повідомлення. Повертає текст помилки або null.
+const STRUCTURAL_RAW = /^\{0x(05|06|0A|0B)(,|\})/i;
+function structuralIssue(en, uk) {
+  const v = validateTokens(en, uk);
+  if (!v.ok) {
+    return 'втрачено токени: ' + v.missing.map(x => x.expected - x.got > 1 ? x.token + '×' + (x.expected - x.got) : x.token).join(', ');
+  }
+  const bad = v.extra.filter(x => STRUCTURAL_RAW.test(x.token)).map(x => x.token);
+  if (bad.length) return 'додано структурні команди: ' + bad.join(', ');
+  return null;
+}
 const tsv = require('../../shared/tsv');
 const { writeFileAtomic } = require('../../shared/safe-fs');
 
@@ -31,6 +47,9 @@ function glossaryLookup(glossary, key) {
     const v = glossary[key + '{eol}'] || '';
     return v.endsWith('{eol}') ? v.slice(0, -5) : v;
   }
+  // Старі ключі з 2-байтовими 05/06/07-токенами (до u16-параметрів).
+  const legacy = legacyCommandKey(key);
+  if (legacy) return glossaryLookup(glossary, legacy);
   return '';
 }
 
@@ -75,14 +94,20 @@ async function composeFile(engPath, replacements, outPath, env) {
   const h = parsed.handler;
   const byOffset = new Map(parsed.slots.map(s => [s.offset, s]));
   const ukByOffset = new Map();
+  const guardErrors = [];
   for (const r of replacements || []) {
     if (!r || typeof r.offset !== 'number' || !r.ukText || !r.ukText.length) continue;
     const slot = byOffset.get(r.offset);
     let uk = r.ukText;
     if (slot && h.prepareUk) uk = h.prepareUk(slot, uk);
+    if (slot && h.structuralGuard && (!env || env.strictTokens !== false)) {
+      const issue = structuralIssue(slot.english, uk);
+      if (issue) { guardErrors.push({ offset: r.offset, message: issue + ' — лишено оригінал' }); continue; }
+    }
     ukByOffset.set(r.offset, uk);
   }
   const result = await parsed.compose(ukByOffset);
+  if (guardErrors.length) result.errors = guardErrors.concat(result.errors || []);
   const written = await writeOutputs(outPath, result);
   return Object.assign({
     ok: true,
@@ -118,7 +143,8 @@ function classifyRel(engDir, rel) {
 
 // buildGlossaryIndex(files, env) → { entries, processed, skipped, skippedUnsafe, total }
 //   env: { engDir, rusDir?, safeMode, opts?, runWorker?, concurrency?, onProgress?(p) }
-//   entries: [{ english, count, fileCount, occurrences?: [...] }] (most-frequent first)
+//   entries: [{ english, count, fileCount, legacyKey?, occurrences?: [...] }] (most-frequent first)
+//   legacyKey — ключ у старій формі (2-байтові 05/06/07-токени), якщо відрізняється
 //   env.withOccurrences=false — не збирати occurrences (економія IPC для UI).
 async function buildGlossaryIndex(files, env) {
   const engDir = env.engDir;
@@ -159,6 +185,8 @@ async function buildGlossaryIndex(files, env) {
   const entries = [];
   for (const [english, info] of map) {
     const e = { english, count: info.count, fileCount: info.files.size };
+    const legacy = legacyCommandKey(english);
+    if (legacy) e.legacyKey = legacy;   // renderer переносить переклад зі старого ключа
     if (withOcc) e.occurrences = info.occurrences;
     entries.push(e);
   }
@@ -197,18 +225,24 @@ async function composeAll(files, env) {
       const h = parsed.handler;
       const overrides = await readOverrides(rel);
       const ukByOffset = new Map();
+      const guardErrors = [];
       for (const s of parsed.slots) {
         let uk = (overrides && overrides.get(s.offset)) || '';
         if (!uk) uk = glossaryLookup(glossary, s.key);
         if (!uk || !uk.trim() || uk === s.english) continue;
         if (h.prepareUk) uk = h.prepareUk(s, uk);
         if (h.preserveWhitespace) uk = preserveStructure(s.english, uk);
+        if (h.structuralGuard && env.strictTokens !== false) {
+          const issue = structuralIssue(s.english, uk);
+          if (issue) { guardErrors.push({ offset: s.offset, message: issue + ' — лишено оригінал' }); continue; }
+        }
         ukByOffset.set(s.offset, uk);
       }
-      if (ukByOffset.size === 0) { skippedNoTranslations++; return { rel, status: 'no-translations' }; }
-      const result = await parsed.compose(ukByOffset);
-      await writeOutputs(outPath, result);
-      written++;
+      if (ukByOffset.size === 0 && guardErrors.length === 0) { skippedNoTranslations++; return { rel, status: 'no-translations' }; }
+      const result = ukByOffset.size ? await parsed.compose(ukByOffset) : { outputs: [], applied: 0, skipped: 0, errors: [] };
+      if (guardErrors.length) result.errors = guardErrors.concat(result.errors || []);
+      if (ukByOffset.size) { await writeOutputs(outPath, result); written++; }
+      else { skippedNoTranslations++; }
       totalReplacements += result.applied || 0;
       if (result.errors && result.errors.length) {
         errors.push({ rel, count: result.errors.length, samples: result.errors.slice(0, 3) });
@@ -228,7 +262,7 @@ async function composeAll(files, env) {
   return { ok: true, processed, written, skippedNoTranslations, skippedUnsafe, totalReplacements, errors };
 }
 
-module.exports = { extractFile, composeFile, buildGlossaryIndex, composeAll, glossaryLookup, mapLimited };
+module.exports = { extractFile, composeFile, buildGlossaryIndex, composeAll, glossaryLookup, mapLimited, structuralIssue };
 
 // =====================================================================
 // text_all.txt — формат обміну Python-наборів (### шлях / #N / текст).

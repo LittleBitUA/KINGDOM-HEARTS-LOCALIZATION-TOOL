@@ -14,9 +14,15 @@ const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
 // у літерний діапазон і виглядати як «R», «v», «7» — і його видалять).
 //
 // Mapping (на основі syscall-таблиці gg3502/KH1-EVDL-ARD-EDITOR):
-//   0x05 — Set Window Type    (param: тип рамки)
-//   0x06 — Set Window Opening Speed (param: швидкість відкриття)
-//   0x07 — Set Message Display Speed (param: швидкість виводу букв)
+//   0x05 — Set Window Type    (param: u16 LE — тип/розмір рамки)
+//   0x06 — Set Window Opening Speed (param: u16 LE)
+//   0x07 — Set Message Display Speed (param: u16 LE)
+//        У 05/06/07 параметр двобайтовий (значення 300, 110, 80 … — див.
+//        OpenKh PR #1275). Старший байт зазвичай 0x00 і у 0x00-розбитих слотах
+//        стає термінатором, тож токен лишається `{0x05,0x6E}`. Коли старший
+//        байт ≠ 0 (≈290 команд у грі, напр. 0x012C = 300), він раніше
+//        показувався як текст (0x01 → «пробіл») і міг зникнути при перекладі —
+//        тепер такі команди декодуються як `{0x06,0x2C,0x01}`.
 //   0x09 — Display Register Value   (param: ID регістру/іконки кнопки)
 //   0x0C — (в тексті) Color prefix  (param: колір)
 //   0x0E — (в тексті) VarItem prefix (param: ID змінної)
@@ -26,6 +32,16 @@ const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
 //   0x0A/0x0B: завжди йдуть з 0x00 і працюють як «end-message» single-byte
 //        маркери. Зробити їх 2-байтовими — поглине {eol} і зламає рядки.
 const PREFIX_BYTES = new Set([0x05, 0x06, 0x07, 0x09, 0x0C, 0x0E]);
+// Команди з u16-параметром: третій (старший) байт входить у токен, якщо ≠ 0.
+const U16_PARAM_BYTES = new Set([0x05, 0x06, 0x07]);
+
+// Діалект «sysmsg» (Message v361 .binl): інший набір команд, ніж у EvMsg.
+// Довжини встановлено за всіма мовними версіями UK/US/FR/GR/IT/SP_sysmsg.binl:
+//   03/04/05/06/07/09/0C — opcode + 1 байт; 08 — RGB (3 байти);
+//   0B — 3 байти параметрів; 0D/0E/13/14 — i16 (напр. 0D 06 00 → «Kingdom»+6px+«Hearts»,
+//   0E FC FF → −4); 16/1E/1F — opcode + 1 байт. Усе декодується як сирі `{0xAA,0xBB,…}`-токени, щоб байти
+//   параметрів (часто у літерному діапазоні: 0x32 = «H») не змішувались із текстом.
+const SYSMSG_CMD_LEN = { 0x03: 2, 0x04: 2, 0x05: 2, 0x06: 2, 0x07: 2, 0x08: 4, 0x09: 2, 0x0B: 4, 0x0C: 2, 0x0D: 3, 0x0E: 3, 0x13: 3, 0x14: 3, 0x16: 2, 0x1E: 2, 0x1F: 2 };
 
 // Режими decode:
 //   'overlay' — overlay повністю перекриває base (UA-файл: усі байти → кирилиця,
@@ -176,8 +192,12 @@ function hex2(b) {
   return b.toString(16).toUpperCase().padStart(2, '0');
 }
 
+// decode(bytes, opts?) → string
+//   opts.overlay — режим таблиці (див. MODES)
+//   opts.cmd     — 'evmsg' (default) | 'sysmsg' — діалект керівних команд
 function decode(bytes, opts) {
   const { singleMap, multiMap } = load(modeFromOpts(opts));
+  const sysmsg = !!(opts && opts.cmd === 'sysmsg');
   const NL = '\n';
   const len = bytes.length;
   let out = '';
@@ -185,6 +205,15 @@ function decode(bytes, opts) {
 
   while (i < len) {
     const b = bytes[i];
+
+    if (sysmsg && SYSMSG_CMD_LEN[b] !== undefined && i + 1 < len) {
+      const n = Math.min(SYSMSG_CMD_LEN[b], len - i);
+      let tok = '{0x' + hex2(b);
+      for (let k = 1; k < n; k++) tok += ',0x' + hex2(bytes[i + k]);
+      out += tok + '}';
+      i += n;
+      continue;
+    }
 
     if (PREFIX_BYTES.has(b) && i + 1 < len) {
       const combo = (b << 8) | bytes[i + 1];
@@ -198,6 +227,11 @@ function decode(bytes, opts) {
       // щоб параметр не «потрапив» у літерний діапазон і не був випадково
       // видалений перекладачем (типовий випадок: `0x06 0x3C` показувалося
       // як `{0x06}R` і зникало при HTML-імпорті).
+      if (U16_PARAM_BYTES.has(b) && i + 2 < len && bytes[i + 2] !== 0x00) {
+        out += '{0x' + hex2(b) + ',0x' + hex2(bytes[i + 1]) + ',0x' + hex2(bytes[i + 2]) + '}';
+        i += 3;
+        continue;
+      }
       out += '{0x' + hex2(b) + ',0x' + hex2(bytes[i + 1]) + '}';
       i += 2;
       continue;
@@ -219,6 +253,28 @@ function isHex(c) {
   return (c >= 0x30 && c <= 0x39) ||
          (c >= 0x41 && c <= 0x46) ||
          (c >= 0x61 && c <= 0x66);
+}
+
+// parseRawHexToken(s, i) → { bytes: number[], length } | null
+// Читає `{0xAA,0xBB,…}` з позиції i (s[i] === '{'); null, якщо це не такий токен.
+function parseRawHexToken(s, i) {
+  const len = s.length;
+  const out = [];
+  let j = i + 1;
+  for (;;) {
+    if (j + 4 > len) return null;
+    if (s.charCodeAt(j) !== 0x30) return null;                                   // 0
+    const x = s.charCodeAt(j + 1);
+    if (x !== 0x78 && x !== 0x58) return null;                                   // x/X
+    if (!isHex(s.charCodeAt(j + 2)) || !isHex(s.charCodeAt(j + 3))) return null;
+    out.push(parseInt(s.substr(j + 2, 2), 16));
+    j += 4;
+    if (j >= len) return null;
+    const c = s.charCodeAt(j);
+    if (c === 0x7D) return { bytes: out, length: j + 1 - i };                   // }
+    if (c !== 0x2C) return null;                                                 // ,
+    j++;
+  }
 }
 
 // encodeDetailed(text, opts?) → { bytes: Buffer, unmapped: [{index, char, context}] }
@@ -243,33 +299,14 @@ function encodeDetailed(text, opts) {
 
   while (i < len) {
     const c0 = s.charCodeAt(i);
-    // 2-байтове hex-комбо `{0xAA,0xBB}` — 11 символів. Парсимо першим,
-    // щоб не з'їстися single-byte парсером нижче.
+    // Сирі hex-токени `{0xAA}`, `{0xAA,0xBB}`, `{0xAA,0xBB,0xCC}` (будь-яка
+    // довжина, 5 символів на байт + ','). Парсимо першими, щоб не з'їстися
+    // single-byte парсером нижче.
     if (c0 === 0x7B) {
-      if (i + 11 <= len &&
-          s.charCodeAt(i + 1)  === 0x30 &&    // 0
-          (s.charCodeAt(i + 2) === 0x78 || s.charCodeAt(i + 2) === 0x58) &&
-          isHex(s.charCodeAt(i + 3)) &&
-          isHex(s.charCodeAt(i + 4)) &&
-          s.charCodeAt(i + 5)  === 0x2C &&    // ,
-          s.charCodeAt(i + 6)  === 0x30 &&    // 0
-          (s.charCodeAt(i + 7) === 0x78 || s.charCodeAt(i + 7) === 0x58) &&
-          isHex(s.charCodeAt(i + 8)) &&
-          isHex(s.charCodeAt(i + 9)) &&
-          s.charCodeAt(i + 10) === 0x7D) {    // }
-        bytes.push(parseInt(s.substr(i + 3, 2), 16));
-        bytes.push(parseInt(s.substr(i + 8, 2), 16));
-        i += 11;
-        continue;
-      }
-      if (i + 6 <= len &&
-          s.charCodeAt(i + 1) === 0x30 &&
-          (s.charCodeAt(i + 2) === 0x78 || s.charCodeAt(i + 2) === 0x58) &&
-          isHex(s.charCodeAt(i + 3)) &&
-          isHex(s.charCodeAt(i + 4)) &&
-          s.charCodeAt(i + 5) === 0x7D) {
-        bytes.push(parseInt(s.substr(i + 3, 2), 16));
-        i += 6;
+      const raw = parseRawHexToken(s, i);
+      if (raw) {
+        for (let m = 0; m < raw.bytes.length; m++) bytes.push(raw.bytes[m]);
+        i += raw.length;
         continue;
       }
     }
@@ -331,8 +368,20 @@ function encode(text, opts) {
   return encodeDetailed(text, opts).bytes;
 }
 
+// legacyCommandKey(key) → string | null
+// Ключ глосарія у «старій» формі (до u16-параметрів 05/06/07): `{0x06,0x2C,0x01}`
+// раніше декодувалося як `{0x06,0x2C}` + символ третього байта (' ', {lf}, літера…).
+// Потрібно, щоб переклади, збережені зі старими ключами, не «відв'язались».
+const RE_U16_TOKEN = /\{0x(0[567]),0x([0-9A-Fa-f]{2}),0x([0-9A-Fa-f]{2})\}/g;
+function legacyCommandKey(key) {
+  if (typeof key !== 'string' || !RE_U16_TOKEN.test(key)) return null;
+  RE_U16_TOKEN.lastIndex = 0;
+  return key.replace(RE_U16_TOKEN, (_m, op, p1, p2) =>
+    '{0x' + op.toUpperCase() + ',0x' + p1.toUpperCase() + '}' + decode(Buffer.from([parseInt(p2, 16)]), { overlay: false }));
+}
+
 function loadMap() {
   return load('overlay').singleMap;
 }
 
-module.exports = { decode, encode, encodeDetailed, loadMap, load, PREFIX_BYTES };
+module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, PREFIX_BYTES, SYSMSG_CMD_LEN };

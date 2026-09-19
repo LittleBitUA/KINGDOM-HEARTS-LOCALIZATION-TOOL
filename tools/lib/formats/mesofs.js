@@ -69,4 +69,4 @@ async function parse(engPath, env) {
   };
 }
 
-module.exports = { kind: 'mesofs', preserveWhitespace: true, parse };
+module.exports = { kind: 'mesofs', preserveWhitespace: true, structuralGuard: true, parse };

@@ -149,3 +149,58 @@ test('composeAll: TSV override beats glossary; whitespace preserved; unsafe skip
   assert.equal(ctd.messages[0].text, 'Тисни {icon triangle} зараз');
   assert.equal(parseCtdl(fs.readFileSync(path.join(outDir, 'c.ctdl'))).entries[1].text, 'Так');
 });
+
+test('structural guard: KH1 compose keeps EN when a translation drops a command token or adds a structural one', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-guard-'));
+  try {
+    const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS'), out = path.join(dir, 'DONE');
+    for (const d of [eng, rus, out]) fs.mkdirSync(d);
+    // «Wake up!{0x06,0x2C,0x01}» — команда з u16-параметром 0x012C у кінці рядка.
+    fs.writeFileSync(path.join(eng, 'g.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}', 'Run', 'Jump']));
+    fs.writeFileSync(path.join(rus, 'g.binl'), synth.buildBinl(['Nope']));
+    assert.equal(ops.structuralIssue('Wake up!{0x06,0x2C,0x01}', 'Прокинься!'), 'втрачено токени: {0x06,0x2C,0x01}');
+    assert.equal(ops.structuralIssue('Run', 'Біжи{0x0A,0x00}'), 'додано структурні команди: {0x0A,0x00}');
+    assert.equal(ops.structuralIssue('Run{lf}fast', 'Біжи швидко{ColorRed}'), null);   // {lf} вільний, колір — не структурний
+
+    const glossary = { 'Wake up!{0x06,0x2C,0x01}': 'Прокинься!', 'Run': 'Біжи{0x0A,0x00}', 'Jump': 'Стрибай' };
+    const r = await ops.composeAll(['g.binl'], { engDir: eng, rusDir: rus, outDir: out, glossary, safeMode: true });
+    assert.equal(r.written, 1);
+    assert.equal(r.errors.length, 1);
+    assert.equal(r.errors[0].count, 2);
+    const outBuf = fs.readFileSync(path.join(out, 'g.binl')).subarray(11);
+    assert.match(codec.decode(outBuf), /Стрибай/);                                   // UA-режим
+    assert.match(codec.decode(outBuf, { overlay: false }), /Wake up!\{0x06,0x2C,0x01\}/); // EN лишився
+    assert.doesNotMatch(codec.decode(outBuf), /Біжи/);
+
+    // composeFile (редактор одного файла) — той самий guard, strictTokens:false вимикає.
+    const slots = extract(fs.readFileSync(path.join(eng, 'g.binl')), fs.readFileSync(path.join(rus, 'g.binl')), { header: 11, footer: 5 }).slots;
+    const wake = slots.find(s => s.english.startsWith('Wake'));
+    const one = await ops.composeFile(path.join(eng, 'g.binl'), [{ offset: wake.offset, ukText: 'Прокинься!' }], path.join(out, 'g2.binl'), { rusPath: path.join(rus, 'g.binl') });
+    assert.equal(one.applied, 0);
+    assert.match(one.errors[0].message, /втрачено токени/);
+    const two = await ops.composeFile(path.join(eng, 'g.binl'), [{ offset: wake.offset, ukText: 'Прокинься!' }], path.join(out, 'g3.binl'), { rusPath: path.join(rus, 'g.binl'), strictTokens: false });
+    assert.equal(two.applied, 1);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('legacy keys: index exposes legacyKey and lookup bridges old 2-byte 05/06/07 tokens', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-legacy-'));
+  try {
+    const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS');
+    fs.mkdirSync(eng); fs.mkdirSync(rus);
+    fs.writeFileSync(path.join(eng, 'l.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}', 'Plain']));
+    fs.writeFileSync(path.join(rus, 'l.binl'), synth.buildBinl(['Nope']));
+    const idx = await ops.buildGlossaryIndex(['l.binl'], { engDir: eng, rusDir: rus, safeMode: true });
+    const wake = idx.entries.find(e => e.english.startsWith('Wake'));
+    assert.equal(wake.english, 'Wake up!{0x06,0x2C,0x01}');
+    assert.equal(wake.legacyKey, 'Wake up!{0x06,0x2C} ');
+    assert.equal(idx.entries.find(e => e.english === 'Plain').legacyKey, undefined);
+    // Старий глосарій (ключ у 2-байтовій формі) далі знаходиться при compose.
+    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} ': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{0x06,0x2C,0x01}'), 'Прокинься!{0x06,0x2C} ');
+    assert.equal(codec.legacyCommandKey('x{0x07,0x0C,0x02}y'), 'x{0x07,0x0C}{lf}y');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

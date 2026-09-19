@@ -18,7 +18,9 @@ parentPort.on('message', (msg) => {
     if (op === 'decode') {
       const buf = Buffer.from(msg.bytes);
       const mode = msg.decodeMode === 'base' ? false : (msg.decodeMode === 'overlay' ? true : 'smart');
-      const text = decode(buf, { overlay: mode });
+      // «Message v361» (sysmsg) має інший набір керівних команд — власний діалект декодера.
+      const cmd = buf.length >= 12 && buf.toString('ascii', 0, 12) === 'Message v361' ? 'sysmsg' : 'evmsg';
+      const text = decode(buf, { overlay: mode, cmd });
       parentPort.postMessage({ id, ok: true, text });
       return;
     }

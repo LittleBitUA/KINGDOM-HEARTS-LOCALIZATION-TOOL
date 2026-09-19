@@ -51,4 +51,4 @@ async function parse(engPath, env) {
   };
 }
 
-module.exports = { kind: 'ev', preserveWhitespace: true, parse };
+module.exports = { kind: 'ev', preserveWhitespace: true, structuralGuard: true, parse };

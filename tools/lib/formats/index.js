@@ -8,6 +8,8 @@
 //   kind: string
 //   preserveWhitespace: bool   — застосовувати preserveStructure(en, uk) при compose
 //                                (KH1-формати: провідні пробіли = форматування гри)
+//   structuralGuard: bool      — при compose відкидати переклад, що губить керівні
+//                                токени EN або додає структурні команди EvMsg (KH1)
 //   parse(engPath, env) → Promise<Parsed>
 //     env: { cls, rusPath?, opts?, runWorker? }
 //   prepareUk?(slot, uk) → uk'  — hook перед compose (CTD: відновити 2-і байти)
@@ -28,6 +30,7 @@ const { classifyFile, clearCache } = require('./classify');
 
 const handlers = {
   binl:   require('./binl'),
+  'binl-v361': require('./binl-v361'),
   rawbin: require('./binl'),
   mesofs: require('./mesofs'),
   ev:     require('./ev'),

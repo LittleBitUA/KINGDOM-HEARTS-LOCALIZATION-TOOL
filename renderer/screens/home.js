@@ -19,7 +19,7 @@ import { hideSetup } from './setup.js';
 // =====================================================================
 // `formats` = масив classifier kind'ів які належать до гри. Translate-режим
 // фільтрує список файлів за цим. KH1 використовує binl/rawbin/ev/mesofs;
-// BBS — лише ctd, Re:CoM — ctdl, DDD — ctd-ddd.
+// (+ binl-v361 для sysmsg); BBS — лише ctd, Re:CoM — ctdl, DDD — ctd-ddd.
 function game(def) {
   return Object.assign({ image: null, subtitle: def.platform + ' · ' + def.format }, def);
 }
@@ -34,7 +34,7 @@ export const gamesConfig = [
     theme: 'final-mix',
     enabled: true,
     status: 'ready',
-    formats: ['binl', 'rawbin', 'ev', 'mesofs'],
+    formats: ['binl', 'binl-v361', 'rawbin', 'ev', 'mesofs'],
     // KH1 використовує RUS-теку як reference oracle І як джерело списку файлів.
     dirs: ['engDir', 'rusDir', 'tsvDir', 'outDir'],
     sourceDirKey: 'rusDir',

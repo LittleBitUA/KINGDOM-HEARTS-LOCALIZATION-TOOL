@@ -52,10 +52,28 @@ test('decode appends newline after {eol} and encode strips it (idempotent)', () 
 });
 
 test('unknown 2-byte prefix command is kept as a single {0xAA,0xBB} token', () => {
-  const bytes = Buffer.from([0x06, 0x3C, ...codec.encode('R')]);
+  // 0x0C (колір) має 1-байтовий параметр — далі йде текст.
+  const bytes = Buffer.from([0x0C, 0x3C, ...codec.encode('R')]);
   const text = codec.decode(bytes, { overlay: false });
-  assert.match(text, /^\{0x06,0x3C\}R$/);
+  assert.match(text, /^\{0x0C,0x3C\}R$/);
   assert.deepEqual([...codec.encode(text)], [...bytes]);
+});
+
+test('05/06/07 carry a u16 parameter: high byte joins the token when non-zero', () => {
+  // 0x012C = 300 — старший байт 0x01 раніше показувався як «пробіл» і губився.
+  const bytes = Buffer.from([...codec.encode('Hi'), 0x06, 0x2C, 0x01]);
+  const text = codec.decode(bytes, { overlay: false });
+  assert.equal(text, 'Hi{0x06,0x2C,0x01}');
+  assert.deepEqual([...codec.encode(text)], [...bytes]);
+  // Старший байт 0x00 — у 0x00-розбитих слотах він є термінатором, токен лишається 2-байтовим.
+  const short = Buffer.from([0x05, 0x6E]);
+  assert.equal(codec.decode(short, { overlay: false }), '{0x05,0x6E}');
+  // Цілий буфер із 0x00 після параметра: 00 лишається окремим {eol}.
+  const whole = Buffer.from([0x05, 0x6E, 0x00]);
+  assert.equal(codec.decode(whole, { overlay: false }), '{0x05,0x6E}{eol}\n');
+  assert.deepEqual([...codec.encode('{0x05,0x6E}{eol}\n')], [...whole]);
+  // Сирі hex-токени довільної довжини.
+  assert.deepEqual([...codec.encode('{0x0A,0x00,0x00,0x01}')], [0x0A, 0x00, 0x00, 0x01]);
 });
 
 test('known 2-byte token from kh1sys_multi round-trips', () => {

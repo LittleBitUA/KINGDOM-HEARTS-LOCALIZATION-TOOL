@@ -56,9 +56,11 @@ export async function buildGlossary() {
     if (r.error) { toast(window.i18n.t('toastError', {msg: r.error}), 'error', 6000); return; }
 
     gState.entries = r.entries || [];
+    const migrated = migrateLegacyKeys();
     renderGlossaryRows();
     refreshGlossaryProgress();
     const parts = [window.i18n.t('gBuiltSummary', { n: gState.entries.length })];
+    if (migrated) parts.push(window.i18n.t('gMigratedKeys', { n: migrated }));
     parts.push(window.i18n.t('gProcessed', { n: r.processed }));
     if (r.skipped) parts.push(window.i18n.t('gSkipped', { n: r.skipped }));
     if (r.skippedUnsafe) parts.push(window.i18n.t('gSkippedUnsafe', { n: r.skippedUnsafe }));
@@ -70,6 +72,53 @@ export async function buildGlossary() {
     gBuild.disabled = false;
     tProgress.classList.remove('busy');
   }
+}
+
+// Переклади, збережені під старими ключами (2-байтові 05/06/07-токени), переносимо
+// на нові ключі індексу. Старий ключ лишаємо — на нього ще можуть посилатися
+// інші .txt; compose знаходить обидва.
+export function legacyKeyMap() {
+  const m = new Map();
+  for (const e of gState.entries || []) if (e.legacyKey && e.legacyKey !== e.english) m.set(e.legacyKey, e);
+  return m;
+}
+// Пари [старий токен, новий токен] між новим ключем (`{0x06,0x2C,0x01}`) і
+// старим (`{0x06,0x2C}` + символ третього байта: ' ', {lf}, {0xNN} чи літера).
+// Текст навколо токенів однаковий, тож ідемо по обох рядках синхронно.
+const RE_U16 = /\{0x0[567],0x[0-9A-F]{2},0x[0-9A-F]{2}\}/g;
+export function legacyTokenPairs(newKey, oldKey) {
+  const pairs = [];
+  let shift = 0;   // старий рядок коротший/довший на суму різниць попередніх токенів
+  for (const m of newKey.matchAll(RE_U16)) {
+    const tok = m[0];
+    const at = m.index + shift;
+    const head = tok.slice(0, 10) + '}';            // `{0x06,0x2C}` (11 символів)
+    if (oldKey.slice(at, at + 11) !== head) return pairs;
+    const j = at + 11;
+    const tail = oldKey[j] === '{' ? oldKey.slice(j, oldKey.indexOf('}', j) + 1) : (oldKey[j] || '');
+    const oldTok = head + tail;
+    pairs.push([oldTok, tok]);
+    shift += oldTok.length - tok.length;
+  }
+  return pairs;
+}
+// Переписати UK зі старої форми токенів у нову (щоб token-guard не відкинув переклад).
+export function upgradeLegacyUk(entry, uk) {
+  if (!uk || !entry.legacyKey) return uk;
+  let out = uk;
+  for (const [oldTok, newTok] of legacyTokenPairs(entry.english, entry.legacyKey)) out = out.split(oldTok).join(newTok);
+  return out;
+}
+export function migrateLegacyKeys() {
+  let n = 0;
+  for (const e of gState.entries || []) {
+    if (!e.legacyKey || e.legacyKey === e.english) continue;
+    const cur = gState.translations[e.english];
+    const old = gState.translations[e.legacyKey];
+    if ((cur === undefined || cur === '') && old) { gState.translations[e.english] = upgradeLegacyUk(e, old); n++; }
+  }
+  if (n) { gState.dirty = true; scheduleGlossaryAutoSave(); }
+  return n;
 }
 
 export function getGlossaryRenderOrder() {
@@ -527,7 +576,37 @@ export function buildGlossaryTxt() {
   return out.join('\n');
 }
 
-export function parseGlossaryTxt(content) {
+// buildGlossaryTxtAppend(existing, keys, translations) → { content, added, translated }
+// Лишає наявний .txt як є і дописує в кінець блоки для EN-ключів, яких у ньому
+// немає: нумерація продовжується від максимального [#N]; UK — поточний переклад
+// або порожньо (порожній UK при імпорті пропускається, тож round-trip безпечний).
+export function buildGlossaryTxtAppend(existing, keys, translations) {
+  const have = new Set(parseGlossaryTxt(existing, { keepEmptyUk: true }).pairs.map(p => p.en));
+  let maxN = 0;
+  for (const m of existing.matchAll(/^\[#(\d+)\]\s*$/gm)) maxN = Math.max(maxN, Number(m[1]));
+  const out = [];
+  let added = 0, translated = 0;
+  for (const en of keys) {
+    if (!en || have.has(en)) continue;
+    have.add(en);
+    const uk = (translations && translations[en]) || '';
+    out.push('[#' + (++maxN) + ']');
+    out.push('--- EN ---');
+    out.push(en.replace(/\{lf\}/g, '\n'));
+    out.push('--- UK ---');
+    out.push(uk.replace(/\{lf\}/g, '\n'));
+    out.push('=== END ===');
+    out.push('');
+    added++;
+    if (uk) translated++;
+  }
+  if (!added) return { content: existing, added: 0, translated: 0 };
+  const base = existing.replace(/\r\n/g, '\n');
+  const sep = base.endsWith('\n\n') ? '' : (base.endsWith('\n') ? '\n' : '\n\n');
+  return { content: base + sep + out.join('\n'), added, translated };
+}
+
+export function parseGlossaryTxt(content, opts) {
   // Повертає { pairs: [{en, uk}], errors: [...] }
   const pairs = [];
   const errors = [];
@@ -548,7 +627,7 @@ export function parseGlossaryTxt(content) {
     // Реальні переноси → {lf} (якщо користувач не лишив {lf} вручну)
     if (en && !en.includes('{lf}') && en.includes('\n')) en = en.replace(/\r?\n/g, '{lf}');
     if (uk && !uk.includes('{lf}') && uk.includes('\n')) uk = uk.replace(/\r?\n/g, '{lf}');
-    if (en && uk) pairs.push({ en, uk });
+    if (en && (uk || (opts && opts.keepEmptyUk))) pairs.push({ en, uk });
     blockOpen = false;
     section = null;
     enLines = [];
@@ -573,6 +652,30 @@ export function parseGlossaryTxt(content) {
   }
   commitBlock(); // на випадок якщо файл закінчується без === END ===
   return { pairs, errors };
+}
+
+export const gAppendTxtBtn = document.getElementById('g-append-txt');
+if (gAppendTxtBtn) {
+  gAppendTxtBtn.addEventListener('click', async () => {
+    const keys = (gState.entries || []).map(e => e.english);
+    if (!keys.length) { toast(window.i18n.t('toastAppendTxtNeedIndex'), 'info', 5000); return; }
+    try {
+      const r = await window.kh1.translate.importFileTxt();
+      if (r.canceled) return;
+      if (r.error) { toast(window.i18n.t('toastImportError', {msg: r.error}), 'error', 6000); return; }
+      const res = buildGlossaryTxtAppend(r.content, keys, gState.translations);
+      if (!res.added) { toast(window.i18n.t('toastAppendTxtNothing', { n: keys.length }), 'info', 5000); return; }
+      // Запис — лише через діалог збереження: користувач сам вирішує, куди (за
+      // замовчуванням — той самий файл).
+      const name = (r.filePath || 'kh1_glossary.txt').split(/[\\/]/).pop();
+      const w = await window.kh1.translate.exportFileTxt({ defaultName: name, content: res.content });
+      if (w.canceled) return;
+      if (w.error) { toast(window.i18n.t('toastExportError', {msg: w.error}), 'error', 6000); return; }
+      toast(window.i18n.t('toastAppendTxtDone', { n: res.added, t: res.translated, path: w.filePath }), 'success', 7000);
+    } catch (e) {
+      toast(window.i18n.t('toastError', {msg: e.message}), 'error', 6000);
+    }
+  });
 }
 
 export const gFixStructureBtn = document.getElementById('g-fix-structure');
@@ -689,7 +792,10 @@ if (gImportTxtBtn) {
       // не-{lf} токенів, щоб не переписати глосарій сміттям з помилок перекладача.
       let added = 0, updated = 0, unchanged = 0, tokensBroken = 0;
       snapshotGlossary(window.i18n.t('importTxt'));
-      for (const p of parsed.pairs) {
+      const legacy = legacyKeyMap();
+      for (const p0 of parsed.pairs) {
+        // Старий ключ → новий (u16-параметри 05/06/07); UK теж переписуємо у нову форму.
+        const p = legacy.has(p0.en) ? { en: legacy.get(p0.en).english, uk: upgradeLegacyUk(legacy.get(p0.en), p0.uk) } : p0;
         if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; }
         const cur = gState.translations[p.en];
         if (cur === p.uk) { unchanged++; continue; }
