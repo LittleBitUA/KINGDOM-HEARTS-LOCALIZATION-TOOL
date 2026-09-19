@@ -1,5 +1,5 @@
 {
-  "_comment": "Мапа .ard-папки (та інших груп) → { worldId, world, room }. Джерело: KH1 World/ARD/Room reference (Google Sheets, fan-doc).",
+  "_comment": "Мапа .ard-папки (та інших груп) → { worldId, world, room }. Джерело: KH1 World/ARD/Room reference (Google Sheets, fan-doc) + gg3502/KH1-EVDL-ARD-EDITOR docs/ard_evdl_binl.md.",
   "btltbl.bin": { "worldId": -1, "world": "Інтерфейс", "room": "" },
   "dh01.ard": { "worldId": 0, "world": "Awakening", "room": "Disembark" },
   "dh02.ard": { "worldId": 0, "world": "Awakening", "room": "" },
@@ -21,6 +21,14 @@
   "di11.ard": { "worldId": 1, "world": "Destiny Islands", "room": "Secret Place" },
   "di12.ard": { "worldId": 1, "world": "Destiny Islands", "room": "" },
   "dc01.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc02.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc03.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc04.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc05.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc06.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc07.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc08.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
+  "dc09.ard": { "worldId": 2, "world": "Disney Castle", "room": "" },
   "tw01.ard": { "worldId": 3, "world": "Traverse Town", "room": "1st District" },
   "tw02.ard": { "worldId": 3, "world": "Traverse Town", "room": "2nd District" },
   "tw03.ard": { "worldId": 3, "world": "Traverse Town", "room": "3rd District" },
@@ -89,6 +97,8 @@
   "po10.ard": { "worldId": 6, "world": "100 Acre Wood", "room": "Ending" },
   "po11.ard": { "worldId": 6, "world": "100 Acre Wood", "room": "100 Acre Wood" },
   "po12.ard": { "worldId": 6, "world": "100 Acre Wood", "room": "" },
+  "po32.ard": { "worldId": 6, "world": "100 Acre Wood", "room": "" },
+  "po37.ard": { "worldId": 6, "world": "100 Acre Wood", "room": "" },
   "al01.ard": { "worldId": 8, "world": "Agrabah", "room": "Desert" },
   "al02.ard": { "worldId": 8, "world": "Agrabah", "room": "Desert: Cave" },
   "al03.ard": { "worldId": 8, "world": "Agrabah", "room": "Agrabah: Plaza" },
@@ -126,6 +136,7 @@
   "lm15.ard": { "worldId": 9, "world": "Atlantica", "room": "Triton's Palace" },
   "lm16.ard": { "worldId": 9, "world": "Atlantica", "room": "Triton's Throne (1)" },
   "lm17.ard": { "worldId": 9, "world": "Atlantica", "room": "Triton's Throne (2)" },
+  "lm07.ard": { "worldId": 9, "world": "Atlantica", "room": "" },
   "nm01.ard": { "worldId": 10, "world": "Halloween Town", "room": "Guillotine Square" },
   "nm02.ard": { "worldId": 10, "world": "Halloween Town", "room": "Lab Entryway" },
   "nm03.ard": { "worldId": 10, "world": "Halloween Town", "room": "Graveyard" },
@@ -224,5 +235,7 @@
   "ew34.ard": { "worldId": 16, "world": "End of the World", "room": "The Void" },
   "ew35.ard": { "worldId": 16, "world": "End of the World", "room": "Crater" },
   "ew36.ard": { "worldId": 16, "world": "End of the World", "room": "" },
-  "ew37.ard": { "worldId": 16, "world": "End of the World", "room": "" }
+  "ew37.ard": { "worldId": 16, "world": "End of the World", "room": "" },
+  "ew38.ard": { "worldId": 16, "world": "End of the World", "room": "" },
+  "ew39.ard": { "worldId": 16, "world": "End of the World", "room": "" }
 }

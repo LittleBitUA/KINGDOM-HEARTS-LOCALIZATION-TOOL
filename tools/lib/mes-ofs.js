@@ -229,11 +229,21 @@ function describeOverflow(overflow) {
 }
 
 // Допоміжне: чи це файл-пара mes_ofs?
+// Пари таблиця-зсувів + дані: `X_mes_ofs.bin`+`X_mes_data.bin` (gummi) і
+// `X_offset.bin`+`X_data.bin` (exchange/UK_wsysmsg_*, UK_wname_* — назви світів;
+// exe читає їх як `exchange/%s_wsysmsg_offset.bin`). Формат той самий: u16-зсуви + 0xCD.
 function isMesOfsName(filename) {
-  return /_mes_ofs\.bin$/i.test(filename);
+  return /_mes_ofs\.bin$/i.test(filename) || /_offset\.bin$/i.test(filename);
 }
 function pairedDataName(ofsName) {
-  return ofsName.replace(/_mes_ofs\.bin$/i, '_mes_data.bin');
+  if (/_mes_ofs\.bin$/i.test(ofsName)) return ofsName.replace(/_mes_ofs\.bin$/i, '_mes_data.bin');
+  return ofsName.replace(/_offset\.bin$/i, '_data.bin');
+}
+// Ім'я `_data.bin`-половини пари → ім'я таблиці зсувів (для класифікації).
+function pairedOfsName(dataName) {
+  if (/_mes_data\.bin$/i.test(dataName)) return dataName.replace(/_mes_data\.bin$/i, '_mes_ofs.bin');
+  if (/_data\.bin$/i.test(dataName)) return dataName.replace(/_data\.bin$/i, '_offset.bin');
+  return null;
 }
 
-module.exports = { parsePair, composePair, isMesOfsName, pairedDataName, PAD_BYTE };
+module.exports = { parsePair, composePair, isMesOfsName, pairedDataName, pairedOfsName, PAD_BYTE };

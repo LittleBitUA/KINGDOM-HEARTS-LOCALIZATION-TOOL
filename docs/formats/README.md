@@ -13,3 +13,4 @@
 | `recom-toolkit-readme.md` | Унікальні рядки (`text_uniq.txt`/`text_ua.txt`), збірка, тестовий набір. |
 | `ddd-toolkit-readme.md` | Dream Drop Distance: швидкий старт, `text_all.txt`, шрифти `.bcfnt`. |
 | `ddd-session-notes.md` | Нотатки сесії DDD: формати, пастки (CMAP catch-all, Pillow stroke), калібрування. |
+| `kh1-menu-text.md` | KH1 ReMIX (PC): `Message v361` (`sysmsg.binl`, буфер гри 0x4800), керівні коди тексту меню з коду exe, пари `_offset/_data`, де в грі лежить текст меню/журналу (`.kmb`). Ghidra-скрипти — `tools/ghidra/`. |

@@ -35,13 +35,27 @@ const PREFIX_BYTES = new Set([0x05, 0x06, 0x07, 0x09, 0x0C, 0x0E]);
 // Команди з u16-параметром: третій (старший) байт входить у токен, якщо ≠ 0.
 const U16_PARAM_BYTES = new Set([0x05, 0x06, 0x07]);
 
-// Діалект «sysmsg» (Message v361 .binl): інший набір команд, ніж у EvMsg.
-// Довжини встановлено за всіма мовними версіями UK/US/FR/GR/IT/SP_sysmsg.binl:
-//   03/04/05/06/07/09/0C — opcode + 1 байт; 08 — RGB (3 байти);
-//   0B — 3 байти параметрів; 0D/0E/13/14 — i16 (напр. 0D 06 00 → «Kingdom»+6px+«Hearts»,
-//   0E FC FF → −4); 16/1E/1F — opcode + 1 байт. Усе декодується як сирі `{0xAA,0xBB,…}`-токени, щоб байти
-//   параметрів (часто у літерному діапазоні: 0x32 = «H») не змішувались із текстом.
-const SYSMSG_CMD_LEN = { 0x03: 2, 0x04: 2, 0x05: 2, 0x06: 2, 0x07: 2, 0x08: 4, 0x09: 2, 0x0B: 4, 0x0C: 2, 0x0D: 3, 0x0E: 3, 0x13: 3, 0x14: 3, 0x16: 2, 0x1E: 2, 0x1F: 2 };
+// Діалект «menu» (Message v361 sysmsg.binl, а також kmb/menu-тексти) — довжини
+// команд узято з коду гри (KINGDOM HEARTS FINAL MIX.exe, рендерери FUN_1402cb210 /
+// FUN_1402cd670 / FUN_1402e7060, Ghidra):
+//   00, 10 — кінець повідомлення;  01 — пробіл;  02 — новий рядок;
+//   03 NN — висота рядка + новий рядок;  04/05/06 — вирівнювання L/C/R (1 байт);
+//   07 NN — колір з палітри (0 = типовий);  08 RR GG BB AA — колір RGBA (5 байт);
+//   09 — вставити число з аргументів;  0A — вставити вкладене повідомлення;
+//   0B a b c — іконка/текстура (4 байти);  0C NN — масштаб шрифту;
+//   0D i16 / 0E i16 — зсув X / Y;  0F NN — вставити системний рядок (2 байти);
+//   11/13 i16 — абсолютний X;  12/14 i16 — абсолютний Y;
+//   15–1F NN — двобайтовий гліф (індекс (b<<8|NN) − 0x1820);  ≥20 — гліф (b − 0x20).
+// Усе декодується як сирі `{0xAA,0xBB,…}`-токени, щоб байти параметрів (часто у
+// літерному діапазоні: 0x32 = «H», 0x80 = альфа) не змішувались із текстом.
+const SYSMSG_CMD_LEN = {
+  0x03: 2, 0x07: 2, 0x08: 5, 0x0B: 4, 0x0C: 2, 0x0D: 3, 0x0E: 3, 0x0F: 2,
+  0x11: 3, 0x12: 3, 0x13: 3, 0x14: 3,
+  0x15: 2, 0x16: 2, 0x17: 2, 0x18: 2, 0x19: 2, 0x1A: 2, 0x1B: 2, 0x1C: 2, 0x1D: 2, 0x1E: 2, 0x1F: 2
+};
+// Розмір статичного буфера гри під sysmsg.binl (memcpy у DAT_142e172e0, наступний
+// глобал — DAT_142e1bae0): більший файл переписує пам'ять і валить гру.
+const SYSMSG_MAX_FILE_SIZE = 0x4800;
 
 // Режими decode:
 //   'overlay' — overlay повністю перекриває base (UA-файл: усі байти → кирилиця,
@@ -384,4 +398,4 @@ function loadMap() {
   return load('overlay').singleMap;
 }
 
-module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, PREFIX_BYTES, SYSMSG_CMD_LEN };
+module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };

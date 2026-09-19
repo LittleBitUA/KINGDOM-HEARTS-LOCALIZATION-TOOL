@@ -6,7 +6,7 @@
 //  - 'binl-v361' — .binl «Message v361» (sysmsg: таблиця u16-зсувів + текст)
 //  - 'rawbin'  — сирий .bin із KH1-кодованим текстом, без заголовка
 //                (наприклад btltbl.bin/UK_AbilityName.bin тощо)
-//  - 'mesofs'  — парний формат *_mes_ofs.bin + *_mes_data.bin
+//  - 'mesofs'  — парний формат *_mes_ofs.bin + *_mes_data.bin (і *_offset.bin + *_data.bin)
 //  - 'mesdata' — друга половина пари (не перекладається напряму)
 //  - 'ev'      — .ev/.evdl event-script container з текст-блоком
 //  - 'ctd'     — BBS dialogue/menu container ('@CTD' версія 1)
@@ -19,7 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { isMesOfsName, pairedDataName } = require('../mes-ofs');
+const { isMesOfsName, pairedDataName, pairedOfsName } = require('../mes-ofs');
 const { isEvName } = require('../ev-format');
 const { MAGIC: CTD_MAGIC } = require('../ctd-format');
 const { MAGIC: CTDL_MAGIC } = require('../recom-ctdl-format');
@@ -58,7 +58,10 @@ function classifyUncached(absPath, ext) {
       return { kind: 'mesofs', magic: 'mes_ofs', extractOpts: { dataPath }, isTranslatable: true };
     }
   }
-  if (/_mes_data\.bin$/i.test(baseName)) {
+  // Друга половина пари (`_mes_data.bin`, або `_data.bin` поруч із `_offset.bin`) —
+  // редагується через таблицю зсувів, не як raw .bin (інакше зсуви «поїдуть»).
+  const ofsName = pairedOfsName(baseName);
+  if (ofsName && (/_mes_data\.bin$/i.test(baseName) || fs.existsSync(path.join(path.dirname(absPath), ofsName)))) {
     return { kind: 'mesdata', magic: 'mes_data', extractOpts: null, isTranslatable: false };
   }
   // .ev/.evdl: footer/bytecode позиційно-незалежний (підтверджено byte-by-byte

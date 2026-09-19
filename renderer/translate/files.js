@@ -53,6 +53,16 @@ export function describeFile(rel) {
   const seg = (rel.split('/')[0] || '').toLowerCase();
   return _worldsMap[seg] || null;
 }
+// Номер «набору» кімнати (gg3502 docs/ard_evdl_binl.md): `*_xx01_ard<N>.evdl` ↔
+// `*_xx01_ard<0x3E8+N>.binl` — один набір скрипт+текст. Set 0 — основні діалоги,
+// set 25 (ard401) є в кожній кімнаті. null, якщо ім'я не за схемою.
+export function setNumberOf(rel) {
+  const m = /_ard([0-9a-f]+)\.(binl|evdl)$/i.exec(rel);
+  if (!m) return null;
+  const v = parseInt(m[1], 16);
+  const set = m[2].toLowerCase() === 'binl' ? v - 0x3E8 : v;
+  return set >= 0 && set < 64 ? set : null;
+}
 
 // Дебаунсна запис позиції прокрутки в settings
 export let _scrollSaveTimer = null;
@@ -120,7 +130,9 @@ export async function loadFileList() {
     const ard = (f.rel.split('/')[0] || '').toLowerCase();
     if (info) {
       const room = info.room ? ' / ' + info.room : '';
-      label = safety + ' [' + info.world + room + ']  ' + ard + ' › ' + filename + '  (' + f.size + ' b)';
+      const set = setNumberOf(f.rel);
+      const setLabel = set === null ? '' : ' · set ' + set;
+      label = safety + ' [' + info.world + room + setLabel + ']  ' + ard + ' › ' + filename + '  (' + f.size + ' b)';
     } else {
       label = safety + '  ' + f.rel + '  (' + f.size + ' b)';
     }

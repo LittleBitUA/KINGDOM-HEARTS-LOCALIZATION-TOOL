@@ -204,3 +204,21 @@ test('legacy keys: index exposes legacyKey and lookup bridges old 2-byte 05/06/0
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('classify: X_offset.bin + X_data.bin pair (wsysmsg/wname) is mesofs/mesdata, lone _data.bin stays raw', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-pair-'));
+  try {
+    const mo = synth.buildMesOfs(['Power', 'Armor', 'Shield'], [0, 1, 2], { pad: 16 });
+    fs.writeFileSync(path.join(dir, 'UK_wsysmsg_offset.bin'), mo.ofs);
+    fs.writeFileSync(path.join(dir, 'UK_wsysmsg_data.bin'), mo.data);
+    fs.writeFileSync(path.join(dir, 'UK_lonely_data.bin'), mo.data);
+    clearCache();
+    assert.equal(classifyFile(path.join(dir, 'UK_wsysmsg_offset.bin')).kind, 'mesofs');
+    assert.equal(classifyFile(path.join(dir, 'UK_wsysmsg_data.bin')).kind, 'mesdata');
+    assert.notEqual(classifyFile(path.join(dir, 'UK_lonely_data.bin')).kind, 'mesdata');
+    const parsed = await ops.extractFile(path.join(dir, 'UK_wsysmsg_offset.bin'), {});
+    assert.deepEqual(parsed.slots.map(s => s.english), ['Power{eol}', 'Armor{eol}', 'Shield{eol}']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

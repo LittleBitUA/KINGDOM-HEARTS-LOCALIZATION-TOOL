@@ -14,7 +14,7 @@
 //   offsetTable: u16[]  — зсуви відносно textOffset, зростають, перший = 0
 //   text: кожне повідомлення = байти + 0x00; 0x02 = перенос рядка;
 //         опційний trailing sentinel 0x00 після останнього; далі padding
-//         (0xCD або 0x00) до кратного 16.
+//         (0xCD або 0x00) до кратного 16. Увесь файл ≤ 0x4800 байт (буфер гри).
 //
 // Compose перебудовує таблицю зсувів і textLength; порожній UK лишає оригінал
 // байт-у-байт. Текст-блок обмежений u16 (65535 байт). Записи читаються за
@@ -24,6 +24,8 @@
 
 const MAGIC = Buffer.from('Message v361', 'ascii');
 const HEADER = 0x20;
+// Гра копіює файл у статичний буфер 0x4800 байт (див. shared/codec.js SYSMSG_MAX_FILE_SIZE).
+const MAX_FILE_SIZE = 0x4800;
 
 function isMessageV361(buf) {
   return !!buf && buf.length >= HEADER && buf.subarray(0, MAGIC.length).equals(MAGIC);
@@ -129,7 +131,10 @@ function composeMessageV361(parsed, replacements) {
   let out = Buffer.concat(parts);
   const target = Math.max(parsed.raw.length, (out.length + 0x0F) & ~0x0F);
   if (out.length < target) out = Buffer.concat([out, Buffer.alloc(target - out.length, parsed.usesCdPadding ? 0xCD : 0x00)]);
+  if (out.length > MAX_FILE_SIZE) {
+    throw new Error('Message v361: файл ' + out.length + ' байт перевищує буфер гри ' + MAX_FILE_SIZE + ' (0x4800) — скороти переклади на ' + (out.length - MAX_FILE_SIZE) + ' байт');
+  }
   return out;
 }
 
-module.exports = { MAGIC, HEADER, isMessageV361, parseMessageV361, composeMessageV361 };
+module.exports = { MAGIC, HEADER, MAX_FILE_SIZE, isMessageV361, parseMessageV361, composeMessageV361 };
