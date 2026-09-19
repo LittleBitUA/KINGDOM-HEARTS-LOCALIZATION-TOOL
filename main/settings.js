@@ -38,6 +38,10 @@ const GAME_DIR_LAYOUT = {
     base: 'BBS',
     dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
   },
+  'kh-ddd': {
+    base: 'DDD',
+    dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  },
   'kh-re-com': {
     base: 'ReCoM',
     // FILES виконує роль engDir: туди copy-step кладе оригінальні

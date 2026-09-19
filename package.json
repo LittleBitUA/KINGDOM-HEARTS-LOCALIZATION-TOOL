@@ -58,6 +58,9 @@
       "data/**/*",
       "renderer/**/*",
       "tools/lib/**/*",
+      "docs/**/*",
+      "assets/**/*",
+      "tools/py/**/*",
       "package.json",
       "!**/.DS_Store",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
@@ -101,6 +104,10 @@
       ],
       "language": "1058",
       "artifactName": "KH1-Text-Editor-${version}-setup.exe"
-    }
+    },
+    "asarUnpack": [
+      "tools/py/**/*",
+      "assets/fonts/**/*"
+    ]
   }
 }

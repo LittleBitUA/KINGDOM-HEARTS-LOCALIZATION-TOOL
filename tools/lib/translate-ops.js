@@ -229,3 +229,110 @@ async function composeAll(files, env) {
 }
 
 module.exports = { extractFile, composeFile, buildGlossaryIndex, composeAll, glossaryLookup, mapLimited };
+
+// =====================================================================
+// text_all.txt — формат обміну Python-наборів (### шлях / #N / текст).
+// =====================================================================
+const textall = require('./textall');
+
+// exportTextAll(files, env) → { content, files, lines, skipped }
+//   env: { engDir, rusDir?, tsvDir?, glossary?, safeMode, runWorker?, all?, onProgress? }
+//   Текст рядка = per-file TSV override → глосарій → англійський оригінал.
+//   Без env.all пропускаються неперекладні (порожні/лише вставки), як у .py.
+async function exportTextAll(files, env) {
+  const engDir = env.engDir;
+  const rusDir = env.rusDir || engDir;
+  const glossary = env.glossary || {};
+  const sections = [];
+  let lines = 0, skipped = 0, done = 0;
+  for (const rel of files) {
+    const { engPath, cls } = classifyRel(engDir, rel);
+    done++;
+    if (env.onProgress) env.onProgress({ phase: 'textall-export', done, total: files.length, currentFile: rel });
+    if (!fs.existsSync(engPath)) continue;
+    if (env.safeMode !== false && !cls.isTranslatable) continue;
+    let parsed;
+    try { parsed = await parseFile(engPath, { cls, rusPath: path.join(rusDir, rel), runWorker: env.runWorker }); }
+    catch (_) { continue; }
+    let overrides = null;
+    if (env.tsvDir) {
+      try { overrides = tsv.overridesByOffset(await fsP.readFile(path.join(env.tsvDir, rel) + '.tsv', 'utf8')); } catch (_) {}
+    }
+    const items = [];
+    for (const s of parsed.slots) {
+      if (!env.all && !textall.translatable(s.english)) { skipped++; continue; }
+      let uk = (overrides && overrides.get(s.offset)) || glossaryLookup(glossary, s.key) || '';
+      if (!uk.trim()) uk = s.english;
+      items.push({ id: s.index, text: uk });
+      lines++;
+    }
+    if (items.length) sections.push({ file: rel.split('/').join('\\'), items });
+  }
+  return { ok: true, content: textall.build(sections), files: sections.length, lines, skipped };
+}
+
+// importTextAll(content, files, env) → статистика.
+//   env: { engDir, rusDir?, tsvDir, glossary?, safeMode, runWorker?, toGlossary?, onProgress? }
+//   Для кожної секції знаходимо файл застосунку (суфіксний збіг шляху), парсимо,
+//   #N → slot.index (DDD: @0xID → messageId). Переклад ≠ EN пишеться у per-file
+//   TSV (offset слота) і, якщо toGlossary, у glossaryOut[key].
+async function importTextAll(content, files, env) {
+  const engDir = env.engDir;
+  const rusDir = env.rusDir || engDir;
+  const sections = textall.parse(content);
+  const glossaryOut = Object.create(null);
+  const stats = { ok: true, sections: sections.length, matchedFiles: 0, unmatchedFiles: [], applied: 0, sameAsEn: 0, missingIds: 0, errors: [], tsvWritten: 0 };
+  let done = 0;
+  for (const sec of sections) {
+    done++;
+    if (env.onProgress) env.onProgress({ phase: 'textall-import', done, total: sections.length, currentFile: sec.file });
+    const rel = textall.matchRel(sec.file, files);
+    if (!rel) { stats.unmatchedFiles.push(sec.file); continue; }
+    const { engPath, cls } = classifyRel(engDir, rel);
+    if (!fs.existsSync(engPath) || (env.safeMode !== false && !cls.isTranslatable)) { stats.unmatchedFiles.push(sec.file); continue; }
+    let parsed;
+    try { parsed = await parseFile(engPath, { cls, rusPath: path.join(rusDir, rel), runWorker: env.runWorker }); }
+    catch (e) { stats.errors.push({ file: sec.file, error: e.message }); continue; }
+    stats.matchedFiles++;
+    const byIndex = new Map(parsed.slots.map(s => [s.index, s]));
+    const byMsgId = new Map(parsed.slots.filter(s => s.messageId != null).map(s => ['0x' + (s.messageId >>> 0).toString(16).toUpperCase().padStart(8, '0'), s]));
+    let overrides = null;
+    const tsvPath = env.tsvDir ? path.join(env.tsvDir, rel) + '.tsv' : null;
+    if (tsvPath) { try { overrides = tsv.overridesByOffset(await fsP.readFile(tsvPath, 'utf8')); } catch (_) {} }
+    const merged = new Map(overrides || []);
+    let changed = false;
+    for (const it of sec.items) {
+      const slot = typeof it.id === 'number' ? byIndex.get(it.id) : byMsgId.get(it.id);
+      if (!slot) { stats.missingIds++; continue; }
+      const uk = String(it.text || '');
+      if (!uk.trim() || uk === slot.english) { stats.sameAsEn++; continue; }
+      if (merged.get(slot.offset) !== uk) { merged.set(slot.offset, uk); changed = true; }
+      if (env.toGlossary !== false) glossaryOut[slot.key] = uk;
+      stats.applied++;
+    }
+    if (changed && tsvPath) {
+      const content2 = tsv.build(parsed.slots, { ukOf: s => merged.get(s.offset) || '' });
+      await writeFileAtomic(tsvPath, content2, { encoding: 'utf8' });
+      stats.tsvWritten++;
+    }
+  }
+  stats.glossary = glossaryOut;
+  return stats;
+}
+
+// importTextAllPair(enContent, ukContent) → { pairs, glossary } — два text_all
+// з однаковими маркерами (Re:CoM text_uniq.txt + text_ua.txt) → EN→UK.
+function importTextAllPair(enContent, ukContent) {
+  const pairs = textall.pair(textall.parse(enContent), textall.parse(ukContent));
+  const glossary = Object.create(null);
+  let same = 0;
+  for (const p of pairs) {
+    if (!p.uk.trim() || p.uk === p.en) { same++; continue; }
+    glossary[p.en] = p.uk;
+  }
+  return { ok: true, pairs: pairs.length, translated: Object.keys(glossary).length, sameAsEn: same, glossary };
+}
+
+module.exports.exportTextAll = exportTextAll;
+module.exports.importTextAll = importTextAll;
+module.exports.importTextAllPair = importTextAllPair;

@@ -150,6 +150,7 @@
         <button id="mode-translate" class="mode-btn" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
         <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
+        <button id="mode-ua-fonts" class="mode-btn" type="button" role="tab" data-i18n="modeUaFonts">Шрифти UA</button>
       </div>
     </header>
 
@@ -317,6 +318,21 @@
                   title="Реконструює UK з EN-skeleton'у (всі {…}-токени, контрольні байти, whitespace, пунктуацію — копіює з EN). Літерний контент UK залишається. Виправляє НЕструктуроване UK 1:1 з EN.">
             <span class="icon" aria-hidden="true">🩹</span><span data-i18n="fixStructure">Авто-фікс структури</span>
           </button>
+          <button id="g-textall-export" class="kh-btn" type="button"
+                  data-i18n-title="textAllExportTitle"
+                  title="Експортувати ВЕСЬ текст гри у text_all.txt (### шлях / #N / текст) з поточними перекладами — формат Python-наборів і таблиць для друзів">
+            <span class="icon" aria-hidden="true">📄</span><span data-i18n="textAllExport">text_all →</span>
+          </button>
+          <button id="g-textall-import" class="kh-btn" type="button"
+                  data-i18n-title="textAllImportTitle"
+                  title="Імпортувати text_all.txt / ua_all_text.txt: переклади лягають у per-file прогрес (TSV) і в глосарій">
+            <span class="icon" aria-hidden="true">📥</span><span data-i18n="textAllImport">← text_all</span>
+          </button>
+          <button id="g-textall-pair" class="kh-btn" type="button"
+                  data-i18n-title="textAllPairTitle"
+                  title="Пара text_uniq.txt (EN) + text_ua.txt (UA) з однаковими #N (Re:CoM) → у глосарій">
+            <span class="icon" aria-hidden="true">🔗</span><span data-i18n="textAllPair">EN+UA пара</span>
+          </button>
           <button id="g-undo-bulk" class="kh-btn" type="button" disabled
                   data-i18n-title="undoBulkTitle"
                   title="Скасувати останню масову операцію над глосарієм">
@@ -438,6 +454,36 @@
     </div>
 
     <!-- ============ BBS FONT VIEW ============ -->
+    <div id="view-ua-fonts" class="view hidden">
+      <section class="toolbar">
+        <span id="uf-python" class="uf-status" data-i18n-title="ufPythonTitle" title="Генератор кирилиці — Python-інструменти (Pillow/numpy/fonttools/scipy). Потрібен Python 3."></span>
+        <button id="uf-pip" class="kh-btn" type="button" disabled>
+          <span class="icon" aria-hidden="true">📦</span><span data-i18n="ufPip">Встановити залежності</span>
+        </button>
+        <span class="toolbar-spacer"></span>
+        <button id="uf-generate" class="kh-btn kh-btn-primary" type="button" disabled>
+          <span class="icon" aria-hidden="true">🔤</span><span data-i18n="ufGenerate">Згенерувати шрифти з кирилицею</span>
+        </button>
+        <button id="uf-install" class="kh-btn" type="button" disabled
+                data-i18n-title="ufInstallTitle" title="Скопіювати згенеровані шрифти у гру (оригінали — у backup)">
+          <span class="icon" aria-hidden="true">🎮</span><span data-i18n="ufInstall">Встановити у гру</span>
+        </button>
+        <button id="uf-open-build" class="kh-btn" type="button" disabled>
+          <span class="icon" aria-hidden="true">📂</span><span data-i18n="ufOpenBuild">Відкрити build</span>
+        </button>
+      </section>
+      <section class="uf-body">
+        <div class="uf-paths">
+          <div class="uf-row"><span class="uf-k" data-i18n="ufGameDir">Гра:</span><span id="uf-game-dir" class="uf-v mono"></span></div>
+          <div class="uf-row"><span class="uf-k" data-i18n="ufInputs">Вхідні файли:</span><span id="uf-inputs" class="uf-v mono"></span></div>
+          <div class="uf-row"><span class="uf-k" data-i18n="ufBuildDir">Build:</span><span id="uf-build-dir" class="uf-v mono"></span></div>
+          <div class="uf-row"><span class="uf-k" data-i18n="ufBackupDir">Backup:</span><span id="uf-backup-dir" class="uf-v mono"></span></div>
+        </div>
+        <p class="uf-hint" data-i18n="ufHint">Кирилиця домальовується у вільні/невживані комірки ігрових шрифтів (ComicHearts для діалогів, KHMenu для інтерфейсу) і кодується на ті самі коди, що й текстовий кодек цієї гри — тому текст і шрифт узгоджені автоматично. Після генерації перевір результат у грі.</p>
+        <pre id="uf-log" class="uf-log" aria-live="polite"></pre>
+        <div id="uf-report" class="uf-report hidden"></div>
+      </section>
+    </div>
     <div id="view-bbs-font" class="view hidden">
       <section class="toolbar">
         <button id="bf-pick-arc" class="kh-btn kh-btn-primary" type="button">

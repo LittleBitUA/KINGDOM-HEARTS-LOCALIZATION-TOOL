@@ -6,8 +6,8 @@
 [![License](https://img.shields.io/badge/license-MIT-38bdf8?style=for-the-badge&labelColor=0f1730)](LICENSE)
 [![Electron](https://img.shields.io/badge/electron-44.x-47848f?style=for-the-badge&labelColor=0f1730)](https://electronjs.org)
 
-**Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs) + Birth by Sleep (CTD + редактор шрифту) + Re:Chain of Memories (CTDL).**
-*A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs) + Birth by Sleep (CTD + font editor) + Re:Chain of Memories (CTDL).*
+**Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs), Birth by Sleep (CTD), Re:Chain of Memories (CTDL), Dream Drop Distance (CTD UTF-16) + генерація українських шрифтів.**
+*A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs), Birth by Sleep (CTD), Re:Chain of Memories (CTDL), Dream Drop Distance (UTF-16 CTD) + Ukrainian font generation.*
 
 [🇺🇦 Українська](#-українська) · [🇬🇧 English](#-english) · [📥 Download](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest)
 
@@ -25,11 +25,14 @@
 
 | Категорія | Що працює |
 |---|---|
-| **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories (per-game ізольовані налаштування і теки) |
+| **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game ізольовані налаштування і теки) |
 | **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), українська overlay-карта, lossless round-trip |
 | **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню), `.ev`/`.evdl` (event-скрипти) |
-| **Формати Re:CoM** | `.ctdl` (subtitles + menu; Shift-JIS + Latin-Extended, button-іконки `{BTN_X}`, byte-identical round-trip) |
-| **Кодек BBS** | CTD з 32-byte header + 12-byte message + 32-byte layout entries, byte-identical round-trip (152/152), prefix-byte sequences (0x81/0x99/F1/F2/F5/F9), Cyrillic→Latin Extended мапа для font-hack |
+| **Формати Re:CoM** | `.ctdl` (порт `comtext.py`/`comctd.py`, звірено на всіх 30 503 повідомленнях; `{color xx}` `{icon xx}`, **кирилиця на кодах хіраґани `0x829F–0x82E0`**; round-trip 426/426) |
+| **Формати DDD** | `.ctd` v0x1F7 UTF-16LE (порт `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, сторінкова адресація до 1 МіБ; round-trip 37/37) |
+| **Шрифти UA** | Вкладка «Шрифти UA» для BBS / Re:CoM / DDD: растеризує 66 українських літер (ComicHearts для діалогів, KHMenu для інтерфейсу) у вільні комірки ігрових шрифтів еталонними Python-інструментами (`tools/py`), «Встановити у гру» з бекапом оригіналів |
+| **text_all.txt** | Експорт/імпорт формату обміну Python-наборів (`### шлях` / `#N` / текст) — переклад лягає у per-file прогрес і глосарій; пара `text_uniq.txt`+`text_ua.txt` (Re:CoM) → глосарій |
+| **Кодек BBS** | Порт еталонного `bbstext.py`: повні таблиці `0x81`/`0x99`, вставки `{icon triangle}` `{color white}` `{sjis xxxx}`, **кирилиця на кодах катакани `0x83xx`** (узгоджено зі згенерованим шрифтом), перевірка наявності гліфа у `FontEn.arc`; byte-identical round-trip 116/116 файлів гри |
 | **Формати BBS** | `.ctd` (event/menu/HUD), HD-PNG атлас фонтів, `mesfont/menufont/cmdfont/helpfont/numeral` шрифти |
 | **Редактор шрифту BBS** | Atlas viewer (HD PNG 1024×512), COD overlay з квадратними клітинами, правка X/Y/palette/width гліфів, експорт overlay-PNG як guide-шар, зум (−/+/Fit, Ctrl+wheel), збереження `.cod` |
 | **Глосарій** | 📊 Dashboard з прогрес-баром, фільтри, сортування, 🩹 авто-фікс структури, 🔄 bulk Find/Replace (regex/whole-word), ↶ Undo масових операцій, 5 ротаційних бекапів `_glossary.json` |
@@ -69,6 +72,9 @@
 - Підтримка prefix-байтів `0x81`/`0x99` (CJK punctuation, latin extended) і кнопкових пар `F1/F2/F5/F9 + XX` (геймпадні гліфи).
 - **Byte-identical round-trip**: оригінальні `.ctd` файли парсяться, перетворюються в TSV, повертаються назад у `.ctd` без жодного відхилення (152/152).
 
+#### `.ctd` (Dream Drop Distance HD — KH 2.8)
+`@CTD` версії `0x1F7`, UTF-16LE. Entry 8 байт: `messageId`, `textOffsetLow`, `(layoutIndex<<4)|page` → адреса = low + page·0x10000. Шрифти `.bcfnt` (Nintendo 3DS BCFNT: CFNT/FINF/TGLP/CWDH/CMAP, A4-текстура зі swizzle) доповнюються кирилицею у вільні комірки, коди — нативний Unicode. Детально — [docs/formats/](docs/formats/).
+
 #### Шрифти BBS (`mesfont`/`menufont`/`cmdfont`/`helpfont`/`numeral`)
 Парсер ([tools/lib/bbs-font.js](tools/lib/bbs-font.js)) розпізнає bundle з `.inf` (метадані: count, texture WxH, cell WxH) + `.cod` (8 байт/гліф: charID, posX, posY, palette, width) + `.mtx` (4-bit indexed swizzled SD атлас) + `.clu` (1024-byte RGBA палітра). Опційно — HD-PNG remastered атлас (1024×512 для mesfont, складається з двох 512×512 блоків side-by-side по `palette`).
 
@@ -107,6 +113,8 @@ npm run build           # портабельний .exe
 npm run build:installer # NSIS installer
 ```
 
+Шрифти UA потребують **Python 3** з `pillow numpy fonttools scipy` (вкладка «Шрифти UA» сама перевірить і запропонує встановити через pip). Еталонні Python-інструменти й розбори форматів: [tools/py/](tools/py/), [docs/formats/](docs/formats/).
+
 Корисне для розробки:
 - `KH_DEBUG=1 npm start` — дзеркалить console renderer'а у термінал і відкриває DevTools.
 - Якщо запускаєш з терміналу VS Code і бачиш `ipcMain undefined` — зніми змінну `ELECTRON_RUN_AS_NODE` (VS Code передає її дочірнім процесам).
@@ -116,7 +124,9 @@ npm run build:installer # NSIS installer
 - `main.js` + `main/*.js` — main-процес (вікно, settings, IPC за доменами, worker-pool, setup).
 - `renderer/` — ESM-модулі UI (`main.js` — вхід; `core/`, `screens/`, `translate/`, `kerning/`, `bbsfont/`).
 - `shared/` — чисті модулі, спільні для main і renderer (codec KH1, TSV-формат, структура токенів, атомарний запис).
-- `tools/lib/formats/` — один handler на формат (`parse`/`compose`); `tools/lib/translate-ops.js` — generic extract/compose/glossary/composeAll поверх реєстру.
+- `tools/lib/formats/` — один handler на формат (`parse`/`compose`); `tools/lib/translate-ops.js` — generic extract/compose/glossary/composeAll/text_all поверх реєстру.
+- `tools/lib/{bbs-codec,recom-ctdl-codec,ddd-ctd}.js` — порти еталонних Python-кодеків; `data/{bbs,recom,ddd}/` — таблиці, витягнуті з тих самих .py; `test/fixtures/` — вектори, згенеровані Python-кодом (`test/codecs-reference.test.js` звіряє байт-у-байт).
+- `tools/py/` — самі Python-інструменти (шрифти + CLI для тексту), `assets/fonts/` — ComicHearts/KHMenu OTF.
 - `test/` — тести; `test/helpers/synth.js` будує синтетичні .binl/.ev/mes_ofs/.ctd/.ctdl.
 
 ---
@@ -131,11 +141,14 @@ Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: 
 
 | Category | What works |
 |---|---|
-| **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories (per-game isolated settings and folders) |
+| **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game isolated settings and folders) |
 | **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), Ukrainian overlay map, lossless round-trip |
 | **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus), `.ev`/`.evdl` (event scripts) |
-| **Re:CoM formats** | `.ctdl` (subtitles + menu; Shift-JIS + Latin-Extended, `{BTN_X}` button icons, byte-identical round-trip) |
-| **BBS codec** | CTD with 32-byte header + 12-byte message + 32-byte layout entries, byte-identical round-trip (152/152), prefix-byte sequences (0x81/0x99/F1/F2/F5/F9), Cyrillic→Latin Extended map for font-hack |
+| **Re:CoM formats** | `.ctdl` (port of `comtext.py`/`comctd.py`, verified on all 30 503 messages; `{color xx}` `{icon xx}`, **Ukrainian on hiragana codes `0x829F–0x82E0`**; round-trip 426/426) |
+| **DDD formats** | `.ctd` v0x1F7 UTF-16LE (port of `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, paged addressing up to 1 MiB; round-trip 37/37) |
+| **UA fonts** | "UA fonts" tab for BBS / Re:CoM / DDD: rasterizes the 66 Ukrainian letters (ComicHearts for dialogue, KHMenu for UI) into free cells of the game fonts using the reference Python tools (`tools/py`); "Install into game" with backups |
+| **text_all.txt** | Export/import of the Python toolkits' interchange format (`### path` / `#N` / text) — translations land in per-file progress and the glossary; a `text_uniq.txt`+`text_ua.txt` pair (Re:CoM) → glossary |
+| **BBS codec** | Port of the reference `bbstext.py`: full `0x81`/`0x99` tables, `{icon triangle}` `{color white}` `{sjis xxxx}` tags, **Ukrainian on katakana codes `0x83xx`** (in sync with the generated font), FontEn.arc glyph check; byte-identical round-trip on 116/116 game files |
 | **BBS formats** | `.ctd` (event/menu/HUD), HD-PNG font atlases, `mesfont/menufont/cmdfont/helpfont/numeral` fonts |
 | **BBS font editor** | Atlas viewer (HD PNG 1024×512), COD overlay with square cells, edit X/Y/palette/width per glyph, export overlay PNG as guide layer, zoom (−/+/Fit, Ctrl+wheel), save `.cod` |
 | **Glossary** | 📊 Dashboard with progress bar, filters, sorting, 🩹 auto-fix structure, 🔄 bulk Find/Replace (regex/whole-word), ↶ Undo for bulk operations, 5 rotating `_glossary.json` backups |
@@ -212,6 +225,8 @@ npm run check           # lint + test + smoke
 npm run build           # portable .exe
 npm run build:installer # NSIS installer
 ```
+
+UA fonts need **Python 3** with `pillow numpy fonttools scipy` (the "UA fonts" tab checks and offers a pip install). Reference Python tools and format write-ups: [tools/py/](tools/py/), [docs/formats/](docs/formats/).
 
 Development notes:
 - `KH_DEBUG=1 npm start` mirrors the renderer console to the terminal and opens DevTools.

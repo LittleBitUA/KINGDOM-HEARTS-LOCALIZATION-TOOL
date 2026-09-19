@@ -9,6 +9,7 @@
 //   ipc-translate.js — Translate-режим (extract/compose/glossary/TSV)
 //   ipc-setup.js     — onboarding (OpenKH/KHPCPatchManager, unpack)
 //   ipc-fonts.js     — BBS font editor + KH1 kerning
+//   ipc-uafonts.js   — генерація UA-шрифтів (Python-інструменти) + встановлення у гру
 //   autowrap.js      — auto-wrap за метриками .knj
 //   ipc-app.js       — updater, мова, about, openExternal
 
@@ -22,6 +23,7 @@ require('./main/ipc-editor');
 require('./main/ipc-translate');
 require('./main/ipc-setup');
 require('./main/ipc-fonts');
+require('./main/ipc-uafonts');
 require('./main/autowrap');
 require('./main/ipc-app');
 

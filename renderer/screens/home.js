@@ -51,6 +51,20 @@ export const gamesConfig = [
     onSelect: () => enterEditor('kh-re-com')
   },
   {
+    id: 'kh-ddd',
+    title: 'KINGDOM HEARTS Dream Drop Distance HD',
+    name: 'Kingdom Hearts 3D: Dream Drop Distance HD',
+    subtitle: 'PC (KH HD 2.8) · .ctd (UTF-16, event/menu/report)',
+    image: null,
+    coverGrad: 'linear-gradient(135deg, #3a1f5e 0%, #1f0f3a 50%, #0b0620 100%)',
+    enabled: true,
+    status: 'ready',
+    formats: ['ctd-ddd'],
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir',
+    onSelect: () => enterEditor('kh-ddd')
+  },
+  {
     id: 'kh-bbs-final-mix',
     title: 'KINGDOM HEARTS Birth by Sleep FINAL MIX',
     name: 'Kingdom Hearts: Birth by Sleep Final Mix',

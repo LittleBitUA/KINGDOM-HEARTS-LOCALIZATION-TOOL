@@ -27,13 +27,29 @@ function sendSetupProgress(payload) {
 // шлях відносно game-root, інші — fallback-патерни (регулярки case-insensitive
 // на basename). Якщо точний шлях не знайдено, робимо рекурсивний пошук
 // у `<gameDir>` за патерном.
+// Які .hed-архіви розпаковувати через KHPCPatchManager і що з них копіювати
+// у робочу теку тексту. heds[i].rel — preferred-шлях відносно кореня гри;
+// namePattern — fallback для рекурсивного пошуку. copy.filter(rel) отримує
+// шлях відносно <base>.hed_out ('/'-розділювачі); copy.withPrefix — чи
+// зберігати '<base>.hed_out/' у шляху призначення (так роблять Python-набори
+// BBS/DDD; Re:CoM — без префікса, як text_uniq.txt).
 const HED_PATHS = {
   'kh-re-com': {
-    // gameDir вже вказує на корінь Re:CoM, тому шлях стартує з Image/.
-    rel: 'Image/en/Recom.hed',
-    namePattern: /^recom\.hed$/i
+    heds: [{ rel: 'Image/dt/Recom.hed', alt: ['Image/en/Recom.hed'], namePattern: /^recom\.hed$/i }],
+    copy: { subdir: 'FILES', withPrefix: false, filter: (rel) => /(^|\/)UK_[^/]*\.ctdl?$/i.test(rel) }
+  },
+  'kh-bbs-final-mix': {
+    heds: [
+      { rel: 'Image/dt/bbs_first.hed', namePattern: /^bbs_first\.hed$/i },
+      { rel: 'Image/dt/bbs_fourth.hed', namePattern: /^bbs_fourth\.hed$/i }
+    ],
+    copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) }
+  },
+  'kh-ddd': {
+    heds: [{ rel: 'Image/dt/kh3d_first.hed', namePattern: /^kh3d_first\.hed$/i }],
+    copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) }
   }
-  // 'kh1-final-mix' / 'kh-bbs-final-mix' — додамо коли підтвердимо точні шляхи
+  // 'kh1-final-mix' — додамо коли підтвердимо точні шляхи
 };
 
 // Рекурсивно копіює файли з srcRoot у dstRoot, зберігаючи відносну ієрархію.
@@ -54,7 +70,9 @@ async function _copyMatchingFiles(srcRoot, dstRoot, namePattern, onProgress) {
         stack.push({ rel: childRel });
       } else if (e.isFile()) {
         stats.scanned++;
-        if (!namePattern.test(e.name)) continue;
+        const relPosix = childRel.split(path.sep).join('/');
+        const ok = (typeof namePattern === 'function') ? namePattern(relPosix, e.name) : namePattern.test(e.name);
+        if (!ok) continue;
         const srcAbs = path.join(srcRoot, childRel);
         const dstAbs = path.join(dstRoot, childRel);
         try {
@@ -185,6 +203,86 @@ ipcMain.handle('setup:reset', async () => {
   }
   return { ok: true };
 });
+
+// Знайти .hed: preferred rel → alt rel → рекурсивний пошук за patternом.
+function locateHed(gameRoot, hed) {
+  const candidates = [hed.rel].concat(hed.alt || []).map(r => path.join(gameRoot, r));
+  for (const c of candidates) if (fsSync.existsSync(c)) return c;
+  const found = findFileByPattern(gameRoot, hed.namePattern, 6);
+  if (found.length === 1) {
+    sendSetupProgress({ phase: 'unpack-game', key: 'spHedFoundAuto', params: { path: found[0] } });
+    return found[0];
+  }
+  if (found.length > 1) {
+    sendSetupProgress({ phase: 'unpack-game', key: 'spHedFoundMany', params: { n: found.length, path: found[0] } });
+    return found[0];
+  }
+  return null;
+}
+
+// KHPCPatchManager при ПЕРШОМУ запуску створює resources/ поряд з exe — без
+// неї розпакування не працює. Запускаємо без аргументів, чекаємо до 10с,
+// кілимо. Повертає рядок помилки або null.
+async function ensurePatchManagerResources(exePath) {
+  const { spawn } = require('child_process');
+  const exeDir = path.dirname(exePath);
+  const resourcesDir = path.join(exeDir, 'resources');
+  if (fsSync.existsSync(resourcesDir)) return null;
+  sendSetupProgress({ phase: 'unpack-game', key: 'spUnpackInit' });
+  const init = spawn(exePath, [], { cwd: exeDir, detached: false, stdio: 'ignore', windowsHide: true });
+  init.on('error', () => {});
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (fsSync.existsSync(resourcesDir)) break;
+  }
+  try { init.kill(); } catch (_) {}
+  if (!fsSync.existsSync(resourcesDir)) {
+    sendSetupProgress({ phase: 'unpack-game', key: 'spUnpackInitFail' });
+    return 'KHPCPatchManager did not create resources/';
+  }
+  return null;
+}
+
+// Розпакувати один .hed: KHPCPatchManager з .hed як аргументом працює у фоні.
+// Блокуємо до завершення, показуємо живий прогрес (таймер + лічильник файлів).
+async function unpackOneHed(exePath, hedAbs) {
+  const { spawn } = require('child_process');
+  const exeDir = path.dirname(exePath);
+  sendSetupProgress({ phase: 'unpack-game', key: 'spUnpacking', params: { file: path.basename(hedAbs), sec: 0, filesPart: '', linePart: '' } });
+  const start = Date.now();
+  const watchDir = path.dirname(hedAbs);
+  const baseFileCount = _countFilesShallow(watchDir);
+  let lastTickFiles = baseFileCount;
+  let lastLine = '';
+  const tickTimer = setInterval(() => {
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    const cur = _countFilesShallow(watchDir);
+    const delta = Math.max(0, cur - baseFileCount);
+    if (cur !== lastTickFiles || elapsed % 2 === 0) {
+      lastTickFiles = cur;
+      sendSetupProgress({ phase: 'unpack-game', key: 'spUnpacking', params: {
+        file: path.basename(hedAbs), sec: elapsed,
+        filesPart: delta ? ' · +' + delta : '', linePart: lastLine ? ' · ' + lastLine.slice(0, 120) : ''
+      } });
+    }
+  }, 3000);
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(exePath, [hedAbs], { cwd: exeDir, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+      const consumeLine = (b) => { const t = b.toString().split(/\r?\n/).filter(Boolean).pop(); if (t) lastLine = t; };
+      child.stdout && child.stdout.on('data', consumeLine);
+      child.stderr && child.stderr.on('data', consumeLine);
+      child.on('error', reject);
+      child.on('close', (code) => code === 0 ? resolve() : reject(new Error('KHPCPatchManager exit ' + code + (lastLine ? ': ' + lastLine : ''))));
+    });
+  } finally {
+    clearInterval(tickTimer);
+  }
+  const elapsed = Math.round((Date.now() - start) / 1000);
+  const newCount = Math.max(0, _countFilesShallow(watchDir) - baseFileCount);
+  sendSetupProgress({ phase: 'unpack-game', key: 'spUnpackDone', params: { sec: elapsed, count: newCount } });
+  return { ok: true, hed: hedAbs, exe: exePath, elapsedSec: elapsed, newFiles: newCount };
+}
 
 // Запуск повного setup-flow. payload:
 //   { activeGame, gameDirectories: {gameId:path}, toolsDir, textAssetsDir,
@@ -365,183 +463,52 @@ ipcMain.handle('setup:run', async (_e, payload) => {
   // закриття її вікна. Користувач сам бачить вікно tool'а і працює з ним.
   let unpackInfo = null;
   if (activeGame && HED_PATHS[activeGame] && downloadResults.khpcpm) {
+    const gameRoot = gameDirectories[activeGame];
+    const cfg = HED_PATHS[activeGame];
+    const exePath = downloadResults.khpcpm.path;
+    unpackInfo = { ok: true, heds: [], copyFiles: { copied: 0, skippedExisting: 0, scanned: 0, errors: [] } };
     try {
-      const gameRoot = gameDirectories[activeGame];
-      const cfg = HED_PATHS[activeGame];
-      let hedAbs = path.join(gameRoot, cfg.rel);
-      // Якщо preferred-шлях не існує, пробуємо рекурсивний пошук за patternом.
-      if (!fsSync.existsSync(hedAbs)) {
-        const found = findFileByPattern(gameRoot, cfg.namePattern, 6);
-        if (found.length === 1) {
-          hedAbs = found[0];
-          sendSetupProgress({
-            phase: 'unpack-game',
-            key: 'spHedFoundAuto', params: { path: hedAbs }
-          });
-        } else if (found.length > 1) {
-          // Беремо перший, але повідомляємо.
-          hedAbs = found[0];
-          sendSetupProgress({
-            phase: 'unpack-game',
-            key: 'spHedFoundMany', params: { n: found.length, path: hedAbs }
-          });
-        }
-      }
-      const exePath = downloadResults.khpcpm.path;
-
-      if (!fsSync.existsSync(hedAbs)) {
-        const expected = path.join(gameRoot, cfg.rel);
-        unpackInfo = {
-          skipped: true,
-          reason: '.hed not found in ' + gameRoot + ' (expected: ' + expected + ')'
-        };
-        sendSetupProgress({
-          phase: 'unpack-game',
-          key: 'spHedNotFound', params: { dir: gameRoot, expected }
-        });
-      } else if (!fsSync.existsSync(exePath)) {
+      if (!fsSync.existsSync(exePath)) {
         unpackInfo = { skipped: true, reason: 'KHPCPatchManager not found: ' + exePath };
         sendSetupProgress({ phase: 'unpack-game', key: 'spExeMissing', params: { path: exePath } });
       } else {
-        const { spawn } = require('child_process');
-        const exeDir = path.dirname(exePath);
-        const resourcesDir = path.join(exeDir, 'resources');
-
-        // Крок 1: KHPCPatchManager при ПЕРШОМУ запуску створює `resources/`
-        // папку поряд з exe — без неї подальші розпакування не працюють.
-        // Запускаємо exe без аргументів і чекаємо появи теки (до 10с),
-        // потім кілимо процес. Пропускаємо якщо resources/ уже існує.
-        if (!fsSync.existsSync(resourcesDir)) {
-          sendSetupProgress({ phase: 'unpack-game', key: 'spUnpackInit' });
-          const init = spawn(exePath, [], {
-            cwd: exeDir,
-            detached: false,
-            stdio: 'ignore',
-            windowsHide: true
-          });
-          init.on('error', () => {});
-          // Polling до 10 секунд
-          for (let i = 0; i < 20; i++) {
-            await new Promise((r) => setTimeout(r, 500));
-            if (fsSync.existsSync(resourcesDir)) break;
-          }
-          try { init.kill(); } catch (_) {}
-          // На випадок якщо init так і не створив теку
-          if (!fsSync.existsSync(resourcesDir)) {
-            sendSetupProgress({ phase: 'unpack-game', key: 'spUnpackInitFail' });
-            unpackInfo = { skipped: true, reason: 'KHPCPatchManager did not create resources/' };
-            downloadErrors.push('Unpack: ' + unpackInfo.reason);
-          }
-        }
-
-        // Крок 2: розпакування. KHPCPatchManager при отриманні .hed як
-        // аргумента працює у фоні (без видимого UI). Блокуємо setup до
-        // завершення процесу і показуємо живий прогрес з його stdout/stderr,
-        // плюс таймер минулого часу і лічильник створених файлів.
-        if (!unpackInfo) {
-          sendSetupProgress({
-            phase: 'unpack-game',
-            key: 'spUnpacking',
-            params: { file: path.basename(hedAbs), sec: 0, filesPart: '', linePart: '' }
-          });
-          const start = Date.now();
-          // Папка, у яку KHPCPatchManager пише розпаковані файли (поряд з .hed,
-          // зазвичай <hed-name>_out або similar). Лічимо рекурсивно файли у
-          // батьківській теці .hed для приблизної оцінки.
-          const watchDir = path.dirname(hedAbs);
-          const baseFileCount = _countFilesShallow(watchDir);
-          let lastTickFiles = baseFileCount;
-          let lastLine = '';
-
-          const tickTimer = setInterval(() => {
-            const elapsed = Math.round((Date.now() - start) / 1000);
-            const cur = _countFilesShallow(watchDir);
-            const delta = Math.max(0, cur - baseFileCount);
-            if (cur !== lastTickFiles || elapsed % 2 === 0) {
-              lastTickFiles = cur;
-              const filesPart = delta ? ' · +' + delta : '';
-              const linePart = lastLine ? ' · ' + lastLine.slice(0, 120) : '';
-              sendSetupProgress({
-                phase: 'unpack-game',
-                key: 'spUnpacking',
-                params: { file: path.basename(hedAbs), sec: elapsed, filesPart, linePart }
-              });
-            }
-          }, 3000);   // 3с: рекурсивний підрахунок файлів у теці гри — не щосекунди
-
-          await new Promise((resolve, reject) => {
-            const child = spawn(exePath, [hedAbs], {
-              cwd: exeDir,
-              stdio: ['ignore', 'pipe', 'pipe'],
-              windowsHide: true
-            });
-            const consumeLine = (s) => {
-              const trimmed = s.toString().split(/\r?\n/).filter(Boolean).pop();
-              if (trimmed) lastLine = trimmed;
-            };
-            child.stdout && child.stdout.on('data', consumeLine);
-            child.stderr && child.stderr.on('data', consumeLine);
-            child.on('error', (err) => {
-              clearInterval(tickTimer);
-              reject(err);
-            });
-            child.on('close', (code) => {
-              clearInterval(tickTimer);
-              if (code === 0) resolve({ code });
-              else reject(new Error('KHPCPatchManager exit ' + code +
-                                    (lastLine ? ': ' + lastLine : '')));
-            });
-          });
-
-          const elapsed = Math.round((Date.now() - start) / 1000);
-          const newCount = Math.max(0, _countFilesShallow(watchDir) - baseFileCount);
-          unpackInfo = { ok: true, hed: hedAbs, exe: exePath, elapsedSec: elapsed, newFiles: newCount };
-          sendSetupProgress({
-            phase: 'unpack-game',
-            key: 'spUnpackDone', params: { sec: elapsed, count: newCount }
-          });
+        const initErr = await ensurePatchManagerResources(exePath);
+        if (initErr) {
+          unpackInfo = { skipped: true, reason: initErr };
+          downloadErrors.push('Unpack: ' + initErr);
         }
       }
-
-      // Post-unpack: копіюємо оригінальні UK_*.ctdl файли з розпакованої
-      // <gameDir>/Image/en/<base>.hed_out у <textAssetsDir>/ReCoM/FILES,
-      // зберігаючи ієрархію.
-      if (unpackInfo && unpackInfo.ok && activeGame === 'kh-re-com') {
-        try {
-          const hedDir = path.dirname(unpackInfo.hed);
-          const hedBase = path.basename(unpackInfo.hed, path.extname(unpackInfo.hed));
-          const unpackOutDir = path.join(hedDir, hedBase + '.hed_out');
-          const filesDst = path.join(textAssetsDir, GAME_DIR_LAYOUT['kh-re-com'].base, 'FILES');
-          if (!fsSync.existsSync(unpackOutDir)) {
-            sendSetupProgress({
-              phase: 'copy-files',
-              key: 'spCopyOutMissing', params: { path: unpackOutDir }
-            });
-            unpackInfo.copyFiles = { skipped: true, reason: 'no _out dir' };
-          } else {
-            sendSetupProgress({
-              phase: 'copy-files',
-              key: 'spCopyStart', params: { dst: filesDst }
-            });
-            await fs.mkdir(filesDst, { recursive: true });
-            const filter = /^UK_.*\.ctdl?$/i;
-            const copyResult = await _copyMatchingFiles(unpackOutDir, filesDst, filter, (p) => {
-              sendSetupProgress({
-                phase: 'copy-files',
-                key: 'spCopyProgress', params: { n: p.copied, lastRel: p.lastRel || '' }
-              });
-            });
-            unpackInfo.copyFiles = copyResult;
-            sendSetupProgress({
-              phase: 'copy-files',
-              key: 'spCopyDone', params: { n: copyResult.copied, dst: filesDst }
-            });
+      if (!unpackInfo.skipped) {
+        const filesDst = path.join(textAssetsDir, GAME_DIR_LAYOUT[activeGame].base, cfg.copy.subdir);
+        for (const hed of cfg.heds) {
+          const hedAbs = locateHed(gameRoot, hed);
+          if (!hedAbs) {
+            const expected = path.join(gameRoot, hed.rel);
+            unpackInfo.heds.push({ rel: hed.rel, skipped: true, reason: 'not found' });
+            sendSetupProgress({ phase: 'unpack-game', key: 'spHedNotFound', params: { dir: gameRoot, expected } });
+            continue;
           }
-        } catch (e) {
-          const msg = 'CopyFiles: ' + (e.message || e);
-          sendSetupProgress({ phase: 'error', key: 'spError', params: { msg } });
-          downloadErrors.push(msg);
+          const r = await unpackOneHed(exePath, hedAbs);
+          unpackInfo.heds.push(r);
+          // Копіюємо оригінальні текстові файли з <base>.hed_out у робочу теку.
+          const hedBase = path.basename(hedAbs, path.extname(hedAbs));
+          const unpackOutDir = path.join(path.dirname(hedAbs), hedBase + '.hed_out');
+          if (!fsSync.existsSync(unpackOutDir)) {
+            sendSetupProgress({ phase: 'copy-files', key: 'spCopyOutMissing', params: { path: unpackOutDir } });
+            continue;
+          }
+          const dst = cfg.copy.withPrefix ? path.join(filesDst, hedBase + '.hed_out') : filesDst;
+          sendSetupProgress({ phase: 'copy-files', key: 'spCopyStart', params: { dst } });
+          await fs.mkdir(dst, { recursive: true });
+          const cr = await _copyMatchingFiles(unpackOutDir, dst, cfg.copy.filter, (p) => {
+            sendSetupProgress({ phase: 'copy-files', key: 'spCopyProgress', params: { n: p.copied, lastRel: p.lastRel || '' } });
+          });
+          unpackInfo.copyFiles.copied += cr.copied;
+          unpackInfo.copyFiles.scanned += cr.scanned;
+          unpackInfo.copyFiles.errors.push(...cr.errors);
+          sendSetupProgress({ phase: 'copy-files', key: 'spCopyDone', params: { n: cr.copied, dst } });
         }
+        unpackInfo.hed = unpackInfo.heds.map(h => h.hed).filter(Boolean).join('; ');
       }
     } catch (e) {
       unpackInfo = { error: e.message || String(e) };

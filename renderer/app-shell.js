@@ -5,6 +5,7 @@ import { maybeFirstRunSettings } from './main.js';
 import { gamesConfig, hideHome, showHome } from './screens/home.js';
 import { cancelAutoSaveTimers, initTranslateMode } from './translate/files.js';
 import { clearBulkHistory } from './translate/history.js';
+import { initUaFonts } from './uafonts/uafonts.js';
 
 // файлів у translate-режимі та на доступні режими (Kerning лише для KH1).
 export let _currentGameId = null;
@@ -25,6 +26,7 @@ export function enterEditor(gameId) {
 
   const isKh1 = _currentGameId === 'kh1-final-mix';
   const isBbs = _currentGameId === 'kh-bbs-final-mix';
+  const hasUaFonts = ['kh-bbs-final-mix', 'kh-re-com', 'kh-ddd'].includes(_currentGameId);
   // Mode tabs які доступні цій грі.
   // KH1:    Editor + Translate + Kerning.
   // BBS:    Translate + Шрифт BBS (font-hack для UA).
@@ -37,6 +39,8 @@ export function enterEditor(gameId) {
   if (editorTab)  editorTab.style.display  = isKh1 ? '' : 'none';
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
   if (bbsFontTab) bbsFontTab.style.display = isBbs ? '' : 'none';
+  const uaFontsTab = document.getElementById('mode-ua-fonts');
+  if (uaFontsTab) uaFontsTab.style.display = hasUaFonts ? '' : 'none';
 
   // Якщо гра змінилась — повністю скидаємо translate-state, бо settings,
   // файли, slots, glossary тепер інші.
@@ -104,12 +108,19 @@ export function setMode(mode) {
   viewTranslate.classList.toggle('hidden', mode !== 'translate');
   viewKerning.classList.toggle('hidden', mode !== 'kerning');
   if (viewBbsFont) viewBbsFont.classList.toggle('hidden', mode !== 'bbs-font');
+  const viewUaFonts = document.getElementById('view-ua-fonts');
+  if (viewUaFonts) viewUaFonts.classList.toggle('hidden', mode !== 'ua-fonts');
+  const modeUaFontsBtn = document.getElementById('mode-ua-fonts');
+  if (modeUaFontsBtn) modeUaFontsBtn.classList.toggle('active', mode === 'ua-fonts');
   modeEditorBtn.classList.toggle('active', mode === 'editor');
   modeTranslateBtn.classList.toggle('active', mode === 'translate');
   modeKerningBtn.classList.toggle('active', mode === 'kerning');
   if (modeBbsFontBtn) modeBbsFontBtn.classList.toggle('active', mode === 'bbs-font');
   if (mode === 'translate') initTranslateMode();
+  if (mode === 'ua-fonts') initUaFonts();
 }
+const _modeUaFontsBtn = document.getElementById('mode-ua-fonts');
+if (_modeUaFontsBtn) _modeUaFontsBtn.addEventListener('click', () => setMode('ua-fonts'));
 
 modeEditorBtn.addEventListener('click', () => setMode('editor'));
 modeTranslateBtn.addEventListener('click', () => setMode('translate'));

@@ -164,6 +164,59 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   }
 });
 
+// ---- text_all.txt (формат обміну Python-наборів BBS/CoM/DDD) ----
+ipcMain.handle('translate:exportTextAll', async (_e, payload) => {
+  const p = payload || {};
+  if (!p.engDir || !Array.isArray(p.files)) return { error: 'Не задано теки/файли' };
+  try {
+    return await ops.exportTextAll(p.files, {
+      engDir: p.engDir, rusDir: p.rusDir || p.engDir, tsvDir: p.tsvDir || null,
+      glossary: p.glossary || {}, safeMode: p.safeMode !== false, all: !!p.all, runWorker, onProgress: sendProgress
+    });
+  } catch (e) { return { error: (e && e.message) || String(e) }; }
+});
+
+ipcMain.handle('translate:importTextAll', async (_e, payload) => {
+  const p = payload || {};
+  if (!p.engDir || !Array.isArray(p.files) || typeof p.content !== 'string') return { error: 'Не задано теки/файли/вміст' };
+  try {
+    return await ops.importTextAll(p.content, p.files, {
+      engDir: p.engDir, rusDir: p.rusDir || p.engDir, tsvDir: p.tsvDir || null,
+      safeMode: p.safeMode !== false, toGlossary: p.toGlossary !== false, runWorker, onProgress: sendProgress
+    });
+  } catch (e) { return { error: (e && e.message) || String(e) }; }
+});
+
+ipcMain.handle('translate:importTextAllPair', async (_e, payload) => {
+  const p = payload || {};
+  if (typeof p.enContent !== 'string' || typeof p.ukContent !== 'string') return { error: 'Потрібні обидва файли' };
+  try { return ops.importTextAllPair(p.enContent, p.ukContent); }
+  catch (e) { return { error: (e && e.message) || String(e) }; }
+});
+
+ipcMain.handle('translate:pickTextFile', async (_e, opts) => {
+  const r = await dialog.showOpenDialog(win.get(), {
+    title: (opts && opts.title) || dl('importTxt'),
+    properties: ['openFile'],
+    filters: [{ name: dl('txtFiles') + ' (*.txt)', extensions: ['txt'] }, { name: dl('allFiles'), extensions: ['*'] }]
+  });
+  if (r.canceled || !r.filePaths.length) return { canceled: true };
+  try { return { ok: true, filePath: r.filePaths[0], content: await fs.readFile(r.filePaths[0], 'utf8') }; }
+  catch (e) { return { error: (e && e.message) || String(e) }; }
+});
+
+ipcMain.handle('translate:saveTextFile', async (_e, payload) => {
+  const p = payload || {};
+  const r = await dialog.showSaveDialog(win.get(), {
+    title: p.title || dl('exportTxt'),
+    defaultPath: p.defaultName || 'text_all.txt',
+    filters: [{ name: dl('txtFiles') + ' (*.txt)', extensions: ['txt'] }, { name: dl('allFiles'), extensions: ['*'] }]
+  });
+  if (r.canceled || !r.filePath) return { canceled: true };
+  try { await writeFileAtomic(r.filePath, p.content || '', { encoding: 'utf8' }); return { ok: true, filePath: r.filePath }; }
+  catch (e) { return { error: (e && e.message) || String(e) }; }
+});
+
 ipcMain.handle('translate:composeAll', async (_e, payload) => {
   const engDir = payload && payload.engDir;
   const outDir = payload && payload.outDir;

@@ -11,6 +11,7 @@ import { saveTsvProgress, setSubtab } from './translate/files.js';
 import { gExportTxtBtn, gImportTxtBtn, saveGlossary } from './translate/glossary.js';
 import { hideImport } from './translate/import.js';
 import { showReplace } from './translate/replace.js';
+import './translate/textall-ui.js';
 
 // =====================================================================
 // Custom title bar handlers (Stage 1 редизайну).

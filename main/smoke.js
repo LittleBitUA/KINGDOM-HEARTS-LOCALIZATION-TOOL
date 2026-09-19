@@ -92,12 +92,26 @@ async function runSmoke(win) {
     const setup = await call('window.kh1.setup.status()');
     check('setup.status', setup && typeof setup.completed === 'boolean', setup);
 
+    // text_all: експорт синтетичних файлів і зворотний імпорт через IPC
+    const ta = await call(`window.kh1.translate.exportTextAll(${J({ engDir, rusDir, files: ['a.binl', 'b.ctd'], glossary: { Yes: 'Так' }, safeMode: true })})`);
+    check('exportTextAll', ta.ok === true && /### b\.ctd\n#0\nТак\n/.test(ta.content), ta);
+    const ti = await call(`window.kh1.translate.importTextAll(${J({ engDir, rusDir, tsvDir, files: ['a.binl', 'b.ctd'], content: '### b.ctd\n#0\nНі\n', safeMode: true })})`);
+    check('importTextAll', ti.ok === true && ti.applied === 1 && ti.tsvWritten === 1 && ti.glossary.Yes === 'Ні', ti);
+
+    // UA fonts: детекція Python (не вимагаємо наявності) і locate без гри
+    const py = await call('window.kh1.uafonts.python()');
+    check('uafonts.python responds', py && typeof py.found === 'boolean', py);
+    const loc = await call(`window.kh1.uafonts.locate(${J({ gameId: 'kh-bbs-final-mix', gameDir: root })})`);
+    check('uafonts.locate reports missing hed_out', loc && /bbs_first\.hed_out/.test(loc.error || ''), loc);
+    const dfl = await call('window.kh1.uafonts.defaults("kh-ddd")');
+    check('uafonts.defaults', dfl && /FONTS/.test(dfl.buildDir), dfl);
+
     const khGlobal = await call('typeof window.KH.tsv.build === "function" && typeof window.KH.textStructure.validateTokens === "function"');
     check('shared UMD modules loaded in renderer', khGlobal === true);
 
     // Renderer bootstrap (ESM main.js): home-картки відрендерені, версія у титлбарі.
     const cards = await call('document.querySelectorAll("#home-grid .game-card").length');
-    check('renderer: home cards rendered', cards === 3, cards);
+    check('renderer: home cards rendered', cards === 4, cards);
     const ver = await call('document.getElementById("tb-version").textContent');
     check('renderer: title-bar version filled', /^v\d+\.\d+/.test(ver), ver);
     // Перехід у редактор KH1 і перемикання режимів — це проганяє більшість модулів.

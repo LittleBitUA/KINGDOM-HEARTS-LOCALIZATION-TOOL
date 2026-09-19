@@ -90,6 +90,11 @@ contextBridge.exposeInMainWorld('kh1', {
     autoWrap: (payload) => ipcRenderer.invoke('translate:autoWrap', payload),
     autoWrapAdaptive: (payload) => ipcRenderer.invoke('translate:autoWrapAdaptive', payload),
     getWorldsMap: () => ipcRenderer.invoke('translate:getWorldsMap'),
+    exportTextAll: (payload) => ipcRenderer.invoke('translate:exportTextAll', payload),
+    importTextAll: (payload) => ipcRenderer.invoke('translate:importTextAll', payload),
+    importTextAllPair: (payload) => ipcRenderer.invoke('translate:importTextAllPair', payload),
+    pickTextFile: (opts) => ipcRenderer.invoke('translate:pickTextFile', opts || {}),
+    saveTextFile: (payload) => ipcRenderer.invoke('translate:saveTextFile', payload),
     onProgress: (callback) => {
       if (typeof callback !== 'function') return () => {};
       const listener = (_e, p) => callback(p);
@@ -107,6 +112,21 @@ contextBridge.exposeInMainWorld('kh1', {
       const listener = (_e, p) => callback(p);
       ipcRenderer.on('setup:progress', listener);
       return () => ipcRenderer.removeListener('setup:progress', listener);
+    }
+  },
+  uafonts: {
+    python:     () => ipcRenderer.invoke('uafonts:python'),
+    pipInstall: () => ipcRenderer.invoke('uafonts:pipInstall'),
+    locate:     (payload) => ipcRenderer.invoke('uafonts:locate', payload),
+    generate:   (payload) => ipcRenderer.invoke('uafonts:generate', payload),
+    install:    (payload) => ipcRenderer.invoke('uafonts:install', payload),
+    openDir:    (dir) => ipcRenderer.invoke('uafonts:openDir', dir),
+    defaults:   (gameId) => ipcRenderer.invoke('uafonts:defaults', gameId),
+    onProgress: (callback) => {
+      if (typeof callback !== 'function') return () => {};
+      const listener = (_e, p) => callback(p);
+      ipcRenderer.on('uafonts:progress', listener);
+      return () => ipcRenderer.removeListener('uafonts:progress', listener);
     }
   },
   bbsfont: {
