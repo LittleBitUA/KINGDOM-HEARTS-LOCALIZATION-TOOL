@@ -356,8 +356,11 @@ function parseRawHexToken(s, i) {
 function encodeDetailed(text, opts) {
   const native = schemeFromOpts(opts) === 'native';
   const hybrid = native && !!(opts && opts.hybrid);
-  // native: reverse-таблиця без overlay (щоб «А» не пішла на акцентовану комірку)
+  // native: reverse-таблиця без overlay (щоб «А» не пішла на акцентовану комірку);
+  // типографічні заміни overlay (« » – ’ …, encodeOnly) лишаються потрібними —
+  // беремо їх із overlay-таблиці для НЕкириличних символів.
   const { byFirstChar } = load(native ? 'base' : modeFromOpts(opts));
+  const typo = native ? load('overlay').byFirstChar : null;
   const nat = native ? loadNative() : null;
   const lenient = !!(opts && opts.lenient);
   let s = text == null ? '' : String(text);
@@ -396,7 +399,8 @@ function encodeDetailed(text, opts) {
       const pair = nat.encodeMap.get(ch);
       if (pair) { bytes.push(pair[0], pair[1]); i++; continue; }
     }
-    const bucket = byFirstChar.get(c0);
+    let bucket = byFirstChar.get(c0);
+    if (!bucket && typo && !(c0 >= 0x0400 && c0 <= 0x04FF)) bucket = typo.get(c0);
     if (bucket) {
       for (let j = 0; j < bucket.length; j++) {
         const token = bucket[j][0];

@@ -151,6 +151,8 @@ test('native scheme: Cyrillic ↔ 19 NN glyph codes, Latin stays Latin, hybrid s
   // hybrid: А/В/С/Е… — 1 байт латинського гліфа; решта — 19 NN
   const hyb = codec.encode('САД', { scheme: 'native', hybrid: true });
   assert.deepEqual([...hyb], [...codec.encode('CA', { overlay: false }), 0x19, 0x05]);
+  // типографіка з overlay.encodeOnly (« » – ’) працює і в native
+  assert.deepEqual([...codec.encode('«ключ» – ’', { scheme: 'native' })], [...codec.encode('«', { overlay: true }), 0x19, 0x2F, 0x19, 0x30, 0x19, 0x40, 0x19, 0x3C, ...codec.encode('» – ’', { overlay: true })]);
   // default-схема перемикається глобально (main/worker)
   codec.setDefaultScheme('native');
   try { assert.deepEqual([...codec.encode('Ї')], [0x19, 0x0C]); }
