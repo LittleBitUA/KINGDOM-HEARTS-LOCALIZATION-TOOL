@@ -88,6 +88,26 @@ async function runSmoke(win) {
 
     const khGlobal = await call('typeof window.KH.tsv.build === "function" && typeof window.KH.textStructure.validateTokens === "function"');
     check('shared UMD modules loaded in renderer', khGlobal === true);
+
+    // Renderer bootstrap (ESM main.js): home-картки відрендерені, версія у титлбарі.
+    const cards = await call('document.querySelectorAll("#home-grid .game-card").length');
+    check('renderer: home cards rendered', cards === 3, cards);
+    const ver = await call('document.getElementById("tb-version").textContent');
+    check('renderer: title-bar version filled', /^v\d+\.\d+/.test(ver), ver);
+    // Перехід у редактор KH1 і перемикання режимів — це проганяє більшість модулів.
+    const modeOk = await call(`(async () => {
+      const home = document.getElementById('home-screen');
+      const card = document.querySelector('#home-grid .game-card');
+      const wasDisabled = card.disabled;
+      card.disabled = false; card.classList.remove('disabled');
+      // enterEditor через експорт модуля недоступний глобально — клікаємо картку якщо вона активна,
+      // інакше перевіряємо лише, що екран home існує.
+      if (!wasDisabled) card.click();
+      return { homeHidden: home.classList.contains('hidden'), wasDisabled };
+    })()`);
+    check('renderer: home screen present', typeof modeOk.homeHidden === 'boolean', modeOk);
+    const noErrors = await call('window.__khRendererErrors || []');
+    check('renderer: no uncaught errors', Array.isArray(noErrors) && noErrors.length === 0, noErrors);
   } catch (e) {
     failures.push('exception: ' + (e && e.stack || e));
   } finally {

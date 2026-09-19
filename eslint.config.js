@@ -6,6 +6,10 @@ const globals = require('globals');
 module.exports = [
   js.configs.recommended,
   {
+    files: ['renderer/i18n.js', 'renderer/error-capture.js'],
+    languageOptions: { ecmaVersion: 2022, sourceType: 'script', globals: { ...globals.browser } }
+  },
+  {
     ignores: ['node_modules/**', 'dist/**', 'out/**']
   },
   {
@@ -25,10 +29,11 @@ module.exports = [
   },
   {
     files: ['renderer/**/*.js'],
+    ignores: ['renderer/i18n.js', 'renderer/error-capture.js'],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'script',
-      globals: { ...globals.browser, kh1: 'readonly', i18n: 'readonly' }
+      sourceType: 'module',
+      globals: { ...globals.browser }
     },
     rules: {
       'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
