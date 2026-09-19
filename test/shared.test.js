@@ -70,3 +70,12 @@ test('segmentByTokens splits text/token and tolerates unclosed brace', () => {
     { type: 'text', value: 'a' }, { type: 'token', value: '{x}' }, { type: 'text', value: 'b{' }
   ]);
 });
+
+test('lookupEolVariant: ev keys with trailing {eol} reuse binl translations and vice versa', () => {
+  const g = { 'Gift from Pongo.{lf}{0x0B}': 'Дарунок від Понґо.{lf}{0x0B}', 'Seashore{eol}': 'Узбережжя{eol}', 'Empty': '' };
+  assert.equal(ts.lookupEolVariant(g, 'Gift from Pongo.{lf}{0x0B}{eol}'), 'Дарунок від Понґо.{lf}{0x0B}{eol}');
+  assert.equal(ts.lookupEolVariant(g, 'Seashore'), 'Узбережжя');
+  assert.equal(ts.lookupEolVariant(g, 'Gift from Pongo.{lf}{0x0B}'), '');   // точний ключ — не наша справа
+  assert.equal(ts.lookupEolVariant(g, 'Empty{eol}'), '');                   // порожній переклад не рахується
+  assert.equal(ts.lookupEolVariant(g, 'Unknown{eol}'), '');
+});

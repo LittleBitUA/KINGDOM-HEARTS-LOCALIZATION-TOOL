@@ -187,6 +187,22 @@
     }
     return pairs;
   }
+  // Той самий рядок у різних файлах може мати ключ з хвостовим {eol} (ev-файли
+  // додають термінатор) і без нього (binl). Якщо точного ключа в глосарії нема —
+  // беремо переклад сусіднього варіанта, узгодивши хвіст. Повертає '' якщо нема.
+  function lookupEolVariant(glossary, key) {
+    if (!glossary || !key) return '';
+    const has = (k) => Object.prototype.hasOwnProperty.call(glossary, k) && glossary[k];
+    if (key.endsWith('{eol}')) {
+      const bare = key.slice(0, -5);
+      if (has(bare)) { const v = String(glossary[bare]); return v.endsWith('{eol}') ? v : v + '{eol}'; }
+    } else if (has(key + '{eol}')) {
+      const v = String(glossary[key + '{eol}']);
+      return v.endsWith('{eol}') ? v.slice(0, -5) : v;
+    }
+    return '';
+  }
+
   // Переписати UK зі старої форми токенів у нову (щоб token-guard не відкинув переклад).
   function upgradeLegacyUk(newKey, oldKey, uk) {
     if (!uk || !oldKey || oldKey === newKey) return uk;
@@ -208,6 +224,7 @@
     LETTER_RE,
     kh1OutRel,
     legacyTokenPairs,
+    lookupEolVariant,
     upgradeLegacyUk,
     preserveStructure,
     tokensOf,

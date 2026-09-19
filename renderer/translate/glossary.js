@@ -123,13 +123,22 @@ export function upgradeLegacyUk(entry, uk) {
   if (!uk || !entry.legacyKey) return uk;
   return window.KH.textStructure.upgradeLegacyUk(entry.english, entry.legacyKey, uk);
 }
+// Підтягнути переклади для ключів індексу, у яких у глосарії є лише «сусідня»
+// форма: (1) старі 2-байтові 05/06/07-токени (legacyKey); (2) той самий рядок
+// з/без хвостового {eol} — ev-файли додають термінатор, binl ні. Це те саме
+// зшивання, що робить compose у main (glossaryLookup), тож лічильник і список
+// показують те, що реально збереться.
 export function migrateLegacyKeys() {
   let n = 0;
+  const tr = gState.translations;
   for (const e of gState.entries || []) {
-    if (!e.legacyKey || e.legacyKey === e.english) continue;
-    const cur = gState.translations[e.english];
-    const old = gState.translations[e.legacyKey];
-    if ((cur === undefined || cur === '') && old) { gState.translations[e.english] = upgradeLegacyUk(e, old); n++; }
+    const cur = tr[e.english];
+    if (cur !== undefined && cur !== '') continue;
+    if (e.legacyKey && e.legacyKey !== e.english && tr[e.legacyKey]) {
+      tr[e.english] = upgradeLegacyUk(e, tr[e.legacyKey]); n++; continue;
+    }
+    const viaEol = window.KH.textStructure.lookupEolVariant(tr, e.english);
+    if (viaEol) { tr[e.english] = viaEol; n++; }
   }
   if (n) { gState.dirty = true; scheduleGlossaryAutoSave(); }
   return n;
