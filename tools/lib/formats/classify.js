@@ -8,7 +8,8 @@
 //  - 'mesofs'  — парний формат *_mes_ofs.bin + *_mes_data.bin
 //  - 'mesdata' — друга половина пари (не перекладається напряму)
 //  - 'ev'      — .ev/.evdl event-script container з текст-блоком
-//  - 'ctd'     — BBS dialogue/menu container ('@CTD')
+//  - 'ctd'     — BBS dialogue/menu container ('@CTD' версія 1)
+//  - 'ctd-ddd' — KH3D Dream Drop Distance ('@CTD' версія 0x1F7, UTF-16LE)
 //  - 'ctdl'    — Re:CoM CTDL (той самий magic '@CTD', інший layout; за розширенням)
 //  - 'unknown' — байткод/контейнер/інше — не чіпати
 //
@@ -21,6 +22,7 @@ const { isMesOfsName, pairedDataName } = require('../mes-ofs');
 const { isEvName } = require('../ev-format');
 const { MAGIC: CTD_MAGIC } = require('../ctd-format');
 const { MAGIC: CTDL_MAGIC } = require('../recom-ctdl-format');
+const { VERSION: DDD_VERSION } = require('../ddd-ctd');
 
 // .binl магічна сигнатура: ASCII "EvMsg" перші 5 байт
 const BINL_MAGIC = Buffer.from([0x45, 0x76, 0x4D, 0x73, 0x67]);
@@ -70,7 +72,10 @@ function classifyUncached(absPath, ext) {
   if (n >= 4 && ext === '.ctdl' && buf.readUInt32LE(0) === CTDL_MAGIC) {
     return { kind: 'ctdl', magic: '@CTD', extractOpts: null, isTranslatable: true };
   }
-  if (n >= 4 && buf.readUInt32LE(0) === CTD_MAGIC) {
+  if (n >= 8 && buf.readUInt32LE(0) === CTD_MAGIC) {
+    // Версія розрізняє BBS (1) та Dream Drop Distance (0x1F7, UTF-16LE).
+    const ver = buf.readUInt32LE(4);
+    if (ver === DDD_VERSION) return { kind: 'ctd-ddd', magic: '@CTD', extractOpts: null, isTranslatable: true };
     return { kind: 'ctd', magic: '@CTD', extractOpts: null, isTranslatable: true };
   }
 

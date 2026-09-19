@@ -6,9 +6,7 @@ const codec = require('../shared/codec');
 const mesOfs = require('../tools/lib/mes-ofs');
 const ev = require('../tools/lib/ev-format');
 const ctdFmt = require('../tools/lib/ctd-format');
-const ctdCodec = require('../tools/lib/ctd-codec');
 const ctdlFmt = require('../tools/lib/recom-ctdl-format');
-const ctdlCodec = require('../tools/lib/recom-ctdl-codec');
 const { buildMesOfs, buildEv, buildCtd, buildCtdl } = require('./helpers/synth');
 
 // ======================= mes_ofs =======================
@@ -107,54 +105,8 @@ test('ev: cell-preserving mode never changes size and falls back to EN on overfl
 
 // ======================= BBS .ctd =======================
 
-test('ctd-codec: ASCII, newline, typography and colour tokens round-trip', () => {
-  const cases = ['Hello', 'A\nB', "It's a cliché.", '[c:green]Go[c:default]', '{0xF1,0x30} press', '{0x81,0x46}'];
-  for (const s of cases) {
-    const enc = ctdCodec.encode(s);
-    const dec = ctdCodec.decode(enc);
-    assert.deepEqual([...ctdCodec.encode(dec)], [...enc], s);
-  }
-});
-
-test('ctd-codec: OpenKh {:unk XX} escapes are accepted on encode', () => {
-  assert.deepEqual([...ctdCodec.encode('{:unk f5}{:unk 30}')], [0xF5, 0x30]);
-});
-
-test('ctd-codec: transliterated Latin-Extended goes through PAIR_99 (é works), rest reported', () => {
-  // 'é' — єдиний підтверджений 0x99-мапінг. Решта Latin-Extended цілей
-  // CYRILLIC_TO_LATIN ще не мають байтів → '?' + запис в unmapped.
-  assert.deepEqual([...ctdCodec.encode('й')], [0x99, 0xA1]); // й → é
-  const enc = ctdCodec.encode('Сора');
-  assert.equal(enc.length, 4);
-  assert.deepEqual(ctdCodec.getLastEncodeUnmapped(), ['С', 'о', 'р', 'а']);
-});
-
-test.todo('ctd-codec: full Cyrillic → BBS font-hack byte table (needs confirmed PAIR_99 / single-byte layout)');
-
-test('ctdl-format: {BTN_A} (0xFF 0x00) inside a string is not treated as terminator', () => {
-  const orig = buildCtdl(['Press {BTN_A} now', 'Next']);
-  const p = ctdlFmt.parseCtdl(orig);
-  assert.equal(p.entries[0].text, 'Press {BTN_A} now');
-  assert.equal(p.entries[1].text, 'Next');
-  const grown = ctdlFmt.composeCtdl(p, new Map([[1, 'Next one is longer']]));
-  const re = ctdlFmt.parseCtdl(grown);
-  assert.equal(re.entries[0].text, 'Press {BTN_A} now');
-  assert.equal(re.entries[1].text, 'Next one is longer');
-});
-
-test('ctd-codec: unmapped characters become ? and are reported', () => {
-  const enc = ctdCodec.encode('a∑b');
-  assert.equal(enc[1], 0x3F);
-  assert.deepEqual(ctdCodec.getLastEncodeUnmapped(), ['∑']);
-});
-
-test('ctd-codec: glossaryKey collapses F1/F2/F5 params and restore2ndBytes restores them in order', () => {
-  const en = 'Press {0xF1,0x30} or {0xF1,0x31} to {0xF5,0x10}';
-  const key = ctdCodec.glossaryKey(en);
-  assert.equal(key, 'Press {0xF1} or {0xF1} to {0xF5}');
-  const uk = 'Натисни {0xF1} або {0xF1} щоб {0xF5}';
-  assert.equal(ctdCodec.restore2ndBytes(uk, en), 'Натисни {0xF1,0x30} або {0xF1,0x31} щоб {0xF5,0x10}');
-});
+// BBS/CoM/DDD codec-и звіряються з еталонними Python-інструментами у
+// test/codecs-reference.test.js; тут — лише поведінка контейнерів.
 
 test('ctd-format: identity round-trip is byte-identical', () => {
   const buf = buildCtd([{ id: 10, text: 'Hello' }, { id: 11, text: 'World\nTwo' }], 2);
@@ -183,53 +135,25 @@ test('ctd-format: rejects bad magic', () => {
 
 // ======================= Re:CoM .ctdl =======================
 
-test('ctdl-codec: stable round-trip across SJIS, Latin-Extended, buttons, commands, raw', () => {
-  const cases = [
-    'Hello world!', 'Sora\nDonald\nGoofy', 'Press {BTN_A} to attack.',
-    'Use {BTN_LEFTRIGHT} and {BTN_UPDOWN}', 'Café — naïve résumé', "L'Œil ßeta © 2026",
-    '<EMPTYBLOCK>', '<Unk41> mid <Unk59>', 'Mix: {BTN_A} + Café\n{BTN_DPAD}', '<7F>raw byte<80>',
-    '日本語テキスト'
-  ];
-  for (const s of cases) {
-    const enc = ctdlCodec.encode(s);
-    const dec = ctdlCodec.decode(enc);
-    assert.deepEqual([...ctdlCodec.encode(dec)], [...enc], s);
-  }
-});
-
-test('ctdl-codec: F5 button variant is preserved via originalBytes hints', () => {
-  const orig = Buffer.from([0xF5, 0x67, 0x20, 0x41]);       // {BTN_F} via F5 + " A"
-  const text = ctdlCodec.decode(orig);
-  assert.equal(text, '{BTN_F} A');
-  assert.deepEqual([...ctdlCodec.encode(text)], [0xFF, 0x11, 0x20, 0x41]);          // default → FF
-  assert.deepEqual([...ctdlCodec.encode(text, { originalBytes: orig })], [...orig]); // hint → F5
-});
-
-test('ctdl-codec: cp932 EUDC bytes map to PUA and back', () => {
-  const orig = Buffer.from([0xF9, 0x45]);
-  const dec = ctdlCodec.decode(orig);
-  assert.equal(dec.length, 1);
-  assert.ok(dec.charCodeAt(0) >= 0xE000 && dec.charCodeAt(0) <= 0xE757);
-  assert.deepEqual([...ctdlCodec.encode(dec)], [...orig]);
-});
-
-test('ctdl-format: identity, in-place shorter edit, rebuild on growth', () => {
+test('ctdl-format: identity, edit shorter, rebuild on growth (align4, textBase kept)', () => {
   const orig = buildCtdl();
   const p = ctdlFmt.parseCtdl(orig);
   assert.equal(p.entries.length, 3);
   assert.deepEqual([...ctdlFmt.composeCtdl(p)], [...orig]);
 
-  const inPlace = ctdlFmt.composeCtdl(p, new Map([[0, 'Hi']]));
-  assert.equal(inPlace.length, orig.length);
-  assert.equal(ctdlFmt.parseCtdl(inPlace).entries[0].text, 'Hi');
+  const short = ctdlFmt.composeCtdl(p, new Map([[0, 'Hi']]));
+  const re1 = ctdlFmt.parseCtdl(short);
+  assert.equal(re1.entries[0].text, 'Hi');
+  assert.equal(re1.header.textBase, p.header.textBase);
 
   const grown = ctdlFmt.composeCtdl(p, new Map([[1, 'Sora\nDonald\nGoofy and Pluto']]));
   assert.ok(grown.length > orig.length);
   const re = ctdlFmt.parseCtdl(grown);
   assert.equal(re.entries[1].text, 'Sora\nDonald\nGoofy and Pluto');
   assert.equal(re.entries[0].text, 'Hello');
-  assert.equal(re.entries[2].text, 'Press {BTN_A}\nfor menu.');
-  assert.deepEqual(re.textboxes[0], p.textboxes[0]);
+  assert.equal(re.entries[2].text, 'Press {icon 66}\nfor menu.');
+  assert.deepEqual([...re.layouts[0]], [...p.layouts[0]]);
+  for (const e of re.entries) assert.equal(e.absoluteOffset % 4, 0);
 });
 
 test('ctdl-format: rejects truncated / bad headers', () => {

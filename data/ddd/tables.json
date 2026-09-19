@@ -1,0 +1,22 @@
+{
+ "_comment": "Еталон: DropDistanceHD/KH3D_UA_Toolkit/tools/khctd.py (2026-08-21). @CTD v0x1F7, UTF-16LE.",
+ "tags": {
+  "E028": "PLAYER",
+  "E026": "PARTY",
+  "E023": "VAL1",
+  "E024": "VAL2",
+  "E025": "VAL3",
+  "E3D0": "BTN_A",
+  "E3D1": "BTN_B",
+  "E3D2": "BTN_X",
+  "E3D3": "BTN_Y",
+  "E3D4": "BTN_L",
+  "E3D5": "BTN_R",
+  "E3D6": "BTN_ZL",
+  "E3D7": "BTN_ZR",
+  "E3DC": "STICK",
+  "E3DD": "CSTICK",
+  "E3E7": "DPAD",
+  "E3E8": "TOUCH"
+ }
+}

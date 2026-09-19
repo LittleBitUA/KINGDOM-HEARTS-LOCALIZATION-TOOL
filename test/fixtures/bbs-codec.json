@@ -1,0 +1,123 @@
+[
+ {
+  "text": "Hello, world!",
+  "hex": "48656c6c6f2c20776f726c6421",
+  "decoded": "Hello, world!"
+ },
+ {
+  "text": "Line one\nLine two",
+  "hex": "4c696e65206f6e650a4c696e652074776f",
+  "decoded": "Line one\nLine two"
+ },
+ {
+  "text": "Press {icon triangle} to jump {icon circle}",
+  "hex": "507265737320f1ae20746f206a756d7020f1af",
+  "decoded": "Press {icon triangle} to jump {icon circle}"
+ },
+ {
+  "text": "{color yellow}Gold{color default}",
+  "hex": "f959476f6c64f941",
+  "decoded": "{color yellow}Gold{color default}"
+ },
+ {
+  "text": "cliché — «quote» ‘x’ ™ © é À ß œ",
+  "hex": "636c69636899a12099b72099b971756f746599ba2081657881662099cd2099cb2099a12099802099992099b2",
+  "decoded": "cliché — «quote» ‘x’ ™ © é À ß œ"
+ },
+ {
+  "text": "Цей світ занадто маленький.",
+  "hex": "83638373837b208384836f83788385208376836d8380836d83728385838120837e836d837d83738380838d837c8377837b2e",
+  "decoded": "Цей світ занадто маленький."
+ },
+ {
+  "text": "Ґудзик, Євген, Їжак, Ірина — ґава",
+  "hex": "83488386837283768377837c2c20834c836f8370837383802c2083528375836d837c2c208351838383778380836d2099b7208371836d836f836d",
+  "decoded": "Ґудзик, Євген, Їжак, Ірина — ґава"
+ },
+ {
+  "text": "Brace {{ here",
+  "hex": "4272616365207b2068657265",
+  "decoded": "Brace {{ here"
+ },
+ {
+  "text": "{sjis 8140}full{sjis 815c}",
+  "hex": "814066756c6c815c",
+  "decoded": "　full―"
+ },
+ {
+  "text": "{icon2 f6} {icon3 unk} {icon3 dpad-and-analog}",
+  "hex": "f2f620f56720f576",
+  "decoded": "{icon2 unk} {icon3 unk} {icon3 dpad-and-analog}"
+ },
+ {
+  "text": "{icon 42}{color 7f}",
+  "hex": "f142f97f",
+  "decoded": "{icon 42}{color 7f}"
+ },
+ {
+  "text": "Ｓora?",
+  "hex": "82726f72613f",
+  "decoded": "Ｓora?"
+ },
+ {
+  "text": "¥100 [test] ~",
+  "hex": "5c313030205b746573745d207e",
+  "decoded": "¥100 [test] ~"
+ },
+ {
+  "hex": "81a1",
+  "decoded": "■"
+ },
+ {
+  "hex": "99cd",
+  "decoded": "™"
+ },
+ {
+  "hex": "f1ae",
+  "decoded": "{icon triangle}"
+ },
+ {
+  "hex": "f9ff",
+  "decoded": "{color ff}"
+ },
+ {
+  "hex": "8940",
+  "decoded": "院"
+ },
+ {
+  "hex": "8340",
+  "decoded": "А"
+ },
+ {
+  "hex": "e05c",
+  "decoded": "濬"
+ },
+ {
+  "hex": "05",
+  "decoded": "{U+0005}"
+ },
+ {
+  "hex": "7b",
+  "decoded": "{{"
+ },
+ {
+  "hex": "5c",
+  "decoded": "¥"
+ },
+ {
+  "hex": "817f",
+  "decoded": "{sjis 817f}"
+ },
+ {
+  "hex": "99e0",
+  "decoded": "{sjis 99e0}"
+ },
+ {
+  "hex": "f5",
+  "decoded": "{b f5}"
+ },
+ {
+  "hex": "81",
+  "decoded": "{b 81}"
+ }
+]

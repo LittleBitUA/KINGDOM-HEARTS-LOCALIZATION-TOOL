@@ -32,7 +32,8 @@ const handlers = {
   mesofs: require('./mesofs'),
   ev:     require('./ev'),
   ctd:    require('./ctd'),
-  ctdl:   require('./ctdl')
+  ctdl:   require('./ctdl'),
+  'ctd-ddd': require('./ddd')
 };
 
 function getHandler(kind) {

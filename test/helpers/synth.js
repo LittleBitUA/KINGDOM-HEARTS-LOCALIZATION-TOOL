@@ -3,7 +3,7 @@
 // Синтетичні бінарні фікстури для тестів — жодних файлів з гри.
 
 const kh1 = require('../../shared/codec');
-const ctdCodec = require('../../tools/lib/ctd-codec');
+const ctdCodec = require('../../tools/lib/bbs-codec');
 const ctdFmt = require('../../tools/lib/ctd-format');
 const ctdlCodec = require('../../tools/lib/recom-ctdl-codec');
 const ctdlFmt = require('../../tools/lib/recom-ctdl-format');
@@ -102,12 +102,13 @@ function buildCtd(messages, layoutCount) {
 
 // ---- Re:CoM .ctdl (портовано з tools/ctdl-roundtrip.js) ----
 function buildCtdl(textsIn) {
-  const texts = (textsIn || ['Hello', 'Sora\nDonald', 'Press {BTN_A}\nfor menu.']).map(t => ctdlCodec.encode(t));
+  const texts = (textsIn || ['Hello', 'Sora\nDonald', 'Press {icon 66}\nfor menu.']).map(t => ctdlCodec.encode(t));
   const headerSize = 0x10;
   const textboxCount = 1;
   const ptOff = headerSize + textboxCount * 48;
   const blockBase = ptOff + texts.length * 4;
-  const total = blockBase + texts.reduce((s, t) => s + t.length + 1, 0);
+  const align4 = (n) => ((n + 4) >> 2) << 2;                    // len + NUL, вирівняно на 4 (як у грі)
+  const total = blockBase + texts.reduce((s, t) => s + align4(t.length), 0) + 4;
   const buf = Buffer.alloc(total);
   buf.writeUInt32LE(ctdlFmt.MAGIC, 0x00);
   buf.writeUInt16LE(textboxCount, 0x04);
@@ -130,9 +131,9 @@ function buildCtdl(textsIn) {
   buf.writeUInt16LE(22, off + 0x22);
   buf.writeUInt16LE(0xFFFF, off + 0x24);
   let cur = blockBase;
-  texts.forEach((t, i) => { buf.writeUInt32LE(cur - blockBase, ptOff + i * 4); cur += t.length + 1; });
+  texts.forEach((t, i) => { buf.writeUInt32LE(cur - blockBase, ptOff + i * 4); cur += align4(t.length); });
   cur = blockBase;
-  for (const t of texts) { t.copy(buf, cur); cur += t.length; buf[cur++] = 0; }
+  for (const t of texts) { t.copy(buf, cur); cur += align4(t.length); }
   return buf;
 }
 

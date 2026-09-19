@@ -5,12 +5,12 @@
 //   • Header (32 b):   @CTD magic, version, counts, table-offsets
 //   • Message table:   N × 12 b (id, textOffset, layoutIndex, waitFrames)
 //   • Layout table:    M × 32 b (geometry/styling — read-only для перекладача)
-//   • Text block:      null-terminated байтові рядки, кодовані ctd-codec
+//   • Text block:      null-terminated байтові рядки, кодовані bbs-codec
 //
 // Compose-логіка перебудовує message-table + text-block з оновленими
 // offset'ами; layout-table копіюється як є; header оновлює textStart.
 
-const codec = require('./ctd-codec');
+const codec = require('./bbs-codec');
 
 const MAGIC = 0x44544340;             // '@CTD' little-endian
 const HEADER_SIZE = 0x20;
@@ -58,7 +58,9 @@ function parseCtd(buf) {
   // Декодуємо текст
   for (const m of messages) {
     const textBytes = readUntilZero(buf, m.textOffset);
+    m.raw = Buffer.from(textBytes);          // оригінальні байти — compose бере їх, якщо текст не змінено
     m.text = codec.decode(textBytes);
+    m._rawText = m.text;
     m._origByteLen = textBytes.length;
   }
 
@@ -111,7 +113,9 @@ function composeCtd(parsed) {
   // повідомлення = max(originalBlockSize, новий-текст + 1 null) — якщо
   // переклад влазить, файл лишається байт-у-байт ідентичним; якщо ні —
   // блок розширюється і всі наступні зміщуються.
-  const encodedTexts = messages.map(m => codec.encode(m.text));
+  // m.raw має пріоритет (байт-ідентичний round-trip і без повторного encode);
+  // caller, що змінив текст, кладе нові байти у m.raw.
+  const encodedTexts = messages.map(m => ((m.raw && m.text === m._rawText) ? m.raw : codec.encode(m.text)));
 
   // Сортуємо за оригінальним textOffset (file-order)
   const fileOrder = messages

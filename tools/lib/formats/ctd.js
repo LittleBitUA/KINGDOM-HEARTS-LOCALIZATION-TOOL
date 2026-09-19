@@ -1,13 +1,14 @@
 'use strict';
 
-// BBS .ctd. Слот = message; offset = message.id (unique per file).
-// english/key — у канонічній OpenKh-формі (без 2-х байтів F1/F2/F5), щоб
-// збігатися з тим, що бачать у OpenKh CTD Editor і з ключами HTML-глосарія.
-// prepareUk відновлює втрачені 2-і байти з оригінального EN перед compose.
+// BBS .ctd (версія 1). Слот = message; offset = message.id (unique per file).
+// Кодек — bbs-codec (порт еталонного bbstext.py): текст decode'иться у
+// канонічну форму з іменованими вставками ({icon triangle}, {color white}),
+// тому ключ глосарія = сам текст. Compose — строгий: повідомлення з символами,
+// яких гра не вміє показати, лишається англійським і потрапляє в errors.
 
 const fs = require('fs/promises');
 const { parseCtd, composeCtd } = require('../ctd-format');
-const ctdCodec = require('../ctd-codec');
+const codec = require('../bbs-codec');
 
 async function parse(engPath) {
   const buf = await fs.readFile(engPath);
@@ -17,9 +18,8 @@ async function parse(engPath) {
     offset: m.id,
     absOffset: m.textOffset,
     byteLen: m._origByteLen,
-    english: ctdCodec.glossaryKey(m.text),
-    key: ctdCodec.glossaryKey(m.text),
-    _fullText: m.text
+    english: m.text,
+    key: codec.glossaryKey(m.text)
   }));
 
   return {
@@ -35,17 +35,25 @@ async function parse(engPath) {
     rusSize: 0,
     async compose(ukByOffset) {
       let applied = 0;
-      const unmapped = new Set();
+      const errors = [];
+      const missing = new Set();
       for (const m of parsed.messages) {
         if (!ukByOffset.has(m.id)) continue;
-        m.text = ctdCodec.restore2ndBytes(ukByOffset.get(m.id), m.text);
-        applied++;
+        const uk = ukByOffset.get(m.id);
+        try {
+          m.raw = codec.encode(uk);
+          m.text = uk;
+          m._rawText = uk;
+          applied++;
+          for (const g of codec.missingGlyphs(m.raw)) missing.add(g);
+        } catch (e) {
+          errors.push({ offset: m.id, message: (e && e.message) || String(e) });
+        }
+      }
+      if (missing.size) {
+        errors.push({ offset: -1, message: 'У шрифті FontEn.arc немає гліфів: ' + [...missing].slice(0, 12).map(h => '0x' + h).join(' ') + (missing.size > 12 ? ' …' : '') });
       }
       const composed = composeCtd(parsed);
-      for (const ch of ctdCodec.getLastEncodeUnmapped()) unmapped.add(ch);
-      const errors = unmapped.size
-        ? [{ offset: -1, message: 'Символи без мапінгу у BBS-шрифті (записано як ?): ' + [...unmapped].join(' ') }]
-        : [];
       return {
         outputs: [{ buf: composed, pathFor: (outPath) => outPath }],
         applied,
@@ -57,8 +65,4 @@ async function parse(engPath) {
   };
 }
 
-function prepareUk(slot, uk) {
-  return ctdCodec.restore2ndBytes(uk, slot._fullText || slot.english);
-}
-
-module.exports = { kind: 'ctd', preserveWhitespace: false, parse, prepareUk };
+module.exports = { kind: 'ctd', preserveWhitespace: false, parse };

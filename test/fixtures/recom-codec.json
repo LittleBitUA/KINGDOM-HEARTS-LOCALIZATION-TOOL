@@ -1,0 +1,109 @@
+[
+ {
+  "text": "To the left",
+  "hex": "546f20746865206c656674",
+  "decoded": "To the left"
+ },
+ {
+  "text": "Roll: Press {color 43}{icon 66}{color 43} while using {icon 70}",
+  "hex": "526f6c6c3a20507265737320f943f566f943207768696c65207573696e6720f570",
+  "decoded": "Roll: Press {color 43}{icon 66}{color 43} while using {icon 70}"
+ },
+ {
+  "text": "Ви двоє цілі?\nУсе гаразд, чесно.",
+  "hex": "82a182ca2082c582c282d282c72082da82cb82cf82cb3f0a82b682d582c62082c382c082d482c082c982c52c2082db82c682d582d182d22e",
+  "decoded": "Ви двоє цілі?\nУсе гаразд, чесно."
+ },
+ {
+  "text": "Ґава — «так» ’ok’ … \"q\"",
+  "hex": "82a382c082c282c020815c81f420816782d682c082ce816820276f6b27202e2e2e20227122",
+  "decoded": "Ґава ―∥ “так” 'ok' ... \"q\""
+ },
+ {
+  "text": "{{ brace",
+  "hex": "7b206272616365",
+  "decoded": "{{ brace"
+ },
+ {
+  "text": "Naminé ®",
+  "hex": "4e616d696e83c3208765",
+  "decoded": "Naminé ®"
+ },
+ {
+  "text": "　full width ― ∥ ◆ ● ※",
+  "hex": "814066756c6c20776964746820815c2081f420819a2081a12081a6",
+  "decoded": "　full width ― ∥ ◆ ● ※"
+ },
+ {
+  "text": "{sjis 8970}{sjis 96f3}",
+  "hex": "897096f3",
+  "decoded": "{sjis 8970}{sjis 96f3}"
+ },
+ {
+  "text": "{b 85}{b a5}",
+  "hex": "85a5",
+  "decoded": "{b 85}{b a5}"
+ },
+ {
+  "text": "Sora—Riku",
+  "hex": "536f7261815c81f452696b75",
+  "decoded": "Sora―∥Riku"
+ },
+ {
+  "text": "x y",
+  "hex": "782079",
+  "decoded": "x y"
+ },
+ {
+  "hex": "8140",
+  "decoded": "　"
+ },
+ {
+  "hex": "83c3",
+  "decoded": "é"
+ },
+ {
+  "hex": "829f",
+  "decoded": "А"
+ },
+ {
+  "hex": "82e0",
+  "decoded": "я"
+ },
+ {
+  "hex": "85",
+  "decoded": "{b 85}"
+ },
+ {
+  "hex": "f943",
+  "decoded": "{color 43}"
+ },
+ {
+  "hex": "f566",
+  "decoded": "{icon 66}"
+ },
+ {
+  "hex": "7b",
+  "decoded": "{{"
+ },
+ {
+  "hex": "8100",
+  "decoded": "{b 81}{b 00}"
+ },
+ {
+  "hex": "817f",
+  "decoded": "{b 81}{b 7f}"
+ },
+ {
+  "hex": "8200",
+  "decoded": "{b 82}{b 00}"
+ },
+ {
+  "hex": "fb",
+  "decoded": "{b fb}"
+ },
+ {
+  "hex": "e5",
+  "decoded": "{b e5}"
+ }
+]

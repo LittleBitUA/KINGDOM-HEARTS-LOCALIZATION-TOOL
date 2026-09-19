@@ -37,7 +37,7 @@ before(() => {
   fs.writeFileSync(path.join(engDir, 'e.evdl'), synth.buildEv(['Hello there', 'Bye']).buf);
   fs.writeFileSync(path.join(rusDir, 'e.evdl'), Buffer.alloc(1));
   // ctd + ctdl
-  fs.writeFileSync(path.join(engDir, 'b.ctd'), synth.buildCtd([{ id: 7, text: 'Press {0xF1,0x30} now' }, { id: 8, text: 'Yes' }], 1));
+  fs.writeFileSync(path.join(engDir, 'b.ctd'), synth.buildCtd([{ id: 7, text: 'Press {icon triangle} now' }, { id: 8, text: 'Yes' }], 1));
   fs.writeFileSync(path.join(rusDir, 'b.ctd'), Buffer.alloc(1));
   fs.writeFileSync(path.join(engDir, 'c.ctdl'), synth.buildCtdl(['Hello', 'Yes']));
   fs.writeFileSync(path.join(rusDir, 'c.ctdl'), Buffer.alloc(1));
@@ -67,18 +67,20 @@ test('extractFile returns UI slots for each format', async () => {
   assert.equal(mes.slots.length, 2);
   assert.equal(mes.slots[1].linkedCount, 2);
   const ctd = await ops.extractFile(path.join(engDir, 'b.ctd'), {});
-  assert.equal(ctd.slots[0].english, 'Press {0xF1} now'); // canonical (collapsed)
+  assert.equal(ctd.slots[0].english, 'Press {icon triangle} now');
   assert.equal(ctd.slots[0].offset, 7);
   const ctdl = await ops.extractFile(path.join(engDir, 'c.ctdl'), {});
   assert.equal(ctdl.stats.entryCount, 2);
   await assert.rejects(() => ops.extractFile(path.join(engDir, 'junk.bin'), {}), /Непідтримуваний/);
 });
 
-test('composeFile: ctd restores F1 param bytes from EN; mesofs writes both files', async () => {
-  const r = await ops.composeFile(path.join(engDir, 'b.ctd'), [{ offset: 7, ukText: 'Тисни {0xF1} зараз' }], path.join(outDir, 'b.ctd'), {});
+test('composeFile: ctd encodes Cyrillic to katakana codes; mesofs writes both files', async () => {
+  const r = await ops.composeFile(path.join(engDir, 'b.ctd'), [{ offset: 7, ukText: 'Тисни {icon triangle} зараз' }], path.join(outDir, 'b.ctd'), {});
   assert.equal(r.applied, 1);
+  assert.deepEqual(r.errors, []);
   const re = parseCtd(fs.readFileSync(path.join(outDir, 'b.ctd')));
-  assert.match(re.messages[0].text, /\{0xF1,0x30\}/);
+  assert.equal(re.messages[0].text, 'Тисни {icon triangle} зараз');
+  assert.equal(re.messages[0].raw[0], 0x83); // Т → катакана-код 0x83xx
 
   const m = await ops.composeFile(path.join(engDir, 'g_mes_ofs.bin'), [{ offset: 0, ukText: 'Зілля{eol}' }], path.join(outDir, 'g_mes_ofs.bin'), {});
   assert.equal(m.written.length, 2);
@@ -94,7 +96,7 @@ test('buildGlossaryIndex aggregates keys across formats, safe mode skips unknown
   const keys = r.entries.map(e => e.english);
   assert.ok(keys.includes('Attack'));
   assert.ok(keys.includes('Potion{eol}'));
-  assert.ok(keys.includes('Press {0xF1} now'));
+  assert.ok(keys.includes('Press {icon triangle} now'));
   assert.ok(keys.includes('Hello there{eol}'));
   const yes = r.entries.find(e => e.english === 'Yes');
   assert.equal(yes.count, 2);          // ctd + ctdl
@@ -122,16 +124,13 @@ test('composeAll: TSV override beats glossary; whitespace preserved; unsafe skip
     'Potion': 'Зілля',               // для mesofs через {eol}-bridge
     'Yes': 'Так',
     'Hello there{eol}': 'Привіт{eol}',
-    'Press {0xF1} now': 'Тисни {0xF1} зараз'
+    'Press {icon triangle} now': 'Тисни {icon triangle} зараз'
   };
   const progress = [];
   const r = await ops.composeAll(FILES, { engDir, rusDir, outDir, tsvDir, glossary, safeMode: true, concurrency: 3, onProgress: p => progress.push(p) });
   assert.equal(r.skippedUnsafe, 1);
   assert.equal(r.written, 5);
-  // Єдина «помилка» — попередження BBS про кирилицю без байт-мапінгу ('Так' → '???').
-  assert.equal(r.errors.length, 1);
-  assert.equal(r.errors[0].rel, 'b.ctd');
-  assert.match(r.errors[0].samples[0].message, /без мапінгу/);
+  assert.deepEqual(r.errors, []);
   assert.equal(progress.length, 6);
 
   // binl: TSV override applied, glossary for the other
@@ -147,5 +146,6 @@ test('composeAll: TSV override beats glossary; whitespace preserved; unsafe skip
   // ctd + ctdl 'Yes'
   assert.equal(parseCtdl(fs.readFileSync(path.join(outDir, 'c.ctdl'))).entries[1].text.length > 0, true);
   const ctd = parseCtd(fs.readFileSync(path.join(outDir, 'b.ctd')));
-  assert.match(ctd.messages[0].text, /\{0xF1,0x30\}/);
+  assert.equal(ctd.messages[0].text, 'Тисни {icon triangle} зараз');
+  assert.equal(parseCtdl(fs.readFileSync(path.join(outDir, 'c.ctdl'))).entries[1].text, 'Так');
 });
