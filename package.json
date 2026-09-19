@@ -58,7 +58,6 @@
       "data/**/*",
       "renderer/**/*",
       "tools/lib/**/*",
-      "docs/**/*",
       "assets/**/*",
       "tools/py/**/*",
       "package.json",
