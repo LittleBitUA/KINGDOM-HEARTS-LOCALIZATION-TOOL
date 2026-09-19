@@ -9,7 +9,7 @@ module.exports = [
     ignores: ['node_modules/**', 'dist/**', 'out/**']
   },
   {
-    files: ['main.js', 'preload.js', 'shared/**/*.js', 'tools/**/*.js', 'workers/**/*.js', 'test/**/*.js', 'eslint.config.js'],
+    files: ['main.js', 'main/**/*.js', 'preload.js', 'shared/**/*.js', 'tools/**/*.js', 'workers/**/*.js', 'test/**/*.js', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',

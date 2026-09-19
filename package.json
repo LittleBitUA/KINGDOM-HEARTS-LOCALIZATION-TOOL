@@ -13,14 +13,15 @@
     "start": "electron .",
     "test": "node --test \"test/*.test.js\"",
     "lint": "eslint .",
-    "check": "npm run lint && npm test",
+    "check": "npm run lint && npm test && npm run test:smoke",
     "pack": "electron-builder --dir",
     "build": "electron-builder --win portable",
     "build:installer": "electron-builder --win nsis",
     "build:all": "electron-builder --win portable nsis",
     "extract": "node tools/diff-extract.js",
     "extract:batch": "node tools/batch-extract.js",
-    "compose": "node tools/diff-build.js"
+    "compose": "node tools/diff-build.js",
+    "test:smoke": "node scripts/smoke.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -50,6 +51,7 @@
     },
     "files": [
       "main.js",
+      "main/**/*",
       "preload.js",
       "workers/**/*",
       "shared/**/*",
