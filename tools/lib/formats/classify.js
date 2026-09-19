@@ -30,6 +30,9 @@ const { MAGIC: MSG_V361_MAGIC } = require('../msg-v361');
 const BINL_MAGIC = Buffer.from([0x45, 0x76, 0x4D, 0x73, 0x67]);
 // .ard магічна сигнатура (KGR + NUL) — контейнер, не редагується напряму
 const ARD_MAGIC = Buffer.from([0x4B, 0x47, 0x52, 0x00]);
+// 'TTUI' — бінарні UI-layout'и (exchange/UK_uibin_*.bin, UK_get_w.bin, UK_mg_*.bin,
+// UK_com_battle.bin, UK_danger.bin): не текст, хоч і проходять евристику raw .bin.
+const TTUI_MAGIC = Buffer.from([0x54, 0x54, 0x55, 0x49]);
 
 const cache = new Map();   // absPath → { size, mtimeMs, result }
 const CACHE_MAX = 20000;
@@ -96,7 +99,7 @@ function classifyUncached(absPath, ext) {
     } else if (ext === '.binl' && n >= MSG_V361_MAGIC.length && buf.subarray(0, MSG_V361_MAGIC.length).equals(MSG_V361_MAGIC)) {
       kind = 'binl-v361';
       magic = 'Message v361';
-    } else if (ext === '.bin' && !head4.equals(ARD_MAGIC) && !buf.subarray(0, 5).equals(BINL_MAGIC)) {
+    } else if (ext === '.bin' && !head4.equals(ARD_MAGIC) && !head4.equals(TTUI_MAGIC) && !buf.subarray(0, 5).equals(BINL_MAGIC)) {
       // Heuristic для raw text .bin: переважно KH1-printable байти + 0x00-термінатори.
       // 0x00 (sentinel), 0x01-0x0F (control), 0x21-0x79 (ASCII KH1), 0x80-0xFF (extended).
       let printable = 0;

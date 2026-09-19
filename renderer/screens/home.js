@@ -35,9 +35,10 @@ export const gamesConfig = [
     enabled: true,
     status: 'ready',
     formats: ['binl', 'binl-v361', 'rawbin', 'ev', 'mesofs'],
-    // KH1 використовує RUS-теку як reference oracle І як джерело списку файлів.
+    // KH1: список файлів — з ENG (розпакована гра); RUS — опційний оракул
+    // (російський переклад): рядки, ідентичні в RUS, вважаються неперекладними.
     dirs: ['engDir', 'rusDir', 'tsvDir', 'outDir'],
-    sourceDirKey: 'rusDir',
+    sourceDirKey: 'engDir',
     onSelect: () => enterEditor('kh1-final-mix')
   }),
   game({

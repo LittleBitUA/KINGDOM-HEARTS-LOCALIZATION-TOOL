@@ -82,6 +82,30 @@ export function legacyKeyMap() {
   for (const e of gState.entries || []) if (e.legacyKey && e.legacyKey !== e.english) m.set(e.legacyKey, e);
   return m;
 }
+// Старі .txt-експорти (overlay-режим) мають EN-ключі з кириличними «двійниками»
+// латиниці («Оbtаined» з кириличними О/а). Мапа: ключ з латинізованими двійниками → запис.
+const LOOKALIKE_CASE = { 'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'Н': 'H', 'І': 'I', 'К': 'K', 'М': 'M', 'О': 'O', 'Р': 'P', 'Т': 'T', 'Х': 'X',
+  'а': 'a', 'е': 'e', 'і': 'i', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x' };
+export function latinizeLookalikes(s) {
+  return s.replace(/[АВСЕНІКМОРТХаеіорсух]/g, ch => LOOKALIKE_CASE[ch] || ch);
+}
+export function lookalikeKeyMap() {
+  const m = new Map();
+  for (const e of gState.entries || []) {
+    m.set(e.english, e);
+    m.set(e.english.replace(/\{eol\}$/, ''), e);
+  }
+  return m;
+}
+export function resolveImportedKey(en, legacy, lookalike) {
+  if (legacy.has(en)) return legacy.get(en);
+  if (/[А-Яа-яІіЇїЄєҐґ]/.test(en)) {
+    const lat = latinizeLookalikes(en);
+    const e = lookalike.get(lat) || lookalike.get(lat.replace(/\{eol\}$/, ''));
+    if (e) return e;
+  }
+  return null;
+}
 // Пари [старий токен, новий токен] між новим ключем (`{0x06,0x2C,0x01}`) і
 // старим (`{0x06,0x2C}` + символ третього байта: ' ', {lf}, {0xNN} чи літера).
 // Текст навколо токенів однаковий, тож ідемо по обох рядках синхронно.
@@ -793,9 +817,14 @@ if (gImportTxtBtn) {
       let added = 0, updated = 0, unchanged = 0, tokensBroken = 0;
       snapshotGlossary(window.i18n.t('importTxt'));
       const legacy = legacyKeyMap();
+      const lookalike = lookalikeKeyMap();
+      let remapped = 0;
       for (const p0 of parsed.pairs) {
-        // Старий ключ → новий (u16-параметри 05/06/07); UK теж переписуємо у нову форму.
-        const p = legacy.has(p0.en) ? { en: legacy.get(p0.en).english, uk: upgradeLegacyUk(legacy.get(p0.en), p0.uk) } : p0;
+        // Старий ключ → новий: u16-параметри 05/06/07 (legacyKey) або кириличні
+        // «двійники» латиниці у EN зі старих overlay-експортів.
+        const hit = (!gState.translations[p0.en] && !lookalike.has(p0.en)) ? resolveImportedKey(p0.en, legacy, lookalike) : null;
+        const p = hit ? { en: hit.english, uk: hit.legacyKey ? upgradeLegacyUk(hit, p0.uk) : p0.uk } : p0;
+        if (hit) remapped++;
         if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; }
         const cur = gState.translations[p.en];
         if (cur === p.uk) { unchanged++; continue; }
@@ -815,6 +844,7 @@ if (gImportTxtBtn) {
       }
       const parts = [];
       if (added) parts.push(window.i18n.t('toastTxtImportAdded', { n: added }));
+      if (remapped) parts.push(window.i18n.t('toastTxtImportRemapped', { n: remapped }));
       if (updated) parts.push(window.i18n.t('toastTxtImportUpdated', { n: updated }));
       if (unchanged) parts.push(window.i18n.t('toastTxtImportUnchanged', { n: unchanged }));
       if (tokensBroken) parts.push(window.i18n.t('toastTxtImportTokensBroken', { n: tokensBroken }));

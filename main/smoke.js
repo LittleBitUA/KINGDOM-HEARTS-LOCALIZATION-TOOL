@@ -137,6 +137,15 @@ async function runSmoke(win) {
     })()`);
     check('glossary legacy token upgrade', leg.pairs.length === 2 && leg.uk === 'Я{0x06,0x2C,0x01}б{0x07,0x0C,0x02}в', leg);
 
+    // Імпорт .txt: EN-ключі з кириличними «двійниками» латиниці (старий overlay-експорт) → справжній ключ.
+    const rk = await call(`(async () => {
+      const m = await import('./translate/glossary.js');
+      const look = new Map([['Obtained Potion{eol}', { english: 'Obtained Potion{eol}' }], ['Obtained Potion', { english: 'Obtained Potion{eol}' }]]);
+      const hit = m.resolveImportedKey('Оbtаined Роtiоn', new Map(), look);
+      return { hit: hit && hit.english, miss: m.resolveImportedKey('Nothing', new Map(), look) };
+    })()`);
+    check('glossary import resolves look-alike keys', rk.hit === 'Obtained Potion{eol}' && rk.miss === null, rk);
+
     const khGlobal = await call('typeof window.KH.tsv.build === "function" && typeof window.KH.textStructure.validateTokens === "function"');
     check('shared UMD modules loaded in renderer', khGlobal === true);
 

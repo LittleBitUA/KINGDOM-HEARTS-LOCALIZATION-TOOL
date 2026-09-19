@@ -48,14 +48,39 @@ const HED_PATHS = {
   'kh-ddd': {
     heds: [{ rel: 'Image/dt/kh3d_first.hed', namePattern: /^kh3d_first\.hed$/i }],
     copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) }
+  },
+  // KH1: Steam — Image/dt/kh1_first.hed, старі збірки — Image/en/. Текст лежить у
+  // remastered/<map>.ard/UK_*.{binl,evdl,ev} (+ .ev без мовного префікса), btltbl.bin,
+  // menu/uk/sysmsg.bin/UK_sysmsg.binl і original/exchange/UK_*.bin (без TTUI-layout'ів).
+  // У ENG кладемо без 'remastered/' / 'original/' — так, як у старій робочій теці.
+  'kh1-final-mix': {
+    heds: [{ rel: 'Image/dt/kh1_first.hed', alt: ['Image/en/kh1_first.hed'], namePattern: /^kh1_first\.hed$/i }],
+    copy: {
+      subdir: 'ENG', withPrefix: false,
+      filter: (rel) => isKh1TextFile(rel),
+      mapRel: (rel) => rel.replace(/^(remastered|original)\//i, '')
+    }
   }
-  // 'kh1-final-mix' — додамо коли підтвердимо точні шляхи
 };
+
+const KH1_UI_LAYOUT = /^UK_(uibin_|mg_|get_|com_battle|danger)/i;
+function isKh1TextFile(rel) {
+  const base = rel.split('/').pop();
+  if (/^remastered\/[^/]+\.ard\/[^/]+$/i.test(rel)) {
+    if (/^UK_[^/]+\.(binl|evdl|ev)$/i.test(base)) return true;
+    return /\.ev$/i.test(base) && !/^[A-Z]{2}_/.test(base);   // di01a.ev — без мовного префікса
+  }
+  if (/^remastered\/btltbl\.bin\/UK_[^/]+\.bin$/i.test(rel)) return true;
+  if (/^remastered\/menu\/uk\/sysmsg\.bin\/UK_sysmsg\.binl$/i.test(rel)) return true;
+  if (/^original\/exchange\/UK_[^/]+\.bin$/i.test(rel)) return !KH1_UI_LAYOUT.test(base);
+  return false;
+}
 
 // Рекурсивно копіює файли з srcRoot у dstRoot, зберігаючи відносну ієрархію.
 // Копіює лише ті, чий basename матчить namePattern (regex). onProgress
 // викликається після кожного скопійованого файла зі { copied, lastRel }.
-async function _copyMatchingFiles(srcRoot, dstRoot, namePattern, onProgress) {
+// mapRel(relPosix) → шлях призначення відносно dstRoot (або null — пропустити).
+async function _copyMatchingFiles(srcRoot, dstRoot, namePattern, onProgress, mapRel) {
   const stats = { copied: 0, skippedExisting: 0, scanned: 0, errors: [] };
   const stack = [{ rel: '' }];
   while (stack.length) {
@@ -74,7 +99,9 @@ async function _copyMatchingFiles(srcRoot, dstRoot, namePattern, onProgress) {
         const ok = (typeof namePattern === 'function') ? namePattern(relPosix, e.name) : namePattern.test(e.name);
         if (!ok) continue;
         const srcAbs = path.join(srcRoot, childRel);
-        const dstAbs = path.join(dstRoot, childRel);
+        const dstRel = typeof mapRel === 'function' ? mapRel(relPosix) : childRel;
+        if (!dstRel) continue;
+        const dstAbs = path.join(dstRoot, dstRel);
         try {
           await fs.mkdir(path.dirname(dstAbs), { recursive: true });
           // Перезаписуємо безумовно — це первинна синхронізація з гри.
@@ -502,7 +529,7 @@ ipcMain.handle('setup:run', async (_e, payload) => {
           await fs.mkdir(dst, { recursive: true });
           const cr = await _copyMatchingFiles(unpackOutDir, dst, cfg.copy.filter, (p) => {
             sendSetupProgress({ phase: 'copy-files', key: 'spCopyProgress', params: { n: p.copied, lastRel: p.lastRel || '' } });
-          });
+          }, cfg.copy.mapRel);
           unpackInfo.copyFiles.copied += cr.copied;
           unpackInfo.copyFiles.scanned += cr.scanned;
           unpackInfo.copyFiles.errors.push(...cr.errors);
