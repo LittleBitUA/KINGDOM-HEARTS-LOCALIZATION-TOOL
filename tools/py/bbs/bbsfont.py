@@ -196,13 +196,21 @@ def main():
     arcobj, by = load(a.arc)
     outrem = os.path.join(a.out, 'remastered', 'arc_en', 'system', 'FontEn.arc')
     os.makedirs(outrem, exist_ok=True)
-    for i in range(6):
+    fonts = [n for n in a.fonts.split(',') if n]
+    # У build кладемо лише ті PNG, які справді змінюємо (arc0/1/2/4 для
+    # menufont/helpfont/cmdfont/mesfont). arc3 (не шрифт) і arc5 (numeral)
+    # не чіпаємо — їх не треба ні перезаписувати в грі, ні тягнути у патч.
+    for i in sorted({PNG_INDEX[n] for n in fonts}):
         src = os.path.join(a.rem, 'US_FontEn_arc%d.png' % i)
         Image.open(src).save(os.path.join(outrem, 'US_FontEn_arc%d.png' % i))
+    for i in range(6):
+        stale = os.path.join(outrem, 'US_FontEn_arc%d.png' % i)
+        if i not in {PNG_INDEX[n] for n in fonts} and os.path.exists(stale):
+            os.remove(stale)   # лишок від попередніх збірок
 
     src = {'comic': a.comic, 'menu': a.menu}
     replace, report = {}, {}
-    for n in a.fonts.split(','):
+    for n in fonts:
         replace.update(do_font(n, by, outrem, src[PROFILES[n]['font']], report))
         r = report[n]
         print('%-9s записів %d (без змін) | 66 літер на місці катакани | PNG %s + PSP .mtx%s'

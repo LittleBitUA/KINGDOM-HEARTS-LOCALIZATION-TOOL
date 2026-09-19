@@ -178,6 +178,9 @@
 
 * { box-sizing: border-box; }
 
+/* Атрибут hidden має перемагати будь-який display (.kh-btn, .uf-row тощо). */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -1957,7 +1960,6 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   color: #2a1d05;
   font-size: 11.5px; font-weight: 700;
 }
-.setup-run-count[hidden] { display: none; }
 .setup-screen .setup-btn-secondary { color: var(--su-muted); background: rgba(255, 255, 255, 0.03); }
 .setup-screen .setup-btn-secondary:hover:not(:disabled) { color: var(--su-text); }
 
