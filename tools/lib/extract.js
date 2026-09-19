@@ -47,12 +47,27 @@ function hasTextContent(bytes) {
   return printable >= 2;
 }
 
+// Множина всіх 0x00-розмежених сегментів reference-файла (як latin1-рядки).
+// O(m) один раз замість O(n·m) indexOf-сканувань для кожного eng-рядка.
+function segmentSet(buf) {
+  const set = new Set();
+  let start = 0;
+  for (let i = 0; i <= buf.length; i++) {
+    if (i === buf.length || buf[i] === 0x00) {
+      if (i > start) set.add(buf.toString('latin1', start, i));
+      start = i + 1;
+    }
+  }
+  return set;
+}
+
 function extract(eng, rus, opts = {}) {
   const HEADER = opts.header != null ? opts.header : 11;
   const FOOTER = opts.footer != null ? opts.footer : 5;
   const MIN_LEN = opts.minLen != null ? opts.minLen : 3;
 
   const engStrs = splitStrings(eng, HEADER, FOOTER);
+  const rusSegs = segmentSet(rus);
 
   const stats = {
     engStrings: engStrs.length,
@@ -71,7 +86,7 @@ function extract(eng, rus, opts = {}) {
     if (s.bytes.length < MIN_LEN) { stats.skippedShort++; continue; }
     if (!hasTextContent(s.bytes)) { stats.skippedNoText++; continue; }
 
-    const inRus = containsExactSegment(rus, s.bytes);
+    const inRus = rusSegs.has(s.bytes.toString('latin1'));
     if (inRus) { stats.preserved++; continue; }
 
     stats.translatable++;
@@ -90,4 +105,4 @@ function slotsToTsv(slots) {
   return tsv.build(slots, { ukOf: () => '' });
 }
 
-module.exports = { extract, splitStrings, slotsToTsv, containsExactSegment };
+module.exports = { extract, splitStrings, slotsToTsv, containsExactSegment, segmentSet };

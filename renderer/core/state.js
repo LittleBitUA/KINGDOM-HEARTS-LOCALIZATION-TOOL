@@ -23,7 +23,7 @@ export const tState = {
 
 export const gState = {
   entries: [],            // [{ english, count, fileCount, occurrences? }]
-  translations: {},       // english -> ukText (persisted)
+  translations: Object.create(null),   // english -> ukText (persisted); null-proto: ключ 'constructor' безпечний
   dirty: false,
   filter: { search: '', mode: 'all' },
   busy: false

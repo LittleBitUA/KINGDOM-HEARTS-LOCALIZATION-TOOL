@@ -241,6 +241,18 @@ export async function loadFile(rel) {
   }
 }
 
+// Map offset → slot, перебудовується лінивo при зміні tState.slots
+// (input-handler викликається на кожен keystroke — O(1) замість find()).
+let _slotMap = null;
+let _slotMapFor = null;
+export function slotByOffset(off) {
+  if (_slotMapFor !== tState.slots) {
+    _slotMap = new Map(tState.slots.map(s => [s.offset, s]));
+    _slotMapFor = tState.slots;
+  }
+  return _slotMap.get(off);
+}
+
 export function isRealTranslation(slot) {
   return !!(slot && slot.ukText && slot.ukText !== slot.english);
 }
@@ -471,7 +483,7 @@ tRows.addEventListener('input', (e) => {
   const row = ta.closest('.t-row');
   if (!row) return;
   const off = parseInt(row.dataset.off, 10);
-  const slot = tState.slots.find(s => s.offset === off);
+  const slot = slotByOffset(off);
   if (!slot) return;
   slot.ukText = ta.value;
   row.classList.toggle('translated', isRealTranslation(slot));

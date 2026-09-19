@@ -4,6 +4,7 @@ import { kAutoLoadKnjOnBoot } from './kerning/kerning.js';
 import { maybeFirstRunSettings } from './main.js';
 import { gamesConfig, hideHome, showHome } from './screens/home.js';
 import { cancelAutoSaveTimers, initTranslateMode } from './translate/files.js';
+import { clearBulkHistory } from './translate/history.js';
 
 // файлів у translate-режимі та на доступні режими (Kerning лише для KH1).
 export let _currentGameId = null;
@@ -74,7 +75,8 @@ export function resetTranslateState() {
   // Глосарій — per-game. Якщо лишити старий, loadFile() автозаповнить слоти
   // іншої гри перекладами з KH1 ("Yes"/"No"/"Cancel" збігаються).
   gState.entries = [];
-  gState.translations = {};
+  gState.translations = Object.create(null);
+  clearBulkHistory();
   gState.dirty = false;
   if (tFileSel) {
     while (tFileSel.firstChild) tFileSel.removeChild(tFileSel.firstChild);

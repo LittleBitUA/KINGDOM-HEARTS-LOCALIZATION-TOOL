@@ -6,6 +6,7 @@ import { gState, tState } from '../core/state.js';
 import { kState } from '../kerning/kerning.js';
 import { openSettings } from '../settings-modal.js';
 import { exportFileTxt, flushGlossaryAutoSave, importFileTxt, refreshProgress, renderRows, scheduleGlossaryAutoSave, setSubtab } from './files.js';
+import { snapshotGlossary, undoLastBulk, canUndoBulk, lastBulkLabel, onHistoryChange } from './history.js';
 
 // =====================================================================
 // Glossary
@@ -15,7 +16,7 @@ export async function loadGlossaryFromDisk() {
   try {
     const r = await window.kh1.translate.readGlossary(tState.settings.tsvDir);
     if (r.ok) {
-      gState.translations = r.entries || {};
+      gState.translations = Object.assign(Object.create(null), r.entries || {});
       refreshGlossaryProgress();
     }
   } catch (_) {}
@@ -383,6 +384,7 @@ export async function autoWrapGlossary() {
     const r = await window.kh1.translate.autoWrapAdaptive({ pairs, knjData, minWidth, tolerance: 0 });
     if (r.error) { toast(window.i18n.t('toastError', {msg: r.error}), 'error', 6000); return; }
     let changed = 0, addedLfs = 0, structureFixed = 0;
+    snapshotGlossary(window.i18n.t('autoWrapAdaptive'));
     for (let i = 0; i < entries.length; i++) {
       const [en, before] = entries[i];
       let after = r.wrapped[i];
@@ -442,6 +444,23 @@ if (gValidateBtn) {
   });
 }
 
+export const gUndoBulkBtn = document.getElementById('g-undo-bulk');
+if (gUndoBulkBtn) {
+  onHistoryChange(() => {
+    gUndoBulkBtn.disabled = !canUndoBulk();
+    gUndoBulkBtn.title = canUndoBulk()
+      ? window.i18n.t('undoBulkTitleWith', { label: lastBulkLabel() })
+      : window.i18n.t('undoBulkTitle');
+  });
+  gUndoBulkBtn.addEventListener('click', () => {
+    undoLastBulk(() => {
+      renderGlossaryRows();
+      refreshGlossaryProgress();
+      scheduleGlossaryAutoSave();
+    });
+  });
+}
+
 export const gCleanBrokenBtn = document.getElementById('g-clean-broken');
 if (gCleanBrokenBtn) {
   gCleanBrokenBtn.addEventListener('click', () => {
@@ -460,6 +479,7 @@ if (gCleanBrokenBtn) {
       '\n\n' + sample.join('\n') +
       (broken.length > 3 ? '\n…' : '');
     if (!confirm(msg)) return;
+    snapshotGlossary(window.i18n.t('cleanBroken'));
     for (const en of broken) delete gState.translations[en];
     gState.dirty = true;
     renderGlossaryRows();
@@ -588,6 +608,7 @@ if (gFixStructureBtn) {
       return;
     }
     if (!confirm(msg)) return;
+    snapshotGlossary(window.i18n.t('fixStructure'));
     for (const c of fixable) gState.translations[c.en] = c.newUk;
     gState.dirty = true;
     renderGlossaryRows();
@@ -621,6 +642,7 @@ if (gSyncPaddingBtn) {
       '\n\n' + sample.join('\n') +
       (candidates.length > 3 ? '\n…' : '');
     if (!confirm(msg)) return;
+    snapshotGlossary(window.i18n.t('syncPadding'));
     for (const c of candidates) gState.translations[c.en] = c.newUk;
     gState.dirty = true;
     renderGlossaryRows();
@@ -666,6 +688,7 @@ if (gImportTxtBtn) {
       // Застосовуємо з token-guard (як HTML-імпорт): пропускаємо пари з втратою
       // не-{lf} токенів, щоб не переписати глосарій сміттям з помилок перекладача.
       let added = 0, updated = 0, unchanged = 0, tokensBroken = 0;
+      snapshotGlossary(window.i18n.t('importTxt'));
       for (const p of parsed.pairs) {
         if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; }
         const cur = gState.translations[p.en];

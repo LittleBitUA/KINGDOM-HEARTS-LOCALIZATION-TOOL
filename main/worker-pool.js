@@ -60,7 +60,7 @@ function getWorkerSlot() {
   return slot;
 }
 
-function runWorker(payload, transferList) {
+function runWorkerOnce(payload, transferList) {
   return new Promise((resolve, reject) => {
     const id = ++workerSeq;
     const slot = getWorkerSlot();
@@ -72,6 +72,20 @@ function runWorker(payload, transferList) {
       reject(e);
     }
   });
+}
+
+// Якщо worker впав (crash/OOM), усі його pending-задачі відхиляються з
+// «Обробник завершив роботу». Одна повторна спроба на новому slot'і — інакше
+// composeAll втрачав би 1/N файлів через один збій. Transfer-list не можна
+// переслати вдруге (буфери вже відчужені), тому retry лише без нього.
+async function runWorker(payload, transferList) {
+  try {
+    return await runWorkerOnce(payload, transferList);
+  } catch (e) {
+    const workerDied = e && /завершив роботу|Обробник/.test(String(e.message));
+    if (!workerDied || (transferList && transferList.length)) throw e;
+    return runWorkerOnce(payload, []);
+  }
 }
 
 function terminateAll() {

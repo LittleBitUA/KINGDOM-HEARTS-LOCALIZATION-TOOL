@@ -49,13 +49,33 @@ export function _logBadgeUpdate() {
   }
 }
 
+function _logItemEl(it) {
+  const li = document.createElement('li');
+  li.className = 'event-log-item kind-' + it.kind;
+  const t = document.createElement('span');
+  t.className = 'ev-time';
+  t.textContent = _logFmtTime(it.ts);
+  const m = document.createElement('span');
+  m.className = 'ev-msg';
+  m.textContent = it.msg;
+  li.appendChild(t); li.appendChild(m);
+  return li;
+}
+
 export function logEvent(message, kind) {
   if (!kind) kind = 'info';
-  eventLog.items.push({ ts: Date.now(), kind, msg: String(message) });
+  const item = { ts: Date.now(), kind, msg: String(message) };
+  eventLog.items.push(item);
   if (eventLog.items.length > eventLog.max) {
     eventLog.items.splice(0, eventLog.items.length - eventLog.max);
   }
-  _logRender();
+  // Додаємо один елемент зверху замість перебудови всього списку (composeAll
+  // на сотні файлів = сотні toast'ів → раніше сотні повних ре-рендерів).
+  if (eventLog.list) {
+    eventLog.list.insertBefore(_logItemEl(item), eventLog.list.firstChild);
+    while (eventLog.list.children.length > eventLog.max) eventLog.list.removeChild(eventLog.list.lastChild);
+    if (eventLog.drawer) eventLog.drawer.classList.add('has-events');
+  }
   if (eventLog.drawer && eventLog.drawer.classList.contains('hidden')) {
     eventLog.unread++;
     _logBadgeUpdate();

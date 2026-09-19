@@ -78,6 +78,10 @@ const DICT = {
     // Glossary subtab
     glossaryBuild: 'Побудувати/Оновити',
     glossaryImport: 'Імпорт',
+    undoBulk: 'Скасувати',
+    undoBulkTitle: 'Скасувати останню масову операцію над глосарієм (Find/Replace, Auto-wrap, Авто-фікс, Pad, Очистка, Імпорт)',
+    undoBulkTitleWith: 'Скасувати: {label}',
+    toastBulkUndone: 'Скасовано масову операцію: {label}',
     glossaryImportTitle: 'Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)',
     glossarySearch: '🔎 пошук в англійській...',
     glossarySave: 'Зберегти глосарій',
@@ -409,6 +413,10 @@ const DICT = {
 
     glossaryBuild: 'Build/Update',
     glossaryImport: 'Import',
+    undoBulk: 'Undo',
+    undoBulkTitle: 'Undo the last bulk glossary operation (Find/Replace, Auto-wrap, Auto-fix, Pad, Clean, Import)',
+    undoBulkTitleWith: 'Undo: {label}',
+    toastBulkUndone: 'Bulk operation undone: {label}',
     glossaryImportTitle: 'Import translations from HTML/CSV/TSV (e.g. Google Sheets)',
     glossarySearch: '🔎 search in English...',
     glossarySave: 'Save glossary',

@@ -116,23 +116,26 @@ function composePair(slots, originalInfo, codec) {
 
   const cellMap = (originalInfo && originalInfo.cellLengthByOffset) || null;
 
-  // Step 2: спершу encode-ні chunks. Якщо є cellMap і UK влазить → pad до cell.
-  // Інакше — sequential layout.
+  // Step 2: encode кожен рядок ОДИН раз (раніше — двічі: перевірка + запис).
+  const encodedByOffset = new Map();
+  for (const oldOff of orderedOffsets) {
+    encodedByOffset.set(oldOff, codec.encode(stringByOffset.get(oldOff)));
+  }
   const dataChunks = [];
   const newOffsetByOld = new Map();
   let cursor = 0;
   let usedCellLayout = !!cellMap;
 
-  // Перевіримо чи всі влізають у cells
+  // Перевіримо чи всі влізають у cells; збираємо overflow для повідомлення.
+  const overflow = [];
   if (cellMap) {
     for (const oldOff of orderedOffsets) {
-      const text = stringByOffset.get(oldOff);
-      const encoded = codec.encode(text);
+      const encoded = encodedByOffset.get(oldOff);
       const needLen = encoded.length + (encoded[encoded.length - 1] === 0x00 ? 0 : 1);
       const cellLen = cellMap.get(oldOff) || 0;
       if (needLen > cellLen) {
         usedCellLayout = false;
-        break;
+        overflow.push({ offset: oldOff, need: needLen, cell: cellLen, text: stringByOffset.get(oldOff) });
       }
     }
   }
@@ -148,8 +151,7 @@ function composePair(slots, originalInfo, codec) {
     const totalDataLen = (originalInfo && originalInfo.dataLength) || 0;
     const dataBufFull = Buffer.alloc(totalDataLen, PAD_BYTE);
     for (const oldOff of orderedOffsets) {
-      const text = stringByOffset.get(oldOff);
-      const encoded = codec.encode(text);
+      const encoded = encodedByOffset.get(oldOff);
       const cellLen = cellMap.get(oldOff);
       // Записати encoded
       encoded.copy(dataBufFull, oldOff);
@@ -177,8 +179,7 @@ function composePair(slots, originalInfo, codec) {
 
   // Compact режим (UK задовгий — пакуємо щільно).
   for (const oldOff of orderedOffsets) {
-    const text = stringByOffset.get(oldOff);
-    const encoded = codec.encode(text);
+    const encoded = encodedByOffset.get(oldOff);
     let chunk;
     if (encoded.length && encoded[encoded.length - 1] === 0x00) {
       chunk = encoded;
@@ -190,7 +191,7 @@ function composePair(slots, originalInfo, codec) {
     cursor += chunk.length;
   }
   if (cursor > 0xFFFF) {
-    throw new Error('mes_data overflow: ' + cursor + ' bytes > int16 max (65535). UK переклад занадто довгий.');
+    throw new Error('mes_data overflow: ' + cursor + ' bytes > int16 max (65535). UK переклад занадто довгий.' + describeOverflow(overflow));
   }
   let dataBuf = Buffer.concat(dataChunks);
 
@@ -206,7 +207,8 @@ function composePair(slots, originalInfo, codec) {
     throw new Error('ofs buffer (' + ofsBuf.length + ') > target ofs length (' + targetOfsLen + ')');
   }
   if (dataBuf.length > targetDataLen) {
-    throw new Error('data buffer (' + dataBuf.length + ') > target data length (' + targetDataLen + ')');
+    throw new Error('data buffer (' + dataBuf.length + ') > target data length (' + targetDataLen +
+      '). Переклад не вміщується у файл.' + describeOverflow(overflow));
   }
   const ofsPad = Buffer.alloc(targetOfsLen - ofsBuf.length, PAD_BYTE);
   const dataPad = Buffer.alloc(targetDataLen - dataBuf.length, PAD_BYTE);
@@ -215,6 +217,15 @@ function composePair(slots, originalInfo, codec) {
     dataBuf: Buffer.concat([dataBuf, dataPad]),
     layout: 'compact'
   };
+}
+
+// Топ-5 найдовших переповнень для повідомлення — щоб перекладач бачив, ЩО скорочувати.
+function describeOverflow(overflow) {
+  if (!overflow || !overflow.length) return '';
+  const top = overflow.slice().sort((a, b) => (b.need - b.cell) - (a.need - a.cell)).slice(0, 5);
+  return ' Найдовші: ' + top.map(o =>
+    '0x' + o.offset.toString(16).toUpperCase() + ' (+' + (o.need - o.cell) + 'б) «' +
+    String(o.text).slice(0, 40) + (o.text.length > 40 ? '…' : '') + '»').join('; ');
 }
 
 // Допоміжне: чи це файл-пара mes_ofs?

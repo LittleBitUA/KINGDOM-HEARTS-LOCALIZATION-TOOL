@@ -6,6 +6,7 @@ import { validateTokens } from '../core/shared.js';
 import { gState, tState } from '../core/state.js';
 import { isRealTranslation, refreshProgress, renderRows } from './files.js';
 import { refreshGlossaryProgress, renderGlossaryRows, saveGlossary } from './glossary.js';
+import { snapshotGlossary } from './history.js';
 
 // in-flight import preview
 let importPending = null;  // { matched: [{en, uk}], conflicts: [{en, oldUk, newUk}], unmatched: [{en, uk}] }
@@ -367,6 +368,7 @@ export async function importTranslations() {
 
 export function applyImport(includeConflicts) {
   if (!importPending) return;
+  snapshotGlossary(window.i18n.t('glossaryImport'));
   let applied = 0;
   for (const p of importPending.matched) {
     gState.translations[p.english] = p.computedUk;

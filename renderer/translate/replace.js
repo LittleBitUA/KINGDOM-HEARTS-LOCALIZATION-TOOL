@@ -3,6 +3,7 @@ import { toast } from '../core/log.js';
 import { gState, tState } from '../core/state.js';
 import { isRealTranslation, refreshProgress, renderRows, scheduleTsvAutoSave } from './files.js';
 import { refreshGlossaryProgress, renderGlossaryRows, saveGlossary } from './glossary.js';
+import { snapshotGlossary } from './history.js';
 
 // =====================================================================
 // Find & Replace (Ctrl+H) — у глосарії + у відкритому файлі
@@ -140,6 +141,7 @@ export async function doReplaceAll() {
   if (!find) return;
   if (!window.confirm('Замінити "' + find + '" → "' + repl + '" у глосарії та відкритому файлі?')) return;
 
+  snapshotGlossary('Find/Replace');
   let changedGloss = 0;
   for (const en of Object.keys(gState.translations || {})) {
     const old = gState.translations[en];
