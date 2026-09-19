@@ -1905,7 +1905,7 @@ async function exportFileTxt() {
   if (!tState.currentRel) { toast(window.i18n.t('toastNoFile'), 'error'); return; }
   if (!tState.slots.length) { toast(window.i18n.t('toastNoRowsExport'), 'error'); return; }
   const content = buildPerFileTxt(tState.currentRel, tState.slots);
-  const defaultName = tState.currentRel.replace(/[\/\\]/g, '_') + '.txt';
+  const defaultName = tState.currentRel.replace(/[/\\]/g, '_') + '.txt';
   try {
     const r = await window.kh1.translate.exportFileTxt({ defaultName, content });
     if (r.canceled) return;
@@ -4388,7 +4388,7 @@ window.addEventListener('drop', async (e) => {
   for (const f of files) {
     // Electron 32+ не має File.path — беремо шлях через preload/webUtils.
     const path = (window.kh1.getPathForFile && window.kh1.getPathForFile(f)) || f.name;
-    const ext = (path.match(/\.([a-z0-9]+)$/i) || [,''])[1].toLowerCase();
+    const ext = (path.match(/\.([a-z0-9]+)$/i) || [null, ''])[1].toLowerCase();
     if (ext === 'knj') {
       setMode('kerning');
       try {

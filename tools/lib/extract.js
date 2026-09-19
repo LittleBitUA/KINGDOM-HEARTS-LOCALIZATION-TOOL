@@ -19,11 +19,6 @@ function splitStrings(buf, headerLen, footerLen) {
   return segs;
 }
 
-function indexOfBytes(haystack, needle, startFrom = 0) {
-  if (needle.length === 0) return startFrom;
-  return haystack.indexOf(needle, startFrom);
-}
-
 // Перевірити чи `needle` міститься в `hay` як ЦІЛИЙ 0x00-розмежений сегмент
 // (а не випадковий substring всередині іншого слова). Це уникає false-positive
 // для дуже коротких рядків (наприклад "Log" як підрядок "Logo" чи "Catalog").

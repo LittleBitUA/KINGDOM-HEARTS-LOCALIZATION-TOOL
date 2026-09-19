@@ -4,7 +4,7 @@
 
 [![Latest](https://img.shields.io/github/v/release/LittleBitUA/KH1-Localization-tool?style=for-the-badge&color=ffd700&labelColor=0f1730)](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-38bdf8?style=for-the-badge&labelColor=0f1730)](LICENSE)
-[![Electron](https://img.shields.io/badge/electron-32.x-47848f?style=for-the-badge&labelColor=0f1730)](https://electronjs.org)
+[![Electron](https://img.shields.io/badge/electron-44.x-47848f?style=for-the-badge&labelColor=0f1730)](https://electronjs.org)
 
 **Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD) + Birth by Sleep (CTD + редактор шрифту).**
 *A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD) + Birth by Sleep (CTD + font editor).*

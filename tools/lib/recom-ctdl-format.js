@@ -98,6 +98,22 @@ function writeTextboxEntry(buf, off, t) {
   writeI16BE(buf, off + 0x2E, t.speechmarkPosition);
 }
 
+// Довжина null-terminated рядка з урахуванням 2-байтових одиниць codec'а:
+// кнопка {BTN_A} кодується як 0xFF 0x00, і цей 0x00 — НЕ термінатор.
+// Аналогічно 0xF5/0xF9/0x99 + param та SJIS lead+trail (trail ніколи не
+// 0x00, але пропускаємо парою для симетрії з decode). Без цього будь-який
+// рядок з {BTN_A} обрізався б, а rebuild-compose губив би його хвіст.
+function scanStringLength(buf, start) {
+  let p = start;
+  while (p < buf.length) {
+    const b = buf[p];
+    if (b === 0x00) break;
+    if ((b === 0xFF || b === 0xF5 || b === 0xF9 || b === 0x99) && p + 1 < buf.length) { p += 2; continue; }
+    p++;
+  }
+  return p - start;
+}
+
 // ---- parseCtdl(buf) → parsed structure ---------------------------------
 
 function parseCtdl(buf) {
@@ -154,8 +170,7 @@ function parseCtdl(buf) {
       });
       continue;
     }
-    let len = 0;
-    while (absOff + len < buf.length && buf[absOff + len] !== 0x00) len++;
+    const len = scanStringLength(buf, absOff);
     const rawBytes = Buffer.from(buf.slice(absOff, absOff + len));
     entries.push({
       index: i,

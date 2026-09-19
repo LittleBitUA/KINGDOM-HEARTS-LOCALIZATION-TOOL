@@ -158,8 +158,8 @@ const CYRILLIC_TO_LATIN = {
   'М':'Ì','Н':'Í','О':'Î','П':'Ï','Р':'Ð','С':'Ñ','Т':'Ò','У':'Ó',
   'Ф':'Ô','Х':'Õ','Ц':'Ö','Ч':'×','Ш':'Ø','Щ':'Ù',
   'Ю':'Þ','Я':'ß',
-  // Apostrophe variants
-  "ʼ":"'", "'":"'", "'":"'"
+  // Apostrophe variants (U+02BC modifier letter apostrophe, U+2019 right single quote)
+  '\u02BC': "'", '\u2019': "'"
 };
 
 function decode2Byte(lead, param) {
@@ -276,9 +276,20 @@ function encode(str) {
     // Кожен ASCII-символ транслітерації пишеться окремим байтом.
     const translit = CYRILLIC_TO_LATIN[ch];
     if (translit) {
+      // Кожен символ транслітерації кодуємо ТИМ САМИМ шляхом, що й звичайний
+      // текст: ASCII → 1 байт, Latin-Extended → через PAIR_81/PAIR_99 таблиці
+      // (2 байти). Раніше все не-ASCII тут ставало '?', тобто УСЯ кирилиця
+      // компонувалась як '????'.
       for (let k = 0; k < translit.length; k++) {
-        const c = translit.charCodeAt(k);
-        out.push(c >= 0x20 && c < 0x7F ? c : 0x3F);
+        const tc = translit[k];
+        const code = tc.charCodeAt(0);
+        if (code >= 0x20 && code < 0x7F) { out.push(code); continue; }
+        let found = false;
+        for (const [lead, inv] of [[0x81, INV_81], [0x99, INV_99]]) {
+          const byte = inv[tc];
+          if (byte != null) { out.push(lead, byte); found = true; break; }
+        }
+        if (!found) { out.push(0x3F); _lastEncodeUnmapped.add(ch); }
       }
       i++;
       continue;
