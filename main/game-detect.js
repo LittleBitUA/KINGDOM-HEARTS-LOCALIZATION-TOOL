@@ -13,6 +13,7 @@ const COLLECTIONS = [
   {
     key: 'kh1525',
     name: 'KINGDOM HEARTS HD 1.5+2.5 ReMIX',
+    short: 'KH HD 1.5+2.5 ReMIX',
     steamAppId: '2552430',
     dirNames: ['KINGDOM HEARTS -HD 1.5+2.5 ReMIX-', 'KH_1.5_2.5'],
     games: ['kh1-final-mix', 'kh-re-com', 'kh-bbs-final-mix'],
@@ -21,6 +22,7 @@ const COLLECTIONS = [
   {
     key: 'kh28',
     name: 'KINGDOM HEARTS HD 2.8 Final Chapter Prologue',
+    short: 'KH HD 2.8',
     steamAppId: '2552440',
     dirNames: ['KINGDOM HEARTS HD 2.8 Final Chapter Prologue', 'KH_2.8'],
     games: ['kh-ddd'],

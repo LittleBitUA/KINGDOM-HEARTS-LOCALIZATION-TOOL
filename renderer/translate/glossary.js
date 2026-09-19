@@ -846,8 +846,12 @@ if (gImportTxtBtn) {
 
 // «Встановити DONE у гру» — лише KH1: DONE → kh1_first.hed_out (remastered/ + original/exchange/).
 export const gInstallDoneBtn = document.getElementById('g-install-done');
+// Кнопки лише для KH1: «Встановити DONE у гру» і «Дописати відсутні у .txt»
+// (формат [#N]/--- EN ---/--- UK ---/=== END === — робочий txt-глосарій KH1).
 export function refreshInstallDoneVisibility() {
-  if (gInstallDoneBtn) gInstallDoneBtn.hidden = getCurrentGameId() !== 'kh1-final-mix';
+  const notKh1 = getCurrentGameId() !== 'kh1-final-mix';
+  if (gInstallDoneBtn) gInstallDoneBtn.hidden = notKh1;
+  if (gAppendTxtBtn) gAppendTxtBtn.hidden = notKh1;
 }
 if (gInstallDoneBtn) {
   gInstallDoneBtn.addEventListener('click', async () => {

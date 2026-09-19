@@ -419,7 +419,7 @@ const DICT = {
     setupDetect: 'Знайти ігри',
     setupDetectTitle: 'Знайти встановлені збірки Kingdom Hearts у Steam (усі бібліотеки на всіх дисках) та Epic Games і підставити їхні теки',
     setupDetectedVia: 'знайдено у {src}',
-    setupDirBadHed: 'Тут нема {expected} — потрібна тека збірки «{collection}»',
+    setupDirBadHed: 'Тут нема {expected} — ця гра лежить у збірці {collection}, вибери її теку',
     setupDirMissing: 'Теки не існує',
     setupSkipDownloadTitle: 'Не завантажувати інструменти: зберегти шляхи і розпакувати відмічені ігри наявним KHPCPatchManager',
     toastDetectFound: 'Знайдено: {list}',
@@ -431,7 +431,7 @@ const DICT = {
     toastPrepareDone: '{game}: файлів скопійовано у робочу теку — {n}',
     toastPrepareNeedTools: 'KHPCPatchManager ще не завантажено — спершу натисни «Підготувати середовище».',
     spUnpackSkipExisting: 'Вже розпаковано раніше: {path} — лише копіюємо файли',
-    setupBack: '← Назад',
+    setupBack: 'Назад',
 
     // Adaptive dirs-hint per game
     dirsHintBbs: 'ENG-тека визначає список файлів і служить джерелом для перекладу. Прогрес зберігається у TSV-теку, готові .ctd — у UA-теку.',
@@ -870,7 +870,7 @@ const DICT = {
     setupDetect: 'Find games',
     setupDetectTitle: 'Find installed Kingdom Hearts collections in Steam (all libraries on all drives) and Epic Games and fill in their folders',
     setupDetectedVia: 'found in {src}',
-    setupDirBadHed: 'No {expected} here — pick the folder of “{collection}”',
+    setupDirBadHed: 'No {expected} here — this game lives in {collection}, pick that folder',
     setupDirMissing: 'Folder does not exist',
     setupSkipDownloadTitle: 'Do not download tools: save the paths and unpack the checked games with the existing KHPCPatchManager',
     toastDetectFound: 'Found: {list}',
@@ -882,7 +882,7 @@ const DICT = {
     toastPrepareDone: '{game}: files copied into the workspace — {n}',
     toastPrepareNeedTools: 'KHPCPatchManager is not downloaded yet — run “Prepare environment” first.',
     spUnpackSkipExisting: 'Already unpacked earlier: {path} — copying files only',
-    setupBack: '← Back',
+    setupBack: 'Back',
 
     // Adaptive dirs-hint per game
     dirsHintBbs: 'ENG folder defines the file list and serves as the translation source. Progress is saved in TSV; finished .ctd in UA.',

@@ -97,6 +97,10 @@ document.addEventListener('kh:setup-game', (ev) => {
   openSetupForGame(ev && ev.detail && ev.detail.gameId);
 });
 
+// Іконки того самого лінійного набору, що й у розмітці Setup (index.html).
+const ICO_FOLDER = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2a1.5 1.5 0 0 1 1.06.44L11 6.7h8.5A1.5 1.5 0 0 1 21 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ICO_CHECK = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 // Мініатюра гри: стилізований heart-motif у кольорах теми (без фото-assets).
 const THUMB_HEART = '<svg viewBox="0 0 454 495" aria-hidden="true"><path fill="currentColor" d="M373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></svg>';
 
@@ -178,10 +182,14 @@ export function _setupRenderGames() {
         chk.classList.toggle('on', input.checked);
         _setupRefreshRunBtn();
       });
+      const box = document.createElement('span');
+      box.className = 'setup-check-box';
+      box.innerHTML = ICO_CHECK;
       const lbl = document.createElement('span');
       lbl.setAttribute('data-i18n', prepared ? 'setupUnpackAgain' : 'setupUnpackCheck');
       lbl.textContent = t(prepared ? 'setupUnpackAgain' : 'setupUnpackCheck', prepared ? 'Оновити файли' : 'Розпакувати');
       chk.appendChild(input);
+      chk.appendChild(box);
       chk.appendChild(lbl);
       chk.addEventListener('click', (ev) => ev.stopPropagation());
       btns.appendChild(chk);
@@ -190,7 +198,8 @@ export function _setupRenderGames() {
     const pickBtn = document.createElement('button');
     pickBtn.type = 'button';
     pickBtn.className = 'kh-btn setup-game-pick';
-    pickBtn.textContent = t('setupBrowse', 'Вибрати…');
+    pickBtn.innerHTML = ICO_FOLDER;
+    pickBtn.appendChild(document.createTextNode(t('setupBrowse', 'Вибрати…')));
     pickBtn.addEventListener('click', async (ev) => {
       ev.stopPropagation();
       const title = t('setupPickGameDir', 'Тека гри') + ' — ' + g.name;
@@ -311,7 +320,7 @@ export function _setupRefreshRunBtn() {
 }
 
 export function _setupResetProgressUi() {
-  if (setupProgress) setupProgress.classList.remove('error', 'done');
+  if (setupProgress) setupProgress.classList.remove('error', 'done', 'indeterminate');
   if (setupProgressFill) setupProgressFill.style.width = '0%';
   if (setupProgressPercent) setupProgressPercent.textContent = '';
   if (setupProgressPhase) setupProgressPhase.textContent = '—';
@@ -357,11 +366,25 @@ export function _setupOnProgress(p) {
     }
   }
   if (typeof p.percent === 'number' && setupProgressFill) {
+    setupProgress.classList.remove('indeterminate');
     setupProgressFill.style.width = p.percent + '%';
     if (setupProgressPercent) setupProgressPercent.textContent = p.percent + '%';
   } else if (p.phase === 'done' && setupProgressFill) {
+    setupProgress.classList.remove('indeterminate');
     setupProgressFill.style.width = '100%';
     if (setupProgressPercent) setupProgressPercent.textContent = '100%';
+  } else if ((p.phase === 'unpack-game' || p.phase === 'copy-files' || p.phase === 'persist') && setupProgressFill) {
+    // KHPCPatchManager не повідомляє загальної кількості файлів — смужка
+    // «біжить», а замість відсотка показуємо час/лічильник із повідомлення.
+    setupProgress.classList.add('indeterminate');
+    setupProgressFill.style.width = '';
+    if (setupProgressPercent) {
+      const pr = p.params || {};
+      setupProgressPercent.textContent = pr.sec != null ? pr.sec + ' с' : (pr.n != null ? String(pr.n) : '');
+    }
+  }
+  if (p.phase === 'error') {
+    setupProgress.classList.remove('indeterminate');
   }
   if (p.phase === 'error') {
     setupProgress.classList.add('error');

@@ -73,31 +73,23 @@
       </svg>
       <div class="setup-quote setup-quote-l">Серця об’єднують світи.</div>
       <div class="setup-quote setup-quote-r">May your heart be your guiding key.</div>
-      <div class="setup-corner-crown setup-corner-crown-l"><svg viewBox="0 0 32 22" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></div>
-      <div class="setup-corner-crown setup-corner-crown-r"><svg viewBox="0 0 32 22" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></div>
     </div>
 
     <div class="setup-shell" role="document">
-      <button id="setup-back" class="kh-btn setup-back" type="button" hidden data-i18n="setupBack">← Назад</button>
+      <button id="setup-back" class="kh-btn setup-back" type="button" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="setupBack">Назад</span></button>
 
       <header class="setup-hero">
         <div class="setup-emblem" aria-hidden="true">
           <span class="setup-emblem-crown"><svg viewBox="0 0 32 22" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></span>
-          <span class="setup-emblem-spark setup-emblem-spark-l">✦</span>
-          <svg class="setup-emblem-heart" viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="58" height="63">
+          <svg class="setup-emblem-heart" viewBox="0 0 454 495" preserveAspectRatio="xMidYMid meet" width="38" height="41">
             <path fill="currentColor" d="m373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/>
           </svg>
-          <span class="setup-emblem-spark setup-emblem-spark-r">✦</span>
         </div>
         <h1 class="setup-title" data-i18n="setupTitle">Початкове налаштування</h1>
         <p class="setup-subtitle" data-i18n="setupSubtitle">Підготовка робочого середовища для локалізації</p>
       </header>
 
       <div class="setup-panel">
-        <span class="setup-panel-corner tl" aria-hidden="true"></span>
-        <span class="setup-panel-corner tr" aria-hidden="true"></span>
-        <span class="setup-panel-corner bl" aria-hidden="true"></span>
-        <span class="setup-panel-corner br" aria-hidden="true"></span>
 
         <!-- ===== Step 1: вибір гри ===== -->
         <section class="setup-step">
@@ -110,12 +102,13 @@
             <button id="setup-detect" class="kh-btn setup-detect" type="button"
                     data-i18n-title="setupDetectTitle"
                     title="Знайти встановлені збірки Kingdom Hearts у Steam (усі бібліотеки на всіх дисках) та Epic Games і підставити їхні теки">
-              <span class="icon" aria-hidden="true">⌕</span><span data-i18n="setupDetect">Знайти ігри</span>
+<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span data-i18n="setupDetect">Знайти ігри</span>
             </button>
           </div>
           <div class="setup-game-list" id="setup-game-list" role="radiogroup" aria-label="Active game"></div>
         </section>
 
+        <div class="setup-dirs">
         <!-- ===== Step 2: tools dir ===== -->
         <section class="setup-step">
           <div class="setup-step-head">
@@ -130,7 +123,7 @@
               <span class="setup-dir-icon" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2a1.5 1.5 0 0 1 1.06.44L11 6.7h8.5A1.5 1.5 0 0 1 21 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.6"/></svg></span>
               <input type="text" id="setup-tools-dir" placeholder="…/Documents/KH-Localization/tools" autocomplete="off" spellcheck="false">
             </label>
-            <button class="kh-btn setup-dir-pick" type="button" id="setup-tools-pick" data-i18n="setupBrowse">Вибрати…</button>
+            <button class="kh-btn setup-dir-pick" type="button" id="setup-tools-pick"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2a1.5 1.5 0 0 1 1.06.44L11 6.7h8.5A1.5 1.5 0 0 1 21 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.6"/></svg><span data-i18n="setupBrowse">Вибрати…</span></button>
           </div>
         </section>
 
@@ -148,23 +141,24 @@
               <span class="setup-dir-icon" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2a1.5 1.5 0 0 1 1.06.44L11 6.7h8.5A1.5 1.5 0 0 1 21 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.6"/></svg></span>
               <input type="text" id="setup-assets-dir" placeholder="…/Documents/KH-Localization" autocomplete="off" spellcheck="false">
             </label>
-            <button class="kh-btn setup-dir-pick" type="button" id="setup-assets-pick" data-i18n="setupBrowse">Вибрати…</button>
+            <button class="kh-btn setup-dir-pick" type="button" id="setup-assets-pick"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2a1.5 1.5 0 0 1 1.06.44L11 6.7h8.5A1.5 1.5 0 0 1 21 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.6"/></svg><span data-i18n="setupBrowse">Вибрати…</span></button>
           </div>
         </section>
+        </div>
 
         <div class="setup-divider" aria-hidden="true"><span class="setup-divider-crown"><svg viewBox="0 0 32 22" aria-hidden="true"><path d="M3 18L1 5l8 6 7-10 7 10 8-6-2 13z" fill="currentColor"/><rect x="3" y="18" width="26" height="3" rx="1" fill="currentColor"/></svg></span></div>
 
         <!-- ===== Run button + progress ===== -->
         <section class="setup-actions">
           <button id="setup-run" class="kh-btn kh-btn-primary setup-btn-primary" type="button">
-            <span class="icon" aria-hidden="true">⚙</span>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span data-i18n="setupRun">Підготувати середовище</span>
             <span id="setup-run-count" class="setup-run-count" hidden></span>
           </button>
           <button id="setup-skip-download" class="kh-btn setup-btn-secondary" type="button"
                   data-i18n-title="setupSkipDownloadTitle"
                   title="Не завантажувати інструменти: зберегти шляхи і розпакувати відмічені ігри наявним KHPCPatchManager">
-            <span class="icon" aria-hidden="true">⏭</span><span data-i18n="setupSkipDownload">Пропустити завантаження</span>
+<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l6 6-6 6M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="setupSkipDownload">Пропустити завантаження</span>
           </button>
         </section>
 
@@ -496,7 +490,7 @@
                   title="Імпортувати переклади з .txt (того самого формату що експорт). Існуючі ключі оновлюються, нові — додаються.">
             <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImportTxt">Імпорт .txt</span>
           </button>
-          <button id="g-append-txt" class="kh-btn" type="button"
+          <button id="g-append-txt" class="kh-btn" type="button" hidden
                   data-i18n-title="glossaryAppendTxtTitle"
                   title="Дописати у наявний .txt EN-рядки, яких там ще немає (з порожнім UK). Наявні блоки не змінюються.">
             <span class="icon" aria-hidden="true">➕</span><span data-i18n="glossaryAppendTxt">Дописати відсутні у .txt</span>

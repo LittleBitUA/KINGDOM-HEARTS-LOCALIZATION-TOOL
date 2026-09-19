@@ -293,8 +293,8 @@ ipcMain.handle('setup:checkGameDir', async (_e, payload) => {
   const dir = String((payload && payload.dir) || '').trim();
   const cfg = HED_PATHS[gameId];
   const coll = COLLECTIONS.find(c => c.games.includes(gameId));
-  const expected = cfg ? cfg.heds[0].rel : '';
-  const collection = coll ? coll.name : '';
+  const expected = cfg ? path.basename(cfg.heds[0].rel) : '';
+  const collection = coll ? (coll.short || coll.name) : '';
   if (!cfg || !dir) return { ok: false, expected, collection };
   if (!fsSync.existsSync(dir)) return { ok: false, missing: true, expected, collection };
   const hed = locateHed(dir, cfg.heds[0], true);
