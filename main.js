@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 const { Worker } = require('worker_threads');
+const { writeFileAtomic, writeFileAtomicSync } = require('./shared/safe-fs');
 
 // electron-updater є опціональним: якщо нема (наприклад dev запуск без npm install) —
 // просто вимикаємо auto-update, не падаємо.
@@ -132,7 +133,9 @@ const FILE_FILTERS_SAVE = [
   { name: 'Усі файли', extensions: ['*'] }
 ];
 
-ipcMain.handle('file:open', async () => {
+ipcMain.handle('file:open', async (_e, opts) => {
+  // decodeMode: 'smart' (default) | 'overlay' | 'base' — див. shared/codec.js
+  const decodeMode = (opts && ['smart', 'overlay', 'base'].includes(opts.decodeMode)) ? opts.decodeMode : 'smart';
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Імпортувати файл BIN/BINL/ARD',
     properties: ['openFile'],
@@ -148,9 +151,10 @@ ipcMain.handle('file:open', async () => {
       buffer.byteOffset,
       buffer.byteOffset + buffer.byteLength
     );
-    const r = await runWorker({ op: 'decode', bytes: ab }, [ab]);
+    const r = await runWorker({ op: 'decode', bytes: ab, decodeMode }, [ab]);
     return {
       canceled: false,
+      decodeMode,
       filePath,
       fileName: path.basename(filePath),
       byteLength: buffer.length,
@@ -259,6 +263,11 @@ function getDefaultsForGame(gameId, root) {
   return out;
 }
 
+// Єдина точка запису settings-файла: атомарно + 3 бекапи.
+function writeSettingsRaw(obj) {
+  writeFileAtomicSync(SETTINGS_PATH, JSON.stringify(obj, null, 2), { encoding: 'utf8', backups: 3 });
+}
+
 function loadSettingsRaw() {
   try {
     return JSON.parse(fsSync.readFileSync(SETTINGS_PATH, 'utf8'));
@@ -321,9 +330,10 @@ function saveSettings(partial, gameId) {
   }
 
   try {
-    fsSync.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fsSync.writeFileSync(SETTINGS_PATH, JSON.stringify(out, null, 2), 'utf8');
-  } catch (_) {}
+    writeSettingsRaw(out);
+  } catch (e) {
+    console.error('settings: write failed:', e && e.message);
+  }
   return loadSettings(gameId);
 }
 
@@ -815,8 +825,7 @@ ipcMain.handle('translate:saveTsv', async (_e, payload) => {
   const content = (payload && payload.content) || '';
   if (!tsvPath) return { error: 'Не вказано шлях TSV' };
   try {
-    await fs.mkdir(path.dirname(tsvPath), { recursive: true });
-    await fs.writeFile(tsvPath, content, 'utf8');
+    await writeFileAtomic(tsvPath, content, { encoding: 'utf8' });
     return { ok: true, tsvPath };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
@@ -1010,8 +1019,7 @@ ipcMain.handle('setup:reset', async () => {
   const raw = migrateIfNeeded(loadSettingsRaw());
   raw.setupCompleted = false;
   try {
-    fsSync.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fsSync.writeFileSync(SETTINGS_PATH, JSON.stringify(raw, null, 2), 'utf8');
+    writeSettingsRaw(raw);
   } catch (e) {
     return { error: 'Не вдалося оновити налаштування: ' + (e.message || e) };
   }
@@ -1184,8 +1192,7 @@ ipcMain.handle('setup:run', async (_e, payload) => {
     raw.tools = Object.assign({}, raw.tools || {});
     if (downloadResults.openkh) raw.tools.openkh = downloadResults.openkh;
     if (downloadResults.khpcpm) raw.tools.khpcpm = downloadResults.khpcpm;
-    fsSync.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
-    fsSync.writeFileSync(SETTINGS_PATH, JSON.stringify(raw, null, 2), 'utf8');
+    writeSettingsRaw(raw);
   } catch (e) {
     const msg = e.message || String(e);
     sendSetupProgress({ phase: 'error', key: 'spError', params: { msg } });
@@ -2104,7 +2111,7 @@ ipcMain.handle('kerning:openKnj', async () => {
   try {
     const buf = await fs.readFile(r.filePaths[0]);
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-    saveSettings(Object.assign(loadSettings(), { lastKnjPath: r.filePaths[0] }));
+    saveSettings({ lastKnjPath: r.filePaths[0] });
     return { ok: true, filePath: r.filePaths[0], data: ab };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
@@ -2138,7 +2145,7 @@ ipcMain.handle('kerning:openDds', async (_e, suggestedDir) => {
   try {
     const buf = await fs.readFile(r.filePaths[0]);
     const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-    saveSettings(Object.assign(loadSettings(), { lastDdsPath: r.filePaths[0] }));
+    saveSettings({ lastDdsPath: r.filePaths[0] });
     return { ok: true, filePath: r.filePaths[0], data: ab };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
@@ -2174,7 +2181,7 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
       if (fsSync.existsSync(c)) {
         const buf = await fs.readFile(c);
         const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-        saveSettings(Object.assign(loadSettings(), { lastDdsPath: c }));
+        saveSettings({ lastDdsPath: c });
         return { ok: true, filePath: c, data: ab };
       }
     }
@@ -2186,7 +2193,7 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
         const c = path.join(sub, ddsFiles[0]);
         const buf = await fs.readFile(c);
         const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-        saveSettings(Object.assign(loadSettings(), { lastDdsPath: c }));
+        saveSettings({ lastDdsPath: c });
         return { ok: true, filePath: c, data: ab };
       }
     }
@@ -2545,7 +2552,7 @@ function setupAutoUpdater() {
     releaseDate: info && info.releaseDate,
     releaseNotes: info && info.releaseNotes,
     portable: isPortable,
-    repo: 'https://github.com/LittleBitUA/KH1TextEditor/releases/latest'
+    repo: 'https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest'
   }));
   autoUpdater.on('update-not-available', () => sendUpdate('update:none'));
   autoUpdater.on('error', (err) => sendUpdate('update:error', { message: (err && err.message) || String(err) }));
@@ -2602,11 +2609,7 @@ ipcMain.handle('app:openExternal', async (_e, url) => {
 
 ipcMain.handle('app:setLanguage', (_e, lang) => {
   appLang = (lang === 'en') ? 'en' : 'uk';
-  try {
-    const s = loadSettings();
-    s.language = appLang;
-    saveSettings(s);
-  } catch (_) {}
+  try { saveSettings({ language: appLang }); } catch (_) {}
   buildMenu();
   return { ok: true, lang: appLang };
 });
@@ -2705,6 +2708,16 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  // Dev-допомога: KH_DEBUG=1 дзеркалить console renderer'а у термінал і
+  // відкриває DevTools — щоб бачити помилки без GUI.
+  if (process.env.KH_DEBUG) {
+    mainWindow.webContents.on('console-message', (_ev, level, message, line, sourceId) => {
+      const lvl = ['debug', 'info', 'warn', 'error'][level] || level;
+      console.log('[renderer:' + lvl + '] ' + message + ' (' + path.basename(String(sourceId)) + ':' + line + ')');
+    });
+    mainWindow.webContents.once('did-finish-load', () => mainWindow.webContents.openDevTools({ mode: 'detach' }));
+  }
+
   // Відкривати на максимум за замовчуванням (за запитом користувача).
   mainWindow.maximize();
 
@@ -2720,6 +2733,24 @@ function createWindow() {
   mainWindow.on('unmaximize', sendWinState);
   mainWindow.on('enter-full-screen', sendWinState);
   mainWindow.on('leave-full-screen', sendWinState);
+  // Перед закриттям даємо renderer'у скинути незбережений TSV/глосарій
+  // (autosave має дебаунс 1.5с — інакше останні правки губляться).
+  // Renderer відповідає через 'app:close-ready'; таймаут — страховка, щоб
+  // вікно не «зависло» якщо renderer впав.
+  let closeReady = false;
+  mainWindow.on('close', (e) => {
+    if (closeReady || !mainWindow || mainWindow.isDestroyed()) return;
+    e.preventDefault();
+    const finish = () => {
+      if (closeReady) return;
+      closeReady = true;
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    };
+    const timer = setTimeout(finish, 3000);
+    ipcMain.once('app:close-ready', () => { clearTimeout(timer); finish(); });
+    try { mainWindow.webContents.send('app:before-close'); }
+    catch (_) { clearTimeout(timer); finish(); }
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 

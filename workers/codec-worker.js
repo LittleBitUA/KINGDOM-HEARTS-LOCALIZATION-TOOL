@@ -17,7 +17,8 @@ parentPort.on('message', (msg) => {
   try {
     if (op === 'decode') {
       const buf = Buffer.from(msg.bytes);
-      const text = decode(buf);
+      const mode = msg.decodeMode === 'base' ? false : (msg.decodeMode === 'overlay' ? true : 'smart');
+      const text = decode(buf, { overlay: mode });
       parentPort.postMessage({ id, ok: true, text });
       return;
     }

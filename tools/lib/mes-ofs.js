@@ -47,7 +47,7 @@ function parsePair(ofsBuf, dataBuf, codec) {
     while (end < dataTrim.length && dataBuf[end] !== 0x00) end++;
     const sliceWithEol = dataBuf.slice(off, end + 1); // include 0x00
     let decoded = '';
-    try { decoded = codec.decode(sliceWithEol); } catch (_) { decoded = ''; }
+    try { decoded = codec.decode(sliceWithEol, { overlay: false }); } catch (_) { decoded = ''; }
     stringByOffset.set(off, {
       english: decoded.replace(/\n$/, ''), // codec додає '\n' після {eol} — приберемо
       byteLen: sliceWithEol.length,

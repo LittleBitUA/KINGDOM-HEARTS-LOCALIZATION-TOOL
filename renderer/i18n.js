@@ -30,6 +30,11 @@ const DICT = {
     findBtn: 'Пошук',
     fileNotLoaded: 'Файл не завантажено',
     editorPlaceholder: 'Імпортуйте файл .bin / .binl / .ard, щоб почати редагування...',
+    editorDecodeMode: 'Показ:',
+    editorDecodeModeTitle: 'Як показувати спільні байти латиниці/кирилиці (A↔А, o↔о). Байти у файлі однакові — це лише відображення.',
+    editorDecodeSmart: 'авто (ENG латиницею)',
+    editorDecodeUa: 'UA (усе кирилицею)',
+    editorDecodeEn: 'EN (без overlay)',
     cursorInfo: 'Рядок 1, Стовпець 1',
     brand: 'Створено GuidingHeart · Перенесено на Electron',
 
@@ -359,6 +364,11 @@ const DICT = {
     findBtn: 'Find',
     fileNotLoaded: 'No file loaded',
     editorPlaceholder: 'Import a .bin / .binl / .ard file to start editing...',
+    editorDecodeMode: 'View:',
+    editorDecodeModeTitle: 'How to display bytes shared between Latin and Cyrillic glyphs (A↔А, o↔о). File bytes are identical — display only.',
+    editorDecodeSmart: 'auto (ENG as Latin)',
+    editorDecodeUa: 'UA (all Cyrillic)',
+    editorDecodeEn: 'EN (no overlay)',
     cursorInfo: 'Line 1, Column 1',
     brand: 'Created by GuidingHeart · Ported to Electron',
 

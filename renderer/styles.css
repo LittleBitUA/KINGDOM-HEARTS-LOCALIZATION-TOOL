@@ -2334,3 +2334,19 @@ body.theme-light .game-card {
   color: var(--khn-gold-light);
   font-weight: 600;
 }
+
+/* Inline label + compact select (Editor toolbar decode-mode switch) */
+.kh-inline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted, #9aa3b5);
+  white-space: nowrap;
+}
+.kh-select-sm {
+  padding: 2px 6px;
+  font-size: 12px;
+  min-height: 0;
+  height: 26px;
+}

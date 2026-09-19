@@ -17,7 +17,7 @@
         </svg>
       </span>
       <span class="kh-titlebar-title">KINGDOM HEARTS UKRAINIAN LOCALIZATION HUB</span>
-      <span class="kh-titlebar-subtitle">v2.21.1</span>
+      <span id="tb-version" class="kh-titlebar-subtitle"></span>
     </button>
     <div class="kh-titlebar-actions" role="group" aria-label="Window controls">
       <button id="tb-log" class="kh-tb-btn kh-tb-log" type="button" aria-label="Event log" title="Журнал подій / Event log">
@@ -165,6 +165,14 @@
         <button id="btn-find" class="kh-btn" type="button" disabled>
           <span class="icon" aria-hidden="true">🔍</span><span data-i18n="findBtn">Пошук</span>
         </button>
+        <label class="kh-inline-label" title="Як показувати спільні байти латиниці/кирилиці (A↔А, o↔о). Байти у файлі однакові — це лише відображення." data-i18n-title="editorDecodeModeTitle">
+          <span data-i18n="editorDecodeMode">Показ:</span>
+          <select id="editor-decode-mode" class="kh-select kh-select-sm" aria-label="Decode mode">
+            <option value="smart" data-i18n="editorDecodeSmart">авто (ENG латиницею)</option>
+            <option value="overlay" data-i18n="editorDecodeUa">UA (усе кирилицею)</option>
+            <option value="base" data-i18n="editorDecodeEn">EN (без overlay)</option>
+          </select>
+        </label>
         <div class="file-status" aria-live="polite">
           <span id="file-status-text" data-i18n="fileNotLoaded">Файл не завантажено</span>
         </div>

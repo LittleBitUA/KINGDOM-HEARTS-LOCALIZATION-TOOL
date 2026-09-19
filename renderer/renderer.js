@@ -14,6 +14,13 @@
   btnMin.addEventListener('click', () => w.minimize());
   btnMax.addEventListener('click', () => w.maximize());
   btnClose.addEventListener('click', () => w.close());
+  // Версія у титлбарі — з package.json через app:about (не хардкодити).
+  const verEl = document.getElementById('tb-version');
+  if (verEl && window.kh1.about) {
+    window.kh1.about().then((info) => {
+      if (info && info.version) verEl.textContent = 'v' + info.version;
+    }).catch(() => {});
+  }
   // Subscribe на win-state events для свопу max/restore icon (optional polish).
   if (w.onState) {
     w.onState((state) => {
@@ -850,19 +857,31 @@ function enterEditor(gameId) {
 // не лишалось stale-контенту (DOM, slots, settings, file selection).
 function resetTranslateState() {
   if (!tState) return;
+  // Скидаємо pending autosave-таймери: інакше таймер попередньої гри
+  // спрацює вже з новими settings і запише TSV/глосарій не в ту теку.
+  if (_tAutoSaveTimer) { clearTimeout(_tAutoSaveTimer); _tAutoSaveTimer = null; }
+  if (_gAutoSaveTimer) { clearTimeout(_gAutoSaveTimer); _gAutoSaveTimer = null; }
   tState.settings = { engDir: '', rusDir: '', outDir: '', tsvDir: '' };
   tState.files = [];
   tState.slots = [];
+  tState.currentRel = null;
+  tState.dirty = false;
   tState.fileName = '';
   tState.fileMeta = null;
+  // Глосарій — per-game. Якщо лишити старий, loadFile() автозаповнить слоти
+  // іншої гри перекладами з KH1 ("Yes"/"No"/"Cancel" збігаються).
+  gState.entries = [];
+  gState.translations = {};
+  gState.dirty = false;
   if (tFileSel) {
     while (tFileSel.firstChild) tFileSel.removeChild(tFileSel.firstChild);
     const blank = document.createElement('option');
     blank.value = '';
-    blank.textContent = '— виберіть файл —';
+    blank.textContent = (window.i18n && window.i18n.t('selectFile')) || '— виберіть файл —';
     tFileSel.appendChild(blank);
   }
   if (tRows) tRows.innerHTML = '';
+  if (gRows) gRows.innerHTML = '';
   if (tStatus) tStatus.textContent = '';
 }
 
@@ -905,7 +924,9 @@ async function doOpen() {
   state.busy = true;
   btnOpen.disabled = true;
   try {
-    const result = await window.kh1.openFile();
+    const modeSel = document.getElementById('editor-decode-mode');
+    const decodeMode = (modeSel && modeSel.value) || 'smart';
+    const result = await window.kh1.openFile({ decodeMode });
     if (result.canceled) return;
     if (result.error) {
       toast(window.i18n.t('toastImportError', {msg: result.error}), 'error', 6000);
@@ -1476,11 +1497,16 @@ async function flushGlossaryAutoSave() {
   }
 }
 
-// Зберегти все перед закриттям вікна
-window.addEventListener('beforeunload', () => {
-  // Синхронно ми вже не встигнемо постукати в IPC — але прапорці
-  // вже були оброблені auto-save таймером. Це best-effort.
-});
+// Зберегти все перед закриттям вікна. Main перехоплює 'close', шле нам
+// 'app:before-close' і чекає closeReady() (або 3с таймаут) — тому тут можна
+// спокійно дочекатися async-запису TSV та глосарію.
+if (window.kh1.app && window.kh1.app.onBeforeClose) {
+  window.kh1.app.onBeforeClose(async () => {
+    try { await flushTsvAutoSave(); } catch (_) {}
+    try { await flushGlossaryAutoSave(); } catch (_) {}
+    window.kh1.app.closeReady();
+  });
+}
 
 // Зберегти leading/trailing whitespace з оригіналу — гра використовує
 // провідні пробіли як форматування. Якщо користувач випадково знищив
@@ -4331,7 +4357,7 @@ document.addEventListener('keydown', (e) => {
   // Ctrl+→ / Ctrl+← — наступний/попередній файл у Translate (Files subtab)
   if (state.mode === 'translate' && tState.subtab !== 'glossary' && e.ctrlKey && !inField) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-      const fileSel = document.getElementById('t-file-select');
+      const fileSel = tFileSel;
       if (fileSel && fileSel.options.length > 1) {
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
@@ -4360,7 +4386,8 @@ window.addEventListener('drop', async (e) => {
   const files = e.dataTransfer && e.dataTransfer.files;
   if (!files || !files.length) return;
   for (const f of files) {
-    const path = f.path || f.name;
+    // Electron 32+ не має File.path — беремо шлях через preload/webUtils.
+    const path = (window.kh1.getPathForFile && window.kh1.getPathForFile(f)) || f.name;
     const ext = (path.match(/\.([a-z0-9]+)$/i) || [,''])[1].toLowerCase();
     if (ext === 'knj') {
       setMode('kerning');

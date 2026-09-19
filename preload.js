@@ -1,6 +1,6 @@
 'use strict';
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const VALID_MENU_CHANNELS = new Set([
   'menu:open',
@@ -16,10 +16,16 @@ const VALID_MENU_CHANNELS = new Set([
 ]);
 
 contextBridge.exposeInMainWorld('kh1', {
-  openFile: () => ipcRenderer.invoke('file:open'),
+  openFile: (opts) => ipcRenderer.invoke('file:open', opts || {}),
   saveFile: (text, suggestedName) =>
     ipcRenderer.invoke('file:save', { text, suggestedName }),
   about: () => ipcRenderer.invoke('app:about'),
+  // Electron 32+ прибрав нестандартний File.path — єдиний спосіб дістати
+  // абсолютний шлях drag-and-drop файла з sandboxed renderer'а.
+  getPathForFile: (file) => {
+    try { return webUtils.getPathForFile(file) || ''; }
+    catch (_) { return ''; }
+  },
   // Custom title bar API
   win: {
     minimize: () => ipcRenderer.invoke('win:minimize'),
@@ -36,6 +42,15 @@ contextBridge.exposeInMainWorld('kh1', {
     setLanguage: (lang) => ipcRenderer.invoke('app:setLanguage', lang),
     getCharMap: () => ipcRenderer.invoke('app:getCharMap'),
     checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
+    // Graceful close: main шле 'app:before-close', renderer скидає autosave
+    // і відповідає closeReady().
+    onBeforeClose: (callback) => {
+      if (typeof callback !== 'function') return () => {};
+      const listener = () => callback();
+      ipcRenderer.on('app:before-close', listener);
+      return () => ipcRenderer.removeListener('app:before-close', listener);
+    },
+    closeReady: () => ipcRenderer.send('app:close-ready'),
     downloadUpdate: () => ipcRenderer.invoke('app:downloadUpdate'),
     installUpdate: () => ipcRenderer.invoke('app:installUpdate'),
     openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),

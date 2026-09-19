@@ -54,7 +54,7 @@ function parseEv(buf, codec) {
     // Включаємо 0x00 у байти слота (якщо він є).
     const sliceWithEol = text.subarray(pos, Math.min(end + 1, text.length));
     let decoded = '';
-    try { decoded = codec.decode(sliceWithEol); } catch (_) { decoded = ''; }
+    try { decoded = codec.decode(sliceWithEol, { overlay: false }); } catch (_) { decoded = ''; }
     const stringText = decoded.replace(/\n$/, '');
     // translatable = є хоч 1 літера (пропускаємо padding-байти 0x00 + чисто
     // керівні токени `{eol}`/`{0x0A}` тощо).
