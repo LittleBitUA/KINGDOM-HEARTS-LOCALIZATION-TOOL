@@ -142,9 +142,11 @@ async function runSmoke(win) {
       const m = await import('./translate/glossary.js');
       const look = new Map([['Obtained Potion{eol}', { english: 'Obtained Potion{eol}' }], ['Obtained Potion', { english: 'Obtained Potion{eol}' }]]);
       const hit = m.resolveImportedKey('Оbtаined Роtiоn', new Map(), look);
-      return { hit: hit && hit.english, miss: m.resolveImportedKey('Nothing', new Map(), look) };
+      const ws = new Map([[' Lets go!{0x06,0x28}{eol}', { english: ' Lets go!{0x06,0x28}{eol}' }], ['Lets go!{0x06,0x28}', { english: ' Lets go!{0x06,0x28}{eol}' }]]);
+      const w = m.resolveImportedKey('Lets go!{0x06,0x28}', new Map(), ws);
+      return { hit: hit && hit.english, miss: m.resolveImportedKey('Nothing', new Map(), look), w: w && w.english, uk: w && m.alignEol(w.english, 'Рушаймо!{0x06,0x28}') };
     })()`);
-    check('glossary import resolves look-alike keys', rk.hit === 'Obtained Potion{eol}' && rk.miss === null, rk);
+    check('glossary import resolves look-alike keys', rk.hit === 'Obtained Potion{eol}' && rk.miss === null && rk.w === ' Lets go!{0x06,0x28}{eol}' && rk.uk === 'Рушаймо!{0x06,0x28}{eol}', rk);
 
     const khGlobal = await call('typeof window.KH.tsv.build === "function" && typeof window.KH.textStructure.validateTokens === "function"');
     check('shared UMD modules loaded in renderer', khGlobal === true);

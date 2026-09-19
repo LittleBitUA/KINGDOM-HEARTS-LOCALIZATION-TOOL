@@ -28,6 +28,7 @@
 // =====================================================================
 
 const TEXT_PAD_BYTE = 0x00;
+const { looksLikeText } = require('./text-quality');
 
 function parseEv(buf, codec) {
   if (!buf || buf.length < 16) throw new Error('EV file too short');
@@ -57,9 +58,9 @@ function parseEv(buf, codec) {
     let decoded = '';
     try { decoded = codec.decode(sliceWithEol, { overlay: false }); } catch (_) { decoded = ''; }
     const stringText = decoded.replace(/\n$/, '');
-    // translatable = є хоч 1 літера (пропускаємо padding-байти 0x00 + чисто
-    // керівні токени `{eol}`/`{0x0A}` тощо).
-    const translatable = /[a-zA-Zа-яА-ЯёЁїЇіІєЄґҐ]/.test(stringText);
+    // translatable = схоже на текст (≥2 літери поспіль поза токенами, без
+    // «акцентованого» байткоду) — див. text-quality.js.
+    const translatable = looksLikeText(stringText);
     slots.push({
       index: idx++,
       offset: pos,                          // відносно textOffset

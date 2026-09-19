@@ -63,13 +63,14 @@ test('msg-v361: classify + format handler round-trip through the registry', asyn
     assert.equal(cls.kind, 'binl-v361');
     assert.equal(cls.isTranslatable, true);
     const parsed = await parseFile(engPath, {});
-    // 'P' — без літер? Ні, це літера; усі 4 перекладні.
-    assert.equal(parsed.slots.length, 4);
+    // 'P' — одна літера, не текст (text-quality) → 3 перекладні.
+    assert.equal(parsed.slots.length, 3);
+    assert.deepEqual(parsed.slots.map(s => s.index), [0, 1, 3]);
     assert.equal(parsed.slots[0].english, 'Load this game?');
     const r = await parsed.compose(new Map([
       [parsed.slots[0].offset, 'Завантажити цю гру?'],
       [parsed.slots[1].offset, 'Здібність{eol}зламана'],   // {eol} → error, лишається EN
-      [parsed.slots[3].offset, 'Form your party.']           // без змін → пропуск
+      [parsed.slots[2].offset, 'Form your party.']           // без змін → пропуск
     ]));
     assert.equal(r.applied, 1);
     assert.equal(r.errors.length, 1);

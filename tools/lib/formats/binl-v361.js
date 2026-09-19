@@ -9,7 +9,7 @@ const fs = require('fs/promises');
 const { parseMessageV361, composeMessageV361 } = require('../msg-v361');
 const codec = require('../../../shared/codec');
 
-const HAS_LETTERS = /[A-Za-zА-Яа-яЁёЇїІіЄєҐґ]/;
+const { looksLikeText } = require('../text-quality');
 // Діалект команд sysmsg (0D/0E = i16, 08 = RGB …) — див. codec.SYSMSG_CMD_LEN.
 const DECODE_OPTS = { overlay: false, cmd: 'sysmsg' };
 
@@ -20,7 +20,7 @@ async function parse(engPath) {
   let skippedNoText = 0;
   for (const e of parsed.entries) {
     const english = codec.decode(e.bytes, DECODE_OPTS);
-    if (!HAS_LETTERS.test(english)) { skippedNoText++; continue; }
+    if (!looksLikeText(english)) { skippedNoText++; continue; }
     slots.push({
       index: e.index,
       offset: e.offset,

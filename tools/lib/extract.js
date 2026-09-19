@@ -1,6 +1,7 @@
 'use strict';
 
 const { decode } = require('../../shared/codec');
+const { looksLikeText } = require('./text-quality');
 const tsv = require('../../shared/tsv');
 
 function splitStrings(buf, headerLen, footerLen) {
@@ -89,12 +90,17 @@ function extract(eng, rus, opts = {}) {
     const inRus = rusSegs.has(s.bytes.toString('latin1'));
     if (inRus) { stats.preserved++; continue; }
 
+    // Без оракула сюди потрапляють і байти параметрів команд — відсіюємо те,
+    // що не схоже на текст (`{0x19}`, `H`, `Bö ìoèy`).
+    const english = decode(s.bytes, { overlay: false });
+    if (!looksLikeText(english)) { stats.skippedNoText++; continue; }
+
     stats.translatable++;
     slots.push({
       index: i,
       offset: s.offset,
       byteLen: s.bytes.length,
-      english: decode(s.bytes, { overlay: false })
+      english
     });
   }
 

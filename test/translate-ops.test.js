@@ -247,3 +247,13 @@ test('native scheme: composeAll writes 19 NN codes for KH1 binl and sysmsg uses 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('text-quality: bytecode fragments are not translatable slots', () => {
+  const { looksLikeText } = require('../tools/lib/text-quality');
+  for (const bad of ['{0x19}{eol}', '{0x0F}{eol}', 'H{eol}', 'Bö ìoèy{0x0B}{eol}', 'Âáy{0x0B}', '{0x08}{0x07,0x0C}', '100', 'Úерхêеé úíаàе éаÛаáâêа{lf}{0x0B}']) {
+    assert.equal(looksLikeText(bad), false, bad);
+  }
+  for (const good of ['Uh, Donald. Ya know,{lf}{0x0B}', 'HP', 'Go!', 'Yes{eol}', 'Привіт{eol}', 'Pooh\'s House', 'Obtained {ColorGreen}{Gem}{VarItem}{ColorBase}.']) {
+    assert.equal(looksLikeText(good), true, good);
+  }
+});

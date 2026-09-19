@@ -89,22 +89,35 @@ const LOOKALIKE_CASE = { 'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'Н': 'H', 
 export function latinizeLookalikes(s) {
   return s.replace(/[АВСЕНІКМОРТХаеіорсух]/g, ch => LOOKALIKE_CASE[ch] || ch);
 }
+// Старі експорти також не мали пробілів навколо {lf} і на початку рядка
+// (« All right!», «I'd better {lf}get busy») — нормалізуємо пробіли для пошуку;
+// при збірці preserveStructure відновлює провідні/кінцеві пробіли з EN.
+export function normalizeKeyWs(s) {
+  return s.replace(/ +\{lf\}/g, '{lf}').replace(/\{lf\} +/g, '{lf}').replace(/^ +| +$/g, '');
+}
+const stripEol = (s) => s.replace(/\{eol\}$/, '');
 export function lookalikeKeyMap() {
+  // Порядок вставки: точні ключі перші; варіанти без {eol} і з нормалізованими
+  // пробілами — лише якщо ще не зайняті (щоб не перекрити точніший збіг).
   const m = new Map();
-  for (const e of gState.entries || []) {
-    m.set(e.english, e);
-    m.set(e.english.replace(/\{eol\}$/, ''), e);
-  }
+  const put = (k, e) => { if (!m.has(k)) m.set(k, e); };
+  for (const e of gState.entries || []) m.set(e.english, e);
+  for (const e of gState.entries || []) { put(normalizeKeyWs(e.english), e); }
+  for (const e of gState.entries || []) { put(stripEol(e.english), e); put(stripEol(normalizeKeyWs(e.english)), e); }
   return m;
 }
 export function resolveImportedKey(en, legacy, lookalike) {
   if (legacy.has(en)) return legacy.get(en);
-  if (/[А-Яа-яІіЇїЄєҐґ]/.test(en)) {
-    const lat = latinizeLookalikes(en);
-    const e = lookalike.get(lat) || lookalike.get(lat.replace(/\{eol\}$/, ''));
-    if (e) return e;
-  }
-  return null;
+  const lat = /[А-Яа-яІіЇїЄєҐґ]/.test(en) ? latinizeLookalikes(en) : en;
+  const nk = normalizeKeyWs(lat);
+  return lookalike.get(lat) || lookalike.get(nk) || lookalike.get(stripEol(lat)) || lookalike.get(stripEol(nk)) || null;
+}
+// Якщо знайдений ключ закінчується на {eol} (ev/evdl/mes_ofs), а UK зі старого
+// експорту — ні, додаємо {eol}, інакше token-guard відкине пару.
+export function alignEol(entryKey, uk) {
+  if (/\{eol\}$/.test(entryKey) && !/\{eol\}$/.test(uk)) return uk + '{eol}';
+  if (!/\{eol\}$/.test(entryKey) && /\{eol\}$/.test(uk)) return uk.replace(/\{eol\}$/, '');
+  return uk;
 }
 // Пари [старий токен, новий токен] між новим ключем (`{0x06,0x2C,0x01}`) і
 // старим (`{0x06,0x2C}` + символ третього байта: ' ', {lf}, {0xNN} чи літера).
@@ -823,7 +836,7 @@ if (gImportTxtBtn) {
         // Старий ключ → новий: u16-параметри 05/06/07 (legacyKey) або кириличні
         // «двійники» латиниці у EN зі старих overlay-експортів.
         const hit = (!gState.translations[p0.en] && !lookalike.has(p0.en)) ? resolveImportedKey(p0.en, legacy, lookalike) : null;
-        const p = hit ? { en: hit.english, uk: hit.legacyKey ? upgradeLegacyUk(hit, p0.uk) : p0.uk } : p0;
+        const p = hit ? { en: hit.english, uk: alignEol(hit.english, hit.legacyKey ? upgradeLegacyUk(hit, p0.uk) : p0.uk) } : p0;
         if (hit) remapped++;
         if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; }
         const cur = gState.translations[p.en];
