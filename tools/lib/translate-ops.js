@@ -17,10 +17,14 @@ const { preserveStructure, validateTokens } = require('../../shared/text-structu
 // EvMsg (0x05/0x06 — кінець тіла, 0x0A/0x0B — початок запису), інакше гра
 // зламає розбір повідомлення. Повертає текст помилки або null.
 const STRUCTURAL_RAW = /^\{0x(05|06|0A|0B)(,|\})/i;
+// Гліфи-токени ({-}, {mX}, {III}, {Potion}…) і кольори/змінні перекладач може
+// прибирати — це не ламає розбір; guard стосується лише сирих `{0x..}`-команд.
+const RAW_TOKEN = /^\{0x/i;
 function structuralIssue(en, uk) {
   const v = validateTokens(en, uk);
-  if (!v.ok) {
-    return 'втрачено токени: ' + v.missing.map(x => x.expected - x.got > 1 ? x.token + '×' + (x.expected - x.got) : x.token).join(', ');
+  const missing = v.missing.filter(x => RAW_TOKEN.test(x.token));
+  if (missing.length) {
+    return 'втрачено токени: ' + missing.map(x => x.expected - x.got > 1 ? x.token + '×' + (x.expected - x.got) : x.token).join(', ');
   }
   const bad = v.extra.filter(x => STRUCTURAL_RAW.test(x.token)).map(x => x.token);
   if (bad.length) return 'додано структурні команди: ' + bad.join(', ');
@@ -165,10 +169,10 @@ async function buildGlossaryIndex(files, env) {
   async function processOne(rel) {
     const { engPath, cls } = classifyRel(engDir, rel);
     const rusPath = path.join(rusDir, rel);
-    if (!fs.existsSync(engPath) || !fs.existsSync(rusPath)) { skipped++; return { rel, status: 'missing' }; }
+    if (!fs.existsSync(engPath)) { skipped++; return { rel, status: 'missing' }; }
     if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
     try {
-      const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
+      const parsed = await parseFile(engPath, { cls, rusPath: fs.existsSync(rusPath) ? rusPath : undefined, opts: env.opts, runWorker: env.runWorker });
       for (const s of parsed.slots) addSlot(rel, s);
       return { rel, status: 'ok' };
     } catch (e) {
@@ -218,10 +222,12 @@ async function composeAll(files, env) {
     const { engPath, cls } = classifyRel(engDir, rel);
     const rusPath = path.join(rusDir, rel);
     const outPath = path.join(outDir, rel);
-    if (!fs.existsSync(engPath) || !fs.existsSync(rusPath)) return { rel, status: 'missing' };
+    if (!fs.existsSync(engPath)) return { rel, status: 'missing' };
     if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
     try {
-      const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
+      // RUS-оракул потрібен лише binl/rawbin; для інших форматів (і коли файла
+      // нема) parse працює без нього.
+      const parsed = await parseFile(engPath, { cls, rusPath: fs.existsSync(rusPath) ? rusPath : undefined, opts: env.opts, runWorker: env.runWorker });
       const h = parsed.handler;
       const overrides = await readOverrides(rel);
       const ukByOffset = new Map();

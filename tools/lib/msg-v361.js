@@ -49,16 +49,24 @@ function parseMessageV361(buf) {
   const offsets = new Array(offsetCount);
   for (let i = 0; i < offsetCount; i++) {
     offsets[i] = buf.readUInt16LE(offsetTableOffset + i * 2);
-    if ((i === 0 && offsets[i] !== 0) || (i > 0 && offsets[i] < offsets[i - 1]) || offsets[i] >= textLength) {
+    // Останній (sentinel) зсув може дорівнювати textLength — так писав старий
+    // імпортер користувача (KH_MAPPER), і гра це приймає.
+    const limit = i === count ? textLength : textLength - 1;
+    if ((i === 0 && offsets[i] !== 0) || (i > 0 && offsets[i] < offsets[i - 1]) || offsets[i] > limit) {
       throw new Error('Message v361: некоректна таблиця зсувів');
     }
   }
 
-  const hasTrailingSentinel = offsetCount > count ||
-    (offsets[count - 1] < textLength - 1 && buf[textOffset + textLength - 2] === 0x00);
-  const entriesEnd = textLength - (hasTrailingSentinel ? 1 : 0);
-  if (offsetCount > count && offsets[count] !== entriesEnd) {
-    throw new Error('Message v361: некоректний фінальний зсув');
+  let hasTrailingSentinel, entriesEnd;
+  if (offsetCount > count) {
+    // Оригінал: offsets[count] = textLength-1 (вказує на sentinel 0x00).
+    // KH_MAPPER: offsets[count] = textLength (sentinel'а нема, або він усередині запису).
+    entriesEnd = offsets[count];
+    hasTrailingSentinel = entriesEnd === textLength - 1;
+    if (!hasTrailingSentinel && entriesEnd !== textLength) throw new Error('Message v361: некоректний фінальний зсув');
+  } else {
+    hasTrailingSentinel = offsets[count - 1] < textLength - 1 && buf[textOffset + textLength - 2] === 0x00;
+    entriesEnd = textLength - (hasTrailingSentinel ? 1 : 0);
   }
 
   const entries = [];
@@ -66,13 +74,15 @@ function parseMessageV361(buf) {
     const start = offsets[i];
     const end = i + 1 < count ? offsets[i + 1] : entriesEnd;
     const length = end - start;
-    if (length === 0 || buf[textOffset + end - 1] !== 0x00) {
-      throw new Error('Message v361: повідомлення #' + (i + 1) + ' без термінатора 0x00');
-    }
+    if (length === 0) throw new Error('Message v361: повідомлення #' + (i + 1) + ' порожнє');
+    // Запис без термінатора (буває у файлах зі старого імпортера — зайвий байт
+    // після 00): беремо весь діапазон; compose допише 0x00 сам.
+    const terminated = buf[textOffset + end - 1] === 0x00;
     entries.push({
       index: i,
       offset: textOffset + start,           // абсолютний зсув байтів тексту у файлі
-      bytes: buf.subarray(textOffset + start, textOffset + end - 1)
+      bytes: buf.subarray(textOffset + start, textOffset + end - (terminated ? 1 : 0)),
+      terminated
     });
   }
 
@@ -93,7 +103,7 @@ function parseMessageV361(buf) {
 // Записи без заміни лишаються оригінальними байтами.
 function composeMessageV361(parsed, replacements) {
   const rep = replacements || new Map();
-  if (rep.size === 0) return Buffer.from(parsed.raw);
+  if (rep.size === 0 && parsed.entries.every(e => e.terminated)) return Buffer.from(parsed.raw);
 
   const encoded = parsed.entries.map(e => {
     const r = rep.get(e.index);
