@@ -1,4 +1,4 @@
-import { getCurrentGame } from '../app-shell.js';
+import { getCurrentGame, getCurrentGameId } from '../app-shell.js';
 import { gBuild, gComposeAll, gDashBarFill, gDashDone, gDashIssues, gDashPct, gDashSameEn, gDashTotal, gDashUntrans, gDashboard, gRows, gSave, gStat, tProgress, tStatus } from '../core/dom.js';
 import { toast } from '../core/log.js';
 import { autoFixStructure, syncPaddingFromEn, tokenIssueText, validateTokens } from '../core/shared.js';
@@ -847,5 +847,29 @@ if (gImportTxtBtn) {
     } catch (e) {
       toast(window.i18n.t('toastError', {msg: e.message}), 'error', 6000);
     }
+  });
+}
+
+// «Встановити DONE у гру» — лише KH1: DONE → kh1_first.hed_out (remastered/ + original/exchange/).
+export const gInstallDoneBtn = document.getElementById('g-install-done');
+export function refreshInstallDoneVisibility() {
+  if (gInstallDoneBtn) gInstallDoneBtn.hidden = getCurrentGameId() !== 'kh1-final-mix';
+}
+if (gInstallDoneBtn) {
+  gInstallDoneBtn.addEventListener('click', async () => {
+    let gameDir = '';
+    try { const st = await window.kh1.setup.status(); gameDir = (st && st.gameDirectories && st.gameDirectories['kh1-final-mix']) || ''; } catch (_) {}
+    if (!gameDir) { toast(window.i18n.t('toastInstallDoneNoGame'), 'error', 6000); return; }
+    let backupDir = '';
+    try { const d = await window.kh1.uafonts.defaults('kh1-final-mix'); backupDir = d.backupDir.replace(/FONTS/, 'BACKUP'); } catch (_) {}
+    if (!window.confirm(window.i18n.t('installDoneConfirm', { b: backupDir }))) return;
+    gInstallDoneBtn.disabled = true;
+    try {
+      const r = await window.kh1.app.installDone({ doneDir: tState.settings.outDir, gameDir, backupDir });
+      if (!r.ok) toast((r.error || (r.errors || []).slice(0, 3).join('; ')), 'error', 9000);
+      else toast(window.i18n.t('toastInstallDone', { n: r.copied, t: r.target, b: r.backedUp }) + (r.skipped ? ' · пропущено: ' + r.skipped : ''), 'success', 9000);
+    } catch (e) {
+      toast(window.i18n.t('toastError', { msg: e.message }), 'error', 6000);
+    } finally { gInstallDoneBtn.disabled = false; }
   });
 }

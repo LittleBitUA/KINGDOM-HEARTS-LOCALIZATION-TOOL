@@ -116,7 +116,7 @@ export function setMode(mode) {
   modeTranslateBtn.classList.toggle('active', mode === 'translate');
   modeKerningBtn.classList.toggle('active', mode === 'kerning');
   if (modeBbsFontBtn) modeBbsFontBtn.classList.toggle('active', mode === 'bbs-font');
-  if (mode === 'translate') initTranslateMode();
+  if (mode === 'translate') { initTranslateMode(); import('./translate/glossary.js').then(m => m.refreshInstallDoneVisibility()).catch(() => {}); }
   if (mode === 'ua-fonts') initUaFonts();
 }
 const _modeUaFontsBtn = document.getElementById('mode-ua-fonts');

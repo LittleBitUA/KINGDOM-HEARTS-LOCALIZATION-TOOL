@@ -266,6 +266,51 @@ ipcMain.handle('uafonts:install', async (_e, payload) => {
   return Object.assign({ ok: stats.errors.length === 0 }, stats);
 });
 
+// Розкласти зібрані KH1-файли з DONE у розпаковану гру (kh1_first.hed_out):
+// exchange/* → original/exchange/, решта → remastered/. Оригінали бекапляться
+// один раз у backupDir. Далі користувач пакує .hed_out як звик (KHPCPatchManager).
+ipcMain.handle('translate:installDone', async (_e, payload) => {
+  const doneDir = payload && payload.doneDir;
+  const gameDir = payload && payload.gameDir;
+  const backupDir = payload && payload.backupDir;
+  if (!doneDir || !gameDir || !backupDir) return { ok: false, error: 'Не вказано теки' };
+  if (!fs.existsSync(doneDir)) return { ok: false, error: 'Теки DONE нема: ' + doneDir };
+  const hedOut = findDirNamed(gameDir, 'kh1_first.hed_out', 4);
+  if (!hedOut) return { ok: false, error: 'У грі не знайдено kh1_first.hed_out — спершу розпакуй (Setup)' };
+  const stats = { copied: 0, backedUp: 0, skipped: 0, errors: [], target: hedOut };
+  const stack = [''];
+  while (stack.length) {
+    const rel = stack.pop();
+    let entries;
+    try { entries = await fsP.readdir(path.join(doneDir, rel), { withFileTypes: true }); } catch (_) { continue; }
+    for (const e of entries) {
+      const childRel = rel ? path.join(rel, e.name) : e.name;
+      if (e.isDirectory()) { stack.push(childRel); continue; }
+      if (!e.isFile() || /\.(tsv|json|bak\.\d+)$/i.test(e.name)) continue;
+      const posix = childRel.split(path.sep).join('/');
+      const top = /^exchange\//i.test(posix) ? 'original' : 'remastered';
+      const src = path.join(doneDir, childRel);
+      const dst = path.join(hedOut, top, childRel);
+      // Кладемо лише туди, де такий файл існує в грі (захист від сміття/чужих шляхів).
+      if (!fs.existsSync(dst)) { stats.skipped++; stats.errors.push('нема в грі: ' + top + '/' + posix); continue; }
+      const bak = path.join(backupDir, 'kh1_first.hed_out', top, childRel);
+      try {
+        if (!fs.existsSync(bak)) {
+          await fsP.mkdir(path.dirname(bak), { recursive: true });
+          await fsP.copyFile(dst, bak);
+          stats.backedUp++;
+        }
+        await fsP.copyFile(src, dst);
+        stats.copied++;
+        sendProgress({ phase: 'install-done', line: top + '/' + posix + '\n' });
+      } catch (err) {
+        stats.errors.push(posix + ': ' + (err.message || err));
+      }
+    }
+  }
+  return Object.assign({ ok: stats.copied > 0 && stats.errors.every(x => x.startsWith('нема в грі')) }, stats);
+});
+
 ipcMain.handle('uafonts:openDir', async (_e, dir) => {
   if (!dir || !fs.existsSync(dir)) return { ok: false };
   try { await shell.openPath(dir); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; }

@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('kh1', {
     downloadUpdate: () => ipcRenderer.invoke('app:downloadUpdate'),
     installUpdate: () => ipcRenderer.invoke('app:installUpdate'),
     openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
+    installDone: (payload) => ipcRenderer.invoke('translate:installDone', payload),
     onUpdate: (channel, callback) => {
       const valid = ['update:checking', 'update:available', 'update:none', 'update:error', 'update:progress', 'update:downloaded'];
       if (!valid.includes(channel) || typeof callback !== 'function') return () => {};
