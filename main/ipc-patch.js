@@ -68,18 +68,35 @@ async function copyTree(src, dst, stats, top) {
   return stats;
 }
 
-function runExe(exe, args, cwd, onLine, stdinText) {
+// runExe(exe, args, cwd, onLine, stdinText?, finishRe?)
+//   stdinText — відповідь на консольний запит менеджера (тека гри). Патч він застосовує
+//   у ФОНОВОМУ потоці, а головний одразу чекає ще один Console.ReadLine() («натисни
+//   Enter») — якщо закрити stdin, той ReadLine повертає EOF, процес виходить і вбиває
+//   фон до запису .pkg. Тому stdin тримаємо відкритим, а Enter шлемо лише після
+//   рядка finishRe («Done!» / помилка).
+function runExe(exe, args, cwd, onLine, stdinText, finishRe) {
   return new Promise((resolve, reject) => {
     const child = spawn(exe, args, { cwd, stdio: [stdinText ? 'pipe' : 'ignore', 'pipe', 'pipe'], windowsHide: true });
-    if (stdinText) { child.stdin.on('error', () => {}); child.stdin.end(stdinText); }
-    let last = '';
+    if (stdinText) {
+      child.stdin.on('error', () => {});
+      if (finishRe) child.stdin.write(stdinText); else child.stdin.end(stdinText);
+    }
+    let last = '', finished = false, killTimer = null;
     const consume = (b) => {
-      for (const t of b.toString().split(/\r?\n/)) { const line = t.trim(); if (line) { last = line; onLine(line); } }
+      for (const t of b.toString().split(/\r?\n/)) {
+        const line = t.trim(); if (!line) continue;
+        last = line; onLine(line);
+        if (finishRe && !finished && finishRe.test(line)) {
+          finished = true;
+          try { child.stdin.end('\r\n'); } catch (_) {}
+          killTimer = setTimeout(() => { try { child.kill(); } catch (_) {} }, 15000);
+        }
+      }
     };
     child.stdout.on('data', consume);
     child.stderr.on('data', consume);
     child.on('error', reject);
-    child.on('close', (code) => code === 0 ? resolve(last) : reject(new Error('KHPCPatchManager exit ' + code + (last ? ': ' + last : ''))));
+    child.on('close', (code) => { if (killTimer) clearTimeout(killTimer); (code === 0 || finished) ? resolve(last) : reject(new Error('KHPCPatchManager exit ' + code + (last ? ': ' + last : ''))); });
   });
 }
 
@@ -182,7 +199,7 @@ ipcMain.handle('patch:apply', async (_e, payload) => {
     const t0 = Date.now();
     line('▶ KHPCPatchManager ' + path.basename(file) + ' → ' + imageDir);
     // менеджер спитає теку гри лише якщо не знайде її сам; відповідь чекає у stdin
-    await runExe(exe, [file], path.dirname(exe), line, imageDir + '\r\n');
+    await runExe(exe, [file], path.dirname(exe), line, imageDir + '\r\n', /^(Done!|Could not find any folder|There was an error|Error:)/);
     const sec = Math.round((Date.now() - t0) / 1000);
     for (const { arc, pkg } of plan) {
       const changed = fs.statSync(pkg).mtimeMs !== before[arc];
