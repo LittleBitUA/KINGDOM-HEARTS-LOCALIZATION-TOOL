@@ -123,7 +123,7 @@ const DICT = {
 
     // Glossary subtab
     glossaryBuild: 'Побудувати / оновити',
-    glossaryImport: 'Імпорт',
+    glossaryImport: 'Імпорт таблиці (HTML / TSV / CSV)',
     modeUaFonts: 'Шрифти UA',
     ufPythonTitle: 'Генератор кирилиці — Python-інструменти (Pillow/numpy/fonttools/scipy). Потрібен Python 3.',
     ufPip: 'Встановити залежності',
@@ -240,7 +240,7 @@ const DICT = {
     ddCheck: 'Перевірка',
     ddFix: 'Виправлення',
     ddText: 'Текст',
-    ddExport: 'Експорт',
+    ddExport: 'Імпорт / Експорт',
     showBroken: 'Знайти поламані рядки',
     showBrokenTitle: 'Показати лише рядки з проблемами токенів (фільтр)',
     thOriginal: 'Оригінал (EN)',
@@ -647,7 +647,7 @@ const DICT = {
     toastAutoWrapDone: 'Auto-wrap: changed {changed} translations, added {lfs} line breaks',
 
     glossaryBuild: 'Build / update',
-    glossaryImport: 'Import',
+    glossaryImport: 'Import a table (HTML / TSV / CSV)',
     modeUaFonts: 'UA fonts',
     ufPythonTitle: 'Cyrillic generator — Python tools (Pillow/numpy/fonttools/scipy). Requires Python 3.',
     ufPip: 'Install dependencies',
@@ -764,7 +764,7 @@ const DICT = {
     ddCheck: 'Check',
     ddFix: 'Fix',
     ddText: 'Text',
-    ddExport: 'Export',
+    ddExport: 'Import / Export',
     showBroken: 'Find broken rows',
     showBrokenTitle: 'Show only rows with token issues (filter)',
     thOriginal: 'Original (EN)',

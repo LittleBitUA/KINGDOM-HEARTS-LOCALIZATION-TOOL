@@ -363,9 +363,6 @@
                 </div>
               </div>
             </div>
-            <button id="g-import" class="kh-btn" type="button" data-i18n-title="glossaryImportTitle" title="Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)">
-              <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="glossaryImport">Імпорт</span>
-            </button>
             <label class="kh-search">
               <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
               <input id="g-search" class="kh-input" type="search" data-i18n-placeholder="glossarySearch" placeholder="Пошук в англійському тексті…">
@@ -492,11 +489,6 @@
                         title="Пара text_uniq.txt (EN) + text_ua.txt (UA) з однаковими #N (Re:CoM) → у глосарій">
                   <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg><span data-i18n="textAllPair">EN+UA пара</span>
                 </button>
-                <button id="g-append-txt" class="kh-menu-item" type="button"
-                        data-i18n-title="glossaryAppendTxtTitle"
-                        title="Дописати у наявний .txt EN-рядки, яких там ще немає (з порожнім UK). Наявні блоки не змінюються.">
-                  <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="glossaryAppendTxt">Дописати відсутні у .txt</span>
-                </button>
               </div>
             </div>
             <button id="g-find-replace" class="kh-btn" type="button"
@@ -506,9 +498,13 @@
             </button>
             <div class="kh-dd">
               <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
-                <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="ddExport">Експорт</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+                <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="ddExport">Імпорт / Експорт</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
               </button>
               <div class="kh-menu" role="menu" hidden>
+                <button id="g-import" class="kh-menu-item" type="button" data-i18n-title="glossaryImportTitle" title="Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)">
+                  <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="glossaryImport">Імпорт таблиці (HTML / TSV / CSV)</span>
+                </button>
+                <div class="kh-menu-sep"></div>
                 <button id="g-export-txt" class="kh-menu-item" type="button"
                         data-i18n-title="glossaryExportTxtTitle"
                         title="Експортувати весь глосарій у .txt-файл (формат із блоками --- EN --- / --- UK ---). Для роботи поза програмою.">
@@ -518,6 +514,11 @@
                         data-i18n-title="glossaryImportTxtTitle"
                         title="Імпортувати переклади з .txt (того самого формату що експорт). Існуючі ключі оновлюються, нові — додаються.">
                   <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="glossaryImportTxt">Імпорт .txt</span>
+                </button>
+                <button id="g-append-txt" class="kh-menu-item" type="button"
+                        data-i18n-title="glossaryAppendTxtTitle"
+                        title="Дописати у наявний .txt EN-рядки, яких там ще немає (з порожнім UK). Наявні блоки не змінюються.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="glossaryAppendTxt">Дописати відсутні у .txt</span>
                 </button>
               </div>
             </div>
