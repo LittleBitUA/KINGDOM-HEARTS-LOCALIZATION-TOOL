@@ -88,7 +88,7 @@ def glyph_rgba(ch, font_path, size, radius, base, cell_w, cell_h, pad=16, xscale
     return out
 
 
-def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xscale=1.0):
+def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xscale=1.0, ramp=0.45):
     """White glyph, antialiased, no outline — the style cmdfont/helpfont use.
 
     Those sheets are pure white RGB with the shape carried entirely by the alpha
@@ -103,9 +103,10 @@ def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xs
     if a.max() == 0:
         raise ValueError('font has no glyph for %r' % ch)
     small = np.asarray(Image.fromarray(a).resize((W // SS, H // SS), Image.BOX)).astype(np.float64)
-    # linear ramp centred on `thresh`: keeps a little edge antialiasing but makes
-    # the strokes as crisp as the hand-authored bitmap glyphs
-    lo, hi = thresh * 0.55, min(255.0, thresh * 1.45)
+    # linear ramp centred on `thresh`: `ramp` — its half-width (0.45 → crisp, як
+    # намальовані вручну bitmap-гліфи; ~0.85 → м'які краї, як у рідному sysfont
+    # Re:CoM, де діагоналі ж/и/у мають повноцінне згладжування)
+    lo, hi = max(0.0, thresh * (1 - ramp)), min(255.0, thresh * (1 + ramp))
     alpha = np.clip((small - lo) / max(1.0, hi - lo), 0, 1) * 255.0
     alpha = (alpha + 0.5).astype(np.uint8)
     out = np.zeros((H // SS, W // SS, 4), np.uint8)
@@ -115,10 +116,10 @@ def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xs
 
 
 def cell_image(ch, font_path, size, radius, base, cell_w, cell_h, pad=16, thr=32,
-               style='outline', thresh=110, xscale=1.0):
+               style='outline', thresh=110, xscale=1.0, ramp=0.45):
     """RGBA cell with the ink left-aligned at x=0, plus its ink bbox."""
     if style == 'plain':
-        rgba = plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad, thresh, xscale)
+        rgba = plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad, thresh, xscale, ramp)
     else:
         rgba = glyph_rgba(ch, font_path, size, radius, base, cell_w, cell_h, pad, xscale)
     A = rgba[..., 3]

@@ -25,9 +25,11 @@ PROFILES = {
     # капітелі), тому малюємо більшим кеглем і з'їдаємо 1 піксель ерозією.
     # рідний sysfont гри — ВУЖЧИЙ за KHMenu (О завширшки 11 при капітелі 28),
     # тому базове стиснення 0.73: інакше український рядок ліз би за межі меню
+    # ramp 0.85 — м'яке згладжування країв, як у рідних гліфів (діагоналі
+    # ж/и/у без «сходинок»); товщина штриха від цього не змінюється
     'sysfont': dict(font='menu',  style='plain',   size=39.5, radius=0.0,
                     base=34, thresh=160, penx=2, wadj=+2, erode=0, fill=255,
-                    xscale=0.73),
+                    xscale=0.73, ramp=0.85),
     # діалоги: ComicHearts, чорний контур + СІРА заливка 128 (як в оригіналі,
     # білу заливка гра не використовує)
     'evtfont': dict(font='comic', style='outline', size=40.0, radius=2.5,
@@ -41,6 +43,8 @@ TOP, BOT, SIDE = 10, 10, 16      # запас навколо комірки на
 # піксель «просвічує» у сусідню комірку (хвости Д/Ц/Щ/р/у/ф чи крапки Ї/Й з'являлись
 # під/над чужими літерами). Оригінальні гліфи гри тримають запас 1–2 px.
 MARGIN = 1
+# на скільки рядів (HD px) хвіст може виходити за комірку — його підрізаємо, а не зсуваємо літеру
+DESC_CLIP = 3
 
 
 def do_font(name, binl, png, srcfont, report):
@@ -68,7 +72,7 @@ def do_font(name, binl, png, srcfont, report):
                                         prof['base'] + TOP, W, H, thr=100,
                                         style=prof['style'],
                                         thresh=prof['thresh'] * ((xs / xs0) ** 1.5),
-                                        xscale=xs)
+                                        xscale=xs, ramp=prof.get('ramp', 0.45))
                 arr = np.array(cell)
                 if prof['erode']:
                     k = 2 * prof['erode'] + 1
@@ -84,9 +88,14 @@ def do_font(name, binl, png, srcfont, report):
                 lo, hi = TOP + MARGIN, TOP + f.cell - MARGIN     # допустимі ряди [lo, hi)
                 if xx.max() + 1 + prof['penx'] <= f.cell - MARGIN:
                     shift = 0
-                    if ys.max() >= hi: shift = -(ys.max() - hi + 1)
+                    if ys.max() >= hi and ys.min() >= lo and ys.max() - hi + 1 <= DESC_CLIP:
+                        # хвіст (р/у/ф) трохи довший за комірку: підрізаємо його, як у
+                        # рідних p/g/y гри (хвіст закінчується рівно), а НЕ піднімаємо
+                        # літеру — інакше чашка «р» стояла б вище за x-висоту сусідів
+                        arr[hi:] = 0
+                    elif ys.max() >= hi: shift = -(ys.max() - hi + 1)
                     elif ys.min() < lo: shift = lo - ys.min()
-                    if abs(shift) <= 3 and ys.min() + shift >= lo and ys.max() + shift < hi:
+                    if abs(shift) <= 3 and ys.min() + shift >= lo and min(ys.max(), hi - 1) + shift < hi:
                         if shift:
                             arr = np.roll(arr, shift, axis=0)
                             if shift > 0: arr[:shift] = 0
