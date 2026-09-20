@@ -119,6 +119,11 @@ async function runSmoke(win) {
     check('uafonts.locate kh1 reports missing hed_out', loc1 && /kh1_first\.hed_out/.test(loc1.error || ''), loc1);
     const dfl = await call('window.kh1.uafonts.defaults("kh-ddd")');
     check('uafonts.defaults', dfl && /FONTS/.test(dfl.buildDir), dfl);
+    // Патч: статус і план застосування (без запису)
+    const ps = await call('window.kh1.patch.status({ gameId: "kh-ddd" })');
+    check('patch.status', ps && ps.ok && /DDD-UA\.dddpcpatch$/.test(ps.patchPath) && typeof ps.staging.exists === 'boolean', ps);
+    const pa = await call('window.kh1.patch.apply({ gameId: "kh-ddd", dryRun: true })');
+    check('patch.apply dry-run answers', pa && (pa.ok === true ? Array.isArray(pa.plan) : /staging|KHPCPatchManager|гри/.test(pa.error)), pa);
 
     // Глосарій → «Дописати відсутні у .txt»: наявні блоки не чіпаються, нові нумеруються далі.
     const app = await call(`(async () => {

@@ -387,11 +387,37 @@
             <button id="g-save" class="kh-btn" type="button" disabled>
               <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="glossarySave">Зберегти глосарій</span>
             </button>
-            <button id="g-install-done" class="kh-btn kh-btn-primary" type="button" hidden
-                    data-i18n-title="installDoneTitle"
-                    title="Розкласти файли з DONE у розпаковану гру (kh1_first.hed_out: remastered/ і original/exchange/) з бекапом оригіналів. Далі — пакування як звичайно.">
-              <svg class="ico" aria-hidden="true"><use href="#i-install"/></svg><span data-i18n="installDone">Встановити DONE у гру</span>
-            </button>
+            <div class="kh-split">
+              <button id="g-patch-build" class="kh-btn kh-btn-primary" type="button"
+                      data-i18n-title="patchBuildTitle"
+                      title="Зібрати DONE (+ шрифти UA) у файл патчу KHPCPatchManager (.pcpatch) — його можна поширювати; застосувати до гри — через меню поруч.">
+                <svg class="ico" aria-hidden="true"><use href="#i-build"/></svg><span data-i18n="patchBuild">Зібрати патч</span>
+              </button>
+              <div class="kh-dd">
+                <button class="kh-btn kh-btn-primary kh-dd-btn kh-split-caret" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Патч">
+                  <svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+                </button>
+                <div class="kh-menu" role="menu" hidden>
+                  <button id="g-patch-apply" class="kh-menu-item" type="button" data-i18n-title="patchApplyTitle" title="Записати зібраний патч у .pkg гри через KHPCPatchManager (гра має бути закрита; оригінали — у Image/dt/backup).">
+                    <svg class="ico" aria-hidden="true"><use href="#i-install"/></svg><span data-i18n="patchApply">Застосувати до гри</span>
+                  </button>
+                  <button id="g-patch-open" class="kh-menu-item" type="button">
+                    <svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span data-i18n="patchOpenDir">Відкрити теку патчу</span>
+                  </button>
+                  <div class="kh-menu-sep"></div>
+                  <label class="kh-menu-field" data-i18n-title="patchIncludeFontsTitle" title="Додати до патчу збірку шрифтів UA (вкладка «Шрифти UA»), якщо вона є.">
+                    <span data-i18n="patchIncludeFonts">Включити шрифти UA</span>
+                    <input id="g-patch-fonts" type="checkbox" checked>
+                  </label>
+                  <div class="kh-menu-sep"></div>
+                  <button id="g-install-done" class="kh-menu-item" type="button" hidden
+                          data-i18n-title="installDoneTitle"
+                          title="Розкласти файли з DONE у розпаковану гру (kh1_*.hed_out) з бекапом оригіналів — для ручного пакування.">
+                    <svg class="ico" aria-hidden="true"><use href="#i-install"/></svg><span data-i18n="installDone">Встановити DONE у hed_out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </section>
 
           <!-- Secondary tools bar: групи у dropdown'ах, ті самі кнопки/ID -->

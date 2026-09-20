@@ -682,3 +682,5 @@ ipcMain.handle('setup:pickDir', async (_e, title) => {
   });
   return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
 });
+
+module.exports = { HED_PATHS, locateHed, resolveKhpcpmExe, findFileByPattern };

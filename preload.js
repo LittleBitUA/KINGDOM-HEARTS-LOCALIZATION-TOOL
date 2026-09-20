@@ -111,6 +111,17 @@ contextBridge.exposeInMainWorld('kh1', {
       return () => ipcRenderer.removeListener('setup:progress', listener);
     }
   },
+  patch: {
+    status: (payload) => ipcRenderer.invoke('patch:status', payload),
+    build:  (payload) => ipcRenderer.invoke('patch:build', payload),
+    apply:  (payload) => ipcRenderer.invoke('patch:apply', payload),
+    onProgress: (callback) => {
+      if (typeof callback !== 'function') return () => {};
+      const listener = (_e, p) => callback(p);
+      ipcRenderer.on('patch:progress', listener);
+      return () => ipcRenderer.removeListener('patch:progress', listener);
+    }
+  },
   uafonts: {
     python:     () => ipcRenderer.invoke('uafonts:python'),
     pipInstall: () => ipcRenderer.invoke('uafonts:pipInstall'),

@@ -13,6 +13,7 @@ import { showReplace } from './translate/replace.js';
 import './translate/textall-ui.js';
 import { initDropdowns } from './ui/dropdown.js';
 import { initInspector } from './translate/inspector.js';
+import { initPatch } from './translate/patch.js';
 
 // =====================================================================
 // Custom title bar handlers (Stage 1 редизайну).
@@ -256,3 +257,4 @@ export async function maybeFirstRunSettings() {
 // Тулбарні dropdown-меню та inspector translate-екрана.
 initDropdowns();
 initInspector();
+initPatch();
