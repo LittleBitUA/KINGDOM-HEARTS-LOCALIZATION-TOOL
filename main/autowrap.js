@@ -12,42 +12,58 @@ const codec = require('../shared/codec');
 // =====================================================================
 const WRAP_KERNING_OFFSET = 0x40080;
 const WRAP_SPACE_PX = 10;
-const WRAP_MAX_GLYPHS = 230;
+const WRAP_MAX_GLYPHS = 336;
 
-function measureBytesWithKnj(bytes, knj) {
+// Ширина за гліфами: нативна кирилиця — 2 байти `19 NN` (гліф 224+NN), решта —
+// 1 байт (гліф b−32); токени `{…}` (команди, іконки) не рахуємо. Та сама формула,
+// що в renderer/translate/width.js для бейджів у глосарії.
+const glyphWidthCache = new Map();
+function glyphIdxOf(ch) {
+  if (glyphWidthCache.has(ch)) return glyphWidthCache.get(ch);
+  let idx = -1;
+  try {
+    const b = codec.encode(ch);
+    if (b.length === 2 && b[0] >= 0x19 && b[0] <= 0x1F) idx = (b[0] - 0x19) * 256 + b[1] + 224;
+    else if (b.length === 1) idx = b[0] - 32;
+  } catch (_) { idx = -1; }
+  glyphWidthCache.set(ch, idx);
+  return idx;
+}
+function measureTextWithKnj(text, knj) {
   let w = 0;
-  for (const b of bytes) {
-    if (b === 0x00) continue;
-    if (b === 0x01) { w += WRAP_SPACE_PX; continue; }
-    if (b === 0x02) continue; // {lf}
-    const idx = b - 32;
+  const s = String(text || '');
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === '{') { const close = s.indexOf('}', i); if (close > i) { i = close + 1; continue; } }
+    i++;
+    if (ch === ' ') { w += WRAP_SPACE_PX; continue; }
+    if (ch === '\n' || ch === '\r' || ch === '\t') continue;
+    const idx = glyphIdxOf(ch);
     if (idx < 0 || idx >= WRAP_MAX_GLYPHS) continue;
     w += (knj[WRAP_KERNING_OFFSET + idx] || 0) * 2;
   }
   return w;
 }
+function measureBytesWithKnj(bytes, knj) { return measureTextWithKnj(codec.decode(Buffer.from(bytes)), knj); }
 
-function safeEncode(text) {
-  try { return codec.encode(text); }
-  catch (_) { return new Uint8Array(0); }
-}
 
 function autoWrapText(text, maxWidth, knj) {
   if (!text || !knj) return text;
   // Зберігаємо існуючі {lf} як hard breaks
   const lines = text.split('{lf}');
   const out = [];
-  const spaceW = measureBytesWithKnj(safeEncode(' '), knj);
+  const spaceW = measureTextWithKnj(' ', knj);
   for (const line of lines) {
     // Розбиваємо на токени по пробілах, але зберігаємо {tokens}
     const words = line.split(/\s+/).filter(w => w.length > 0);
     if (!words.length) { out.push(line); continue; }
     let currLine = words[0];
-    let currWidth = measureBytesWithKnj(safeEncode(currLine), knj);
+    let currWidth = measureTextWithKnj(currLine, knj);
     const wrapped = [];
     for (let i = 1; i < words.length; i++) {
       const w = words[i];
-      const wWidth = measureBytesWithKnj(safeEncode(w), knj);
+      const wWidth = measureTextWithKnj(w, knj);
       const need = currWidth + spaceW + wWidth;
       if (need > maxWidth && currLine.length > 0) {
         wrapped.push(currLine);
@@ -76,7 +92,7 @@ ipcMain.handle('translate:measureMany', async (_e, payload) => {
       const lines = String(t).split('{lf}');
       let mx = 0;
       for (const ln of lines) {
-        const w = measureBytesWithKnj(safeEncode(ln), knj);
+        const w = measureTextWithKnj(ln, knj);
         if (w > mx) mx = w;
       }
       return mx;
@@ -185,8 +201,8 @@ function placeBreaks(ukFlat, enWidths, knj) {
   const words = tokenizeWords(ukFlat);
   if (words.length <= N) return words.join('{lf}');
 
-  const spaceW = measureBytesWithKnj(safeEncode(' '), knj);
-  const wordW = words.map(w => measureBytesWithKnj(safeEncode(w), knj));
+  const spaceW = measureTextWithKnj(' ', knj);
+  const wordW = words.map(w => measureTextWithKnj(w, knj));
   const cum = [];
   let s = 0;
   for (let i = 0; i < words.length; i++) {
@@ -261,7 +277,7 @@ ipcMain.handle('translate:autoWrapAdaptive', async (_e, payload) => {
           newBody = ukBody;
         } else {
           const enWidths = enLines.map(ln =>
-            measureBytesWithKnj(safeEncode(ln), knj)
+            measureTextWithKnj(ln, knj)
           );
           newBody = placeBreaks(ukBody, enWidths, knj);
         }

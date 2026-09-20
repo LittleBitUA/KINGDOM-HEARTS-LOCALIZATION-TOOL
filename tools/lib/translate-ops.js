@@ -175,7 +175,7 @@ function envForWorker(env) {
   return {
     engDir: env.engDir, rusDir: env.rusDir || null, outDir: env.outDir || null, tsvDir: env.tsvDir || null,
     safeMode: env.safeMode !== false, opts: env.opts || {}, outLayout: env.outLayout || null, gameId: env.gameId || null,
-    strictTokens: env.strictTokens !== false
+    strictTokens: env.strictTokens !== false, useTsvOverrides: !!env.useTsvOverrides
   };
 }
 
@@ -255,7 +255,8 @@ async function buildGlossaryIndex(files, env) {
 
 // composeOneFile(rel, env) → { status: 'ok'|'missing'|'unsafe'|'no-translations'|'error', applied, errors: [{offset,message}], error? }
 //   env: { engDir, rusDir?, outDir, tsvDir?, glossary, safeMode, opts?, runWorker?, outLayout?, gameId?, strictTokens? }
-// Пріоритет перекладу: per-file TSV override (за offset) → глосарій (за key).
+// Джерело перекладу — глосарій (за key). Per-file TSV (PROGRESS) — лише за
+// env.useTsvOverrides (старий режим; UI його більше не вмикає — глосарій єдине джерело).
 // Пише вихідні файли сам (виконується у воркері формату або в процесі).
 async function composeOneFile(rel, env) {
   const engDir = env.engDir;
@@ -276,7 +277,7 @@ async function composeOneFile(rel, env) {
   if (env.safeMode !== false && !cls.isTranslatable) return { status: 'unsafe', applied: 0, errors: [] };
   try {
     let overrides = null;
-    if (env.tsvDir) {
+    if (env.tsvDir && env.useTsvOverrides) {
       try { overrides = tsv.overridesByOffset(await fsP.readFile(path.join(env.tsvDir, rel) + '.tsv', 'utf8')); } catch (_) { overrides = null; }
     }
     // RUS-оракул потрібен лише binl/rawbin; для інших форматів (і коли файла

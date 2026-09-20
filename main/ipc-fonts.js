@@ -324,3 +324,36 @@ ipcMain.handle('kerning:saveKnj', async (_e, payload) => {
     return { error: (e && e.message) || String(e) };
   }
 });
+
+// Таблиця ширин гліфів шрифту діалогів KH1 (.knj @0x40080, 336 × u8) для
+// вимірювання рядків у глосарії. Спершу — збірка шрифтів UA (має ширини нативних
+// літер 224+), далі — файл, відкритий у Kerning, далі — розпакована гра.
+const KNJ_WIDTH_OFFSET = 0x40080;
+const KNJ_WIDTH_COUNT = 336;
+ipcMain.handle('translate:knjWidths', async (_e, payload) => {
+  const gameId = String((payload && payload.gameId) || 'kh1-final-mix');
+  if (gameId !== 'kh1-final-mix') return { ok: false, error: 'лише KH1' };
+  const cands = [];
+  try {
+    const build = path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', gameId, 'build');
+    for (const rel of ['kh1_first/original/exchange/UK_kanji.knj', 'kh1_first.hed_out/original/exchange/UK_kanji.knj']) cands.push(path.join(build, rel));
+  } catch (_) {}
+  try {
+    const s = loadSettings();
+    if (s && s.lastKnjPath) cands.push(s.lastKnjPath);
+    const raw = loadSettingsRaw();
+    const gameDir = raw.gameDirectories && raw.gameDirectories[gameId];
+    if (gameDir) {
+      const hedOut = findDirNamed(gameDir, 'kh1_first.hed_out', 4);
+      if (hedOut) cands.push(path.join(hedOut, 'original', 'exchange', 'UK_kanji.knj'));
+    }
+  } catch (_) {}
+  for (const c of cands) {
+    try {
+      const buf = await fs.readFile(c);
+      if (buf.length < KNJ_WIDTH_OFFSET + KNJ_WIDTH_COUNT) continue;
+      return { ok: true, widths: Array.from(buf.subarray(KNJ_WIDTH_OFFSET, KNJ_WIDTH_OFFSET + KNJ_WIDTH_COUNT)), source: c };
+    } catch (_) { /* наступний кандидат */ }
+  }
+  return { ok: false, error: 'UK_kanji.knj не знайдено (збірка шрифтів UA / Kerning / гра)' };
+});

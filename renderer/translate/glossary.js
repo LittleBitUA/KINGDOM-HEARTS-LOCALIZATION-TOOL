@@ -8,6 +8,7 @@ import { openSettings } from '../settings-modal.js';
 import { flushGlossaryAutoSave, scheduleGlossaryAutoSave, setOpProgress } from './files.js';
 import { snapshotGlossary, undoLastBulk, canUndoBulk, lastBulkLabel, onHistoryChange } from './history.js';
 import { buildGlossaryTxtMgs, buildGlossaryTxtMgsAppend, looksLikeMgsTxt, parseGlossaryTxtMgs } from './glossary-txt-mgs.js';
+import { updateWidthBadge } from './width.js';
 
 // =====================================================================
 // Glossary
@@ -205,6 +206,11 @@ function buildRow(i) {
   cnt.title = window.i18n.t('gInFiles', { n: entry.fileCount });
   meta.appendChild(dot);
   meta.appendChild(cnt);
+  // ширина UK / EN у px за метриками .knj (лише коли є таблиця ширин)
+  const width = document.createElement('span');
+  width.className = 't-width';
+  updateWidthBadge(width, entry.english, ukText);
+  meta.appendChild(width);
 
   const en = document.createElement('div');
   en.className = 't-en';
@@ -398,6 +404,7 @@ gRows.addEventListener('input', (e) => {
     row.classList.remove('token-warn');
     row.removeAttribute('title');
   }
+  updateWidthBadge(row.querySelector('.t-width'), entry.english, ukText);
   gState.dirty = true;
   refreshGlossaryProgress();
   scheduleGlossaryAutoSave();
@@ -442,10 +449,7 @@ export async function composeAllFiles() {
     if (!window.confirm(window.i18n.t('composeAllWarnTokens', { n: bad }))) return;
   }
 
-  if (!window.confirm(
-    'Зібрати ' + tState.files.length + ' файлів у ' + tState.settings.outDir + '?\n\n' +
-    'Per-file TSV-overrides з ' + (tState.settings.tsvDir || '(не задано)') + ' матимуть пріоритет над глосарієм.'
-  )) return;
+  if (!window.confirm(window.i18n.t('composeAllConfirm', { n: tState.files.length, dir: tState.settings.outDir }))) return;
 
   gState.busy = true;
   gComposeAll.disabled = true;
@@ -459,7 +463,6 @@ export async function composeAllFiles() {
       engDir: tState.settings.engDir,
       rusDir: tState.settings.rusDir,
       outDir: tState.settings.outDir,
-      tsvDir: tState.settings.tsvDir || null,
       files: tState.files.map(f => f.rel),
       glossary: gState.translations,
       safeMode: tState.safeMode,

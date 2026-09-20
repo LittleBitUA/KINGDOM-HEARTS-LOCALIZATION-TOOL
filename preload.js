@@ -83,6 +83,7 @@ contextBridge.exposeInMainWorld('kh1', {
     importFileTxt: () => ipcRenderer.invoke('translate:importFileTxt'),
     measureMany: (payload) => ipcRenderer.invoke('translate:measureMany', payload),
     autoWrap: (payload) => ipcRenderer.invoke('translate:autoWrap', payload),
+    knjWidths: (payload) => ipcRenderer.invoke('translate:knjWidths', payload),
     autoWrapAdaptive: (payload) => ipcRenderer.invoke('translate:autoWrapAdaptive', payload),
     getWorldsMap: () => ipcRenderer.invoke('translate:getWorldsMap'),
     exportTextAll: (payload) => ipcRenderer.invoke('translate:exportTextAll', payload),

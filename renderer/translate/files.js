@@ -5,6 +5,7 @@ import { gState, tState } from '../core/state.js';
 import { openSettings } from '../settings-modal.js';
 import { applyGlossaryFilter, buildGlossary, composeAllFiles, loadGlossaryFromDisk, refreshGlossaryProgress, renderGlossaryRows, saveGlossary } from './glossary.js';
 import { importTranslations } from './import.js';
+import { initWidths } from './width.js';
 
 // =====================================================================
 // Translate-режим: налаштування гри → список файлів → глосарій (єдиний
@@ -29,6 +30,8 @@ export async function initTranslateMode() {
   await loadWorldsMap();
   await loadFileList();
   await loadGlossaryFromDisk();
+  // метрики .knj для бейджів ширини (KH1) — до першого рендера
+  try { await initWidths(); } catch (_) {}
   renderGlossaryRows();
   refreshGlossaryProgress();
   // Індекс не зберігається між запусками — будуємо одразу, це і є робочий екран.

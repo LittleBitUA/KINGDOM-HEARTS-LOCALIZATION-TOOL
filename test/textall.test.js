@@ -85,7 +85,7 @@ test('exportTextAll → importTextAll round trip on synthetic BBS files (TSV + g
 
   // composeAll бачить override з TSV і збирає файл з кирилицею на 0x83xx
   const outDir = path.join(root, 'DONE');
-  const r = await ops.composeAll(files, Object.assign({ outDir, glossary: {} }, env));
+  const r = await ops.composeAll(files, Object.assign({ outDir, glossary: {}, useTsvOverrides: true }, env));
   assert.equal(r.written, 1);
   assert.deepEqual(r.errors, []);
   const re = parseCtd(fs.readFileSync(path.join(outDir, files[0])));

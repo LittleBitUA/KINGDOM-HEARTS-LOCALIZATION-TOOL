@@ -111,7 +111,7 @@ test('glossaryLookup bridges keys with and without trailing {eol}', () => {
   assert.equal(ops.glossaryLookup(g, 'Nope'), '');
 });
 
-test('composeAll: TSV override beats glossary; whitespace preserved; unsafe skipped', async () => {
+test('composeAll: TSV override (legacy useTsvOverrides) beats glossary; whitespace preserved; unsafe skipped', async () => {
   // per-file override for binl 'Attack'
   const binlSlots = extract(fs.readFileSync(path.join(engDir, 'sub', 'a.binl')), fs.readFileSync(path.join(rusDir, 'sub', 'a.binl')), { header: 11, footer: 5 }).slots;
   const attack = binlSlots.find(s => s.english === 'Attack');
@@ -127,7 +127,8 @@ test('composeAll: TSV override beats glossary; whitespace preserved; unsafe skip
     'Press {icon triangle} now': 'Тисни {icon triangle} зараз'
   };
   const progress = [];
-  const r = await ops.composeAll(FILES, { engDir, rusDir, outDir, tsvDir, glossary, safeMode: true, concurrency: 3, onProgress: p => progress.push(p) });
+  // Типово глосарій — єдине джерело; per-file TSV враховуються лише з useTsvOverrides.
+  const r = await ops.composeAll(FILES, { engDir, rusDir, outDir, tsvDir, useTsvOverrides: true, glossary, safeMode: true, concurrency: 3, onProgress: p => progress.push(p) });
   assert.equal(r.skippedUnsafe, 1);
   assert.equal(r.written, 5);
   assert.deepEqual(r.errors, []);

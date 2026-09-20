@@ -233,6 +233,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
       rusDir: (payload && payload.rusDir) || null,
       outDir,
       tsvDir: payload.tsvDir || null,
+      useTsvOverrides: !!payload.useTsvOverrides,
       glossary: payload.glossary || {},
       safeMode: payload.safeMode !== false,
       opts: payload.opts || {},
