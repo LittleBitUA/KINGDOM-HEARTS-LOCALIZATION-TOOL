@@ -44,7 +44,7 @@ test('mes-ofs: shorter translation stays cell-preserving; longer falls back to c
   const long = p.slots.map(s => Object.assign({}, s, { ukText: s.english === 'Potion{eol}' ? 'Дуже довге зілля{eol}' : '' }));
   const c2 = mesOfs.composePair(long, { ofsLength: ofs.length, dataLength: data.length, cellLengthByOffset: p.cellLengthByOffset }, codec);
   assert.equal(c2.layout, 'compact');
-  assert.equal(c2.dataBuf.length, data.length);
+  assert.ok(c2.dataBuf.length >= data.length && c2.dataBuf.length % 16 === 0, 'compact data grows 16-aligned: ' + c2.dataBuf.length);
   const re = mesOfs.parsePair(c2.ofsBuf, c2.dataBuf, codec);
   assert.equal(re.slots[1].english, 'Ether{eol}');
   assert.deepEqual([...codec.encode(re.slots[0].english)], [...codec.encode('Дуже довге зілля{eol}')]);

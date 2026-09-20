@@ -14,7 +14,7 @@ function buildBinl(strings, opts) {
   const footer = (opts && opts.footer != null) ? opts.footer : 5;
   const parts = [Buffer.from('EvMsg\0\0\0\0\0\0'.slice(0, header).padEnd(header, '\0'), 'latin1')];
   for (const s of strings) {
-    parts.push(kh1.encode(s, { overlay: false }));
+    parts.push(kh1.encode(s));
     parts.push(Buffer.from([0]));
   }
   parts.push(Buffer.alloc(footer, 0));
@@ -29,7 +29,7 @@ function buildMesOfs(strings, pointers, opts) {
   const offsets = [];
   let cur = 0;
   for (const s of strings) {
-    const enc = kh1.encode(s, { overlay: false });
+    const enc = kh1.encode(s);
     const chunk = Buffer.concat([enc, Buffer.from([0])]);
     offsets.push(cur);
     chunks.push(chunk);
@@ -46,7 +46,7 @@ function buildEv(strings, footerBytes) {
   const footer = footerBytes || Buffer.from([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22]);
   const textParts = [];
   for (const s of strings) {
-    textParts.push(kh1.encode(s, { overlay: false }), Buffer.from([0]));
+    textParts.push(kh1.encode(s), Buffer.from([0]));
   }
   let text = Buffer.concat(textParts);
   const padLen = (4 - (text.length % 4)) % 4;

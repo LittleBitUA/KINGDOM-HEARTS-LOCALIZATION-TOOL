@@ -2,22 +2,14 @@
 // State
 // =====================================================================
 export const state = {
-  loadedFileName: null,
-  byteLength: 0,
-  lastSearch: '',
-  lastSearchCase: false,
-  busy: false,
-  mode: 'editor'
+  mode: 'translate'
 };
 
+// Translate-режим: налаштування гри, список файлів (для індексу глосарію та
+// збірки), safe-режим (лише підтримувані формати).
 export const tState = {
   settings: { engDir: '', rusDir: '', tsvDir: '', outDir: '' },
   files: [],
-  currentRel: null,
-  slots: [],
-  dirty: false,
-  filter: { search: '', mode: 'all' },
-  subtab: 'files',
   safeMode: true
 };
 

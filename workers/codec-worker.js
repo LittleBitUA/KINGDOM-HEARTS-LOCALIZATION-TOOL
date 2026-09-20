@@ -1,7 +1,7 @@
 'use strict';
 
 const { parentPort, workerData } = require('worker_threads');
-const { decode, encode, loadMap, setDefaultScheme, setNativeMapPath } = require('../shared/codec');
+const { decode, encode, loadMap, setNativeMapPath } = require('../shared/codec');
 const { extract } = require('../tools/lib/extract');
 const { compose } = require('../tools/lib/build');
 
@@ -16,14 +16,11 @@ parentPort.on('message', (msg) => {
   const id = msg && msg.id;
   const op = msg && msg.op;
   try {
-    // Схема кирилиці (overlay/native) приходить з main разом із кожним запитом.
-    setDefaultScheme((msg && msg.scheme) || 'overlay');
     if (op === 'decode') {
       const buf = Buffer.from(msg.bytes);
-      const mode = msg.decodeMode === 'base' ? false : (msg.decodeMode === 'overlay' ? true : 'smart');
       // «Message v361» (sysmsg) має інший набір керівних команд — власний діалект декодера.
       const cmd = buf.length >= 12 && buf.toString('ascii', 0, 12) === 'Message v361' ? 'sysmsg' : 'evmsg';
-      const text = decode(buf, { overlay: mode, cmd });
+      const text = decode(buf, { cmd });
       parentPort.postMessage({ id, ok: true, text });
       return;
     }

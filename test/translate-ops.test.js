@@ -169,7 +169,7 @@ test('structural guard: KH1 compose keeps EN when a translation drops a command 
     assert.equal(r.errors[0].count, 2);
     const outBuf = fs.readFileSync(path.join(out, 'g.binl')).subarray(11);
     assert.match(codec.decode(outBuf), /Стрибай/);                                   // UA-режим
-    assert.match(codec.decode(outBuf, { overlay: false }), /Wake up!\{0x06,0x2C,0x01\}/); // EN лишився
+    assert.match(codec.decode(outBuf), /Wake up!\{0x06,0x2C,0x01\}/); // EN лишився
     assert.doesNotMatch(codec.decode(outBuf), /Біжи/);
 
     // composeFile (редактор одного файла) — той самий guard, strictTokens:false вимикає.
@@ -224,7 +224,7 @@ test('classify: X_offset.bin + X_data.bin pair (wsysmsg/wname) is mesofs/mesdata
   }
 });
 
-test('native scheme: composeAll writes 19 NN codes for KH1 binl and sysmsg uses hybrid', async () => {
+test('composeAll writes native 19 NN codes for KH1 binl and sysmsg uses hybrid', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-native-'));
   try {
     const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS'), out = path.join(dir, 'DONE');
@@ -232,18 +232,17 @@ test('native scheme: composeAll writes 19 NN codes for KH1 binl and sysmsg uses 
     fs.writeFileSync(path.join(eng, 'n.binl'), synth.buildBinl(['Wake up!', 'Run']));
     fs.writeFileSync(path.join(rus, 'n.binl'), synth.buildBinl(['Nope']));
     fs.writeFileSync(path.join(eng, 'UK_sysmsg.binl'), synth.buildMsgV361(['Load this game?', 'Form your party.']));
-    codec.setDefaultScheme('native');
-    try {
+    {
       const r = await ops.composeAll(['n.binl', 'UK_sysmsg.binl'], { engDir: eng, rusDir: rus, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Run': 'Біжи', 'Load this game?': 'Завантажити цю гру?' }, safeMode: true });
       assert.equal(r.written, 2);
       assert.deepEqual(r.errors, []);
       const binl = fs.readFileSync(path.join(out, 'n.binl'));
       assert.ok(binl.includes(Buffer.from([0x19, 0x13, 0x19, 0x35])), 'П р as 19 NN');
-      assert.match(codec.decode(binl.subarray(11), { scheme: 'native' }), /Прокинься!/);
+      assert.match(codec.decode(binl.subarray(11)), /Прокинься!/);
       const sys = require('../tools/lib/msg-v361').parseMessageV361(fs.readFileSync(path.join(out, 'UK_sysmsg.binl')));
-      const first = codec.decode(sys.entries[0].bytes, { scheme: 'native', cmd: 'sysmsg' });
+      const first = codec.decode(sys.entries[0].bytes, { cmd: 'sysmsg' });
       assert.equal(first, 'Зaвaнтaжити цю гpy?');   // hybrid: а/р/у → латинські a/p/y (1 байт)
-    } finally { codec.setDefaultScheme('overlay'); }
+    }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -293,7 +292,7 @@ test('composeAll outLayout kh1-hedout writes DONE per archive (kh1_first/remaste
 test('built-in KH1 oracle: preservedSegs replace the RUS reference; data file covers real KH1 names', async () => {
   const oracle = require('../tools/lib/kh1-oracle');
   // Еталон зберігає сирі (закодовані) байти сегмента як latin1-рядок.
-  const raw = (t) => Buffer.from(codec.encode(t, { overlay: false })).toString('latin1');
+  const raw = (t) => Buffer.from(codec.encode(t)).toString('latin1');
   // Без RUS усі рядки стали б слотами; еталон вилучає 'Potion' так само, як RUS-файл.
   const noRef = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), {});
   assert.deepEqual(noRef.slots.map(s => s.english), ['Potion', 'Attack', 'Traverse Town']);

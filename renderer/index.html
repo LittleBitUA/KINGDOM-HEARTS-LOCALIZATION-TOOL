@@ -298,56 +298,15 @@
   <div class="app hidden">
     <header class="topbar">
       <div class="mode-toggle" role="tablist">
-        <button id="mode-editor" class="mode-btn active" type="button" role="tab" data-i18n="modeEditor">Редактор</button>
-        <button id="mode-translate" class="mode-btn" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
+        <button id="mode-translate" class="mode-btn active" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
         <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
         <button id="mode-ua-fonts" class="mode-btn" type="button" role="tab" data-i18n="modeUaFonts">Шрифти UA</button>
       </div>
     </header>
 
-    <!-- ============ EDITOR VIEW ============ -->
-    <div id="view-editor" class="view">
-      <section class="toolbar" role="toolbar" aria-label="Панель інструментів">
-        <button id="btn-open" class="kh-btn kh-btn-primary" type="button">
-          <svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span data-i18n="importBtn">Імпорт</span>
-        </button>
-        <button id="btn-save" class="kh-btn kh-btn-primary" type="button" disabled>
-          <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="exportBtn">Експорт</span>
-        </button>
-        <button id="btn-find" class="kh-btn" type="button" disabled>
-          <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span data-i18n="findBtn">Пошук</span>
-        </button>
-        <label class="kh-inline-label" title="Як показувати спільні байти латиниці/кирилиці (A↔А, o↔о). Байти у файлі однакові — це лише відображення." data-i18n-title="editorDecodeModeTitle">
-          <span data-i18n="editorDecodeMode">Показ:</span>
-          <select id="editor-decode-mode" class="kh-select kh-select-sm" aria-label="Decode mode">
-            <option value="smart" data-i18n="editorDecodeSmart">авто (ENG латиницею)</option>
-            <option value="overlay" data-i18n="editorDecodeUa">UA (усе кирилицею)</option>
-            <option value="base" data-i18n="editorDecodeEn">EN (без overlay)</option>
-          </select>
-        </label>
-        <div class="file-status" aria-live="polite">
-          <span id="file-status-text" data-i18n="fileNotLoaded">Файл не завантажено</span>
-        </div>
-      </section>
-
-      <section class="editor-wrap">
-        <textarea id="editor"
-                  spellcheck="false"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  data-i18n-placeholder="editorPlaceholder"
-                  placeholder="Імпортуйте файл .bin / .binl / .ard, щоб почати редагування..."></textarea>
-      </section>
-
-      <footer class="statusbar">
-        <span id="cursor-info" data-i18n="cursorInfo">Рядок 1, Стовпець 1</span>
-        <span id="byte-info"></span>
-      </footer>
-    </div>
-
     <!-- ============ TRANSLATE VIEW ============ -->
-    <div id="view-translate" class="view hidden">
+    <div id="view-translate" class="view">
       <!-- ===== Module header: модуль · гра · підвкладки · прогрес ===== -->
       <header class="t-module">
         <div class="t-module-left">
@@ -355,10 +314,6 @@
           <div class="t-module-titles">
             <h2 id="t-module-title" class="t-module-title" data-i18n="tabGlossary">Глосарій</h2>
             <div id="t-module-game" class="t-module-game"></div>
-          </div>
-          <div class="t-subtabs" role="tablist">
-            <button id="tab-files" class="subtab-btn active" type="button" role="tab" data-i18n="tabFiles">Файли</button>
-            <button id="tab-glossary" class="subtab-btn" type="button" role="tab" data-i18n="tabGlossary">Глосарій</button>
           </div>
           <label class="checkbox compact t-safe" data-i18n-title="safeModeTitle" title="Показувати лише файли, які перекладач уміє безпечно зчитати й перепакувати: .binl, сирі .bin, .ev/.evdl з текстом та _mes_ofs.bin/_mes_data.bin пари. Інші невпізнані формати приховуються.">
             <input id="t-safe-mode" type="checkbox" checked>
@@ -369,7 +324,7 @@
           </button>
         </div>
         <div class="t-module-right">
-          <span id="t-progress" class="t-progress t-module-fileprog">—</span>
+          <span id="t-progress" class="t-progress t-module-op" hidden></span>
           <div id="g-dashboard" class="t-prog" hidden>
             <div class="t-prog-line">
               <span class="t-prog-nums"><span id="g-dash-done">0</span> / <span id="g-dash-total">0</span></span>
@@ -387,79 +342,8 @@
       </header>
 
       <div class="t-body">
-        <!-- ===== Files subtab ===== -->
-        <div id="t-subview-files" class="t-subview">
-          <section class="toolbar t-cmdbar">
-            <select id="t-file" class="kh-select" aria-label="Select file to translate">
-              <option value="" data-i18n="selectFile">— виберіть файл —</option>
-            </select>
-            <button id="t-reload" class="kh-btn kh-btn-icon" type="button" data-i18n-title="reloadList" title="Оновити список файлів" aria-label="Оновити список">
-              <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
-            </button>
-            <label class="kh-search">
-              <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
-              <input id="t-search" class="kh-input" type="search" data-i18n-placeholder="searchInFile" placeholder="Пошук у цьому файлі (для всіх — Глосарій)…">
-            </label>
-            <select id="t-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
-              <option value="all" data-i18n="filterAll">Усі</option>
-              <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
-              <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
-            </select>
-            <div class="kh-dd">
-              <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
-                <svg class="ico" aria-hidden="true"><use href="#i-text"/></svg><span data-i18n="ddText">Текст</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
-              </button>
-              <div class="kh-menu" role="menu" hidden>
-                <button id="t-export-txt" class="kh-menu-item" type="button" disabled
-                        data-i18n-title="exportTxtTitle"
-                        title="Експортувати поточний файл у читабельний .txt для перекладу в Notepad++/Word.">
-                  <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="exportTxt">Експорт .txt</span>
-                </button>
-                <button id="t-import-txt" class="kh-menu-item" type="button" disabled
-                        data-i18n-title="importTxtTitle"
-                        title="Імпортувати переклад з .txt назад у поточний файл (зіставлення за offset).">
-                  <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="importTxt">Імпорт .txt</span>
-                </button>
-                <div class="kh-menu-sep"></div>
-                <button id="t-autowrap" class="kh-menu-item" type="button" disabled
-                        data-i18n-title="autoWrapTitle"
-                        title="Авто-розбити UK-переклади по словах щоб уміщались у max-px. Вимагає завантаженого .knj у режимі Кернінг.">
-                  <svg class="ico" aria-hidden="true"><use href="#i-wrap"/></svg><span data-i18n="autoWrap">Auto-wrap</span>
-                </button>
-                <label class="kh-menu-field" data-i18n-title="wrapMaxWidthTitle"
-                       title="Максимальна ширина рядка в пікселях. ~380 безпечно для вузьких рамок діалогів, ~460 для широких.">
-                  <span data-i18n="wrapMaxWidth">max-px</span>
-                  <input id="t-maxwidth" type="number" min="100" max="900" value="380" class="k-threshold-input">
-                </label>
-              </div>
-            </div>
-            <span class="toolbar-spacer"></span>
-            <button id="t-save-tsv" class="kh-btn" type="button" disabled>
-              <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="saveProgress">Зберегти прогрес</span>
-            </button>
-            <button id="t-compose" class="kh-btn kh-btn-primary" type="button" disabled
-                    data-i18n-title="composeCurrentTitle"
-                    title="Скомпонувати лише поточний файл. Для масового збирання — вкладка Глосарій → 'Зібрати ВСІ файли'.">
-              <svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="composeCurrent">Зібрати поточний</span>
-            </button>
-          </section>
-
-          <div class="t-table">
-            <div class="t-table-head" aria-hidden="true">
-              <span class="t-th t-th-meta">#</span>
-              <span class="t-th" data-i18n="thOriginal">Оригінал (EN)</span>
-              <span class="t-th" data-i18n="thTranslation">Український переклад</span>
-            </div>
-            <section id="t-rows" class="t-rows" tabindex="0">
-              <div class="t-empty">
-                <p data-i18n="emptyFilesView">Налаштуйте теки і виберіть файл зі списку, щоб почати переклад.</p>
-              </div>
-            </section>
-          </div>
-        </div>
-
-        <!-- ===== Glossary subtab ===== -->
-        <div id="t-subview-glossary" class="t-subview hidden">
+        <!-- ===== Глосарій — єдиний робочий список (усі рядки гри у порядку файлів) ===== -->
+        <div id="t-subview-glossary" class="t-subview">
           <!-- Primary command bar -->
           <section class="toolbar t-cmdbar">
             <div class="kh-split">
@@ -672,7 +556,7 @@
       </div>
 
       <footer class="statusbar t-statusbar">
-        <span id="t-status" data-i18n="selectFileToTranslate">Виберіть файл для перекладу</span>
+        <span id="t-status"></span>
         <span class="statusbar-right"><span data-i18n="hubTogether">Разом сильніші</span> ♡ · <span data-i18n="hubGlory">Слава Україні!</span> 🇺🇦</span>
       </footer>
     </div>
@@ -842,23 +726,6 @@
     </div>
   </div>
 
-  <!-- Find dialog -->
-  <div id="find-overlay" class="overlay hidden" aria-hidden="true">
-    <div class="modal" role="dialog" aria-labelledby="find-title" aria-modal="true">
-      <h2 id="find-title" data-i18n="findTitle">Знайти текст</h2>
-      <input id="find-input" type="text" data-i18n-placeholder="findPlaceholder" placeholder="Введіть текст для пошуку..." autocomplete="off">
-      <label class="checkbox">
-        <input id="find-case" type="checkbox">
-        <span data-i18n="matchCase">Враховувати регістр</span>
-      </label>
-      <div class="modal-actions">
-        <button id="find-next" class="kh-btn kh-btn-primary" type="button" data-i18n="findNext">Знайти далі</button>
-        <button id="find-cancel" class="kh-btn" type="button" data-i18n="cancel">Скасувати</button>
-      </div>
-      <div id="find-message" class="find-message" role="status"></div>
-    </div>
-  </div>
-
   <!-- About dialog -->
   <div id="about-overlay" class="overlay hidden" aria-hidden="true">
     <div class="modal" role="dialog" aria-labelledby="about-title" aria-modal="true">
@@ -950,25 +817,6 @@
           </div>
         </section>
 
-        <section class="setting-section" id="font-scheme-section">
-          <div class="setting-section-head">
-            <span class="setting-section-icon" aria-hidden="true"><svg class="ico"><use href="#i-text"/></svg></span>
-            <div>
-              <h3 class="setting-section-title" data-i18n="fontSchemeTitle">Кирилиця у шрифті (KH1)</h3>
-              <p class="setting-section-hint" data-i18n="fontSchemeLabel">Схема кодування</p>
-            </div>
-          </div>
-          <div class="setting-row">
-            <select id="set-font-scheme" class="kh-select kh-select-wide">
-              <option value="overlay" data-i18n="fontSchemeOverlay">Накладання — кирилиця замість акцентованої латиниці (0xC8+)</option>
-              <option value="native" data-i18n="fontSchemeNative">Нативна — власні гліфи 224+ (коди 19 NN), латиниця недоторкана</option>
-            </select>
-          </div>
-          <div class="setting-callout">
-            <svg class="ico" aria-hidden="true"><use href="#i-info"/></svg>
-            <p class="setting-hint" data-i18n="fontSchemeHint">Нативна схема потребує шрифту, згенерованого у вкладці «Шрифти UA» (UK_kanji.knj + UK_kanji_knj0.dds). Змінює лише кодування при збірці й читанні файлів; текст перекладу той самий. sysmsg.binl збирається гібридно (схожі на латиницю літери — 1 байт) через буфер гри 0x4800.</p>
-          </div>
-        </section>
       </div>
 
       <div class="settings-divider" aria-hidden="true"><svg class="ico"><use href="#i-crown"/></svg></div>

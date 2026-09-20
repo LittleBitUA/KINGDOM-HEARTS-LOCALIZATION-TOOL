@@ -4,25 +4,20 @@ const path = require('path');
 const fs = require('fs');
 
 const BASE_PATH = path.join(__dirname, '..', 'data', 'kh1sys_text.json');
-const OVERLAY_PATH = path.join(__dirname, '..', 'data', 'ukrainian.json');
 const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
 const NATIVE_PATH = path.join(__dirname, '..', 'data', 'kh1_native.json');
 
 // =====================================================================
-// Схема шрифту для кирилиці:
-//   'overlay' — кирилиця на комірках акцентованої латиниці (ukrainian.json);
-//   'native'  — власні гліфи у вільних комірках 224+ шрифту діалогів
-//               (tools/py/kh1/kh1font.py), літера = 2 байти `19 NN`
-//               (docs/formats/kh1-dialog-text.md). Латиниця лишається латиницею.
-//   opts.hybrid (лише для native) — літери, що виглядають як латинські (А В С Е…),
-//   пишуться 1 байтом латинського гліфа: для sysmsg.binl з буфером 0x4800.
-// Default-схему виставляє main за налаштуваннями гри (setDefaultScheme).
+// Кирилиця у KH1 — лише нативно: власні гліфи у вільних комірках 224+ шрифту
+// діалогів (tools/py/kh1/kh1font.py), літера = 2 байти `19 NN`
+// (docs/formats/kh1-dialog-text.md). Латиниця та решта таблиці KH1SYS_Text
+// лишаються недоторканими — «Sora» у файлі гри і в перекладі однакові байти.
+//   opts.hybrid — літери, що виглядають як латинські (А В С Е…), пишуться
+//   1 байтом латинського гліфа: для sysmsg.binl з буфером 0x4800.
+// Карта літер: data/kh1_native.json або користувацька kh1-native-map.json,
+// яку пише генератор шрифту з додатковими символами (setNativeMapPath).
 // =====================================================================
-const SCHEMES = ['overlay', 'native'];
-let defaultScheme = 'overlay';
 let nativeCache = null;
-// Користувацька карта (kh1-native-map.json, яку пише генератор шрифту з
-// додатковими символами) — має пріоритет над data/kh1_native.json, якщо існує.
 let nativeMapPath = null;
 let nativeCacheKey = '';
 
@@ -32,16 +27,6 @@ function setNativeMapPath(p) {
   return nativeMapPath;
 }
 function getNativeMapPath() { return nativeMapPath; }
-
-function setDefaultScheme(scheme) {
-  defaultScheme = SCHEMES.includes(scheme) ? scheme : 'overlay';
-  return defaultScheme;
-}
-function getDefaultScheme() { return defaultScheme; }
-function schemeFromOpts(opts) {
-  const s = opts && opts.scheme;
-  return SCHEMES.includes(s) ? s : defaultScheme;
-}
 
 function loadNative() {
   // Кеш інвалідовується, коли користувацька карта з'явилась/змінилась.
@@ -121,26 +106,7 @@ const SYSMSG_CMD_LEN = {
 // глобал — DAT_142e1bae0): більший файл переписує пам'ять і валить гру.
 const SYSMSG_MAX_FILE_SIZE = 0x4800;
 
-// Режими decode:
-//   'overlay' — overlay повністю перекриває base (UA-файл: усі байти → кирилиця,
-//               включно з байтами латинських A/B/C/…, які UA-шрифт
-//               перевикористовує як А/В/С/…).
-//   'base'    — лише KH1SYS_Text (ENG-файл: чиста латиниця; використовується
-//               для extract/glossary-ключів, щоб «Potion» завжди був Latin).
-//   'smart'   — overlay лише для байтів, чий base-гліф НЕ є ASCII (тобто для
-//               «справжніх» нових кириличних кліток ≥0xC8 і `<`/`>`), а спільні
-//               latin-lookalike байти показуються латиницею. Для Editor-режиму:
-//               ENG-файл читається як ENG, а UA-файл — без втрат (encode
-//               мапить і 'A', і 'А' у той самий байт).
-const MODES = ['overlay', 'base', 'smart'];
-const cache = { overlay: null, base: null, smart: null };
-
-function modeFromOpts(opts) {
-  if (!opts || opts.overlay === undefined || opts.overlay === true) return 'overlay';
-  if (opts.overlay === false) return 'base';
-  if (opts.overlay === 'smart') return 'smart';
-  return 'overlay';
-}
+let table = null;
 
 function readJson(p) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -150,18 +116,13 @@ function readJsonOptional(p) {
   try { return readJson(p); } catch (_) { return null; }
 }
 
-function isAsciiGlyph(v) {
-  return typeof v === 'string' && v.length === 1 && v.charCodeAt(0) < 0x80;
-}
-
-function load(mode = 'overlay') {
-  if (mode === true) mode = 'overlay';
-  if (mode === false) mode = 'base';
-  if (!MODES.includes(mode)) mode = 'overlay';
-  if (cache[mode]) return cache[mode];
+// load() → { singleMap, multiMap, reverse, byFirstChar }
+// Таблиця однобайтових гліфів KH1SYS_Text + двобайтові токени kh1sys_multi
+// (з encodeAliases — альтернативні імена токенів і типографічні замінники).
+function load() {
+  if (table) return table;
 
   const base = readJson(BASE_PATH);
-  const overlay = mode !== 'base' ? readJsonOptional(OVERLAY_PATH) : null;
   const multi = readJsonOptional(MULTI_PATH) || {};
 
   // ---- single-byte decode map ----
@@ -169,15 +130,6 @@ function load(mode = 'overlay') {
   for (const [k, v] of Object.entries(base)) {
     if (k.startsWith('_')) continue;
     singleMap.set(Number(k), v);
-  }
-  if (overlay && overlay.decode) {
-    for (const [k, v] of Object.entries(overlay.decode)) {
-      if (k.startsWith('_')) continue;
-      const byte = Number(k);
-      // 'smart': не перекриваємо ASCII-гліфи base (latin lookalikes).
-      if (mode === 'smart' && isAsciiGlyph(base[k])) continue;
-      singleMap.set(byte, v);
-    }
   }
 
   // ---- multi-byte decode map: (b1<<8 | b2) -> token ----
@@ -188,8 +140,6 @@ function load(mode = 'overlay') {
   }
 
   // ---- reverse map for encode: [[token, [byte, ...]], ...] ----
-  // Для encode overlay-режими ('overlay' і 'smart') ідентичні: приймаємо і
-  // латиницю, і кирилицю; різниця лише у decode.
   const seen = new Set();
   const reverse = [];
 
@@ -201,30 +151,11 @@ function load(mode = 'overlay') {
     reverse.push([token, bytesArr]);
   }
 
-  const overlayDecode = (overlay && overlay.decode) || {};
-  const overlayEncodeOnly = (overlay && overlay.encodeOnly) || {};
-
-  const allBytes = new Set();
-  for (const k of Object.keys(base)) if (!k.startsWith('_')) allBytes.add(Number(k));
-  for (const k of Object.keys(overlayDecode)) if (!k.startsWith('_')) allBytes.add(Number(k));
-  const sortedBytes = [...allBytes].sort((a, b) => a - b);
-
-  // For each byte (ascending): overlay value first (preferred), then base
-  // value as fallback for input. Lower byte wins on string-collision ties
-  // (stable sort preserves insertion order).
+  const sortedBytes = Object.keys(base).filter(k => !k.startsWith('_')).map(Number).sort((a, b) => a - b);
+  // Нижчий байт перемагає при колізії рядків (stable sort зберігає порядок вставки).
   for (const byte of sortedBytes) {
-    const ov = overlayDecode[byte];
     const baseVal = base[byte];
-    if (typeof ov === 'string' && ov.length > 0) pushEntry(ov, [byte]);
-    if (typeof baseVal === 'string' && baseVal.length > 0 && baseVal !== ov) {
-      pushEntry(baseVal, [byte]);
-    }
-  }
-
-  for (const [str, b] of Object.entries(overlayEncodeOnly)) {
-    if (str.startsWith('_')) continue;
-    const byte = Number(b);
-    if (Number.isFinite(byte)) pushEntry(str, [byte]);
+    if (typeof baseVal === 'string' && baseVal.length > 0) pushEntry(baseVal, [byte]);
   }
 
   for (const [token, pair] of Object.entries(multi)) {
@@ -233,9 +164,8 @@ function load(mode = 'overlay') {
   }
 
   // encodeAliases: альтернативні імена токенів (Pro100luk-style з пробілами)
-  // або типографічні замінники (№ → "no." як 3 байти).
-  // Лише для encode — на decode зберігається канонічна назва.
-  // Підтримуємо arbitrary-length byte arrays.
+  // і типографічні замінники (– ’ « » → наявні комірки, № → "no." як 3 байти).
+  // Лише для encode — на decode зберігається канонічна назва/гліф.
   if (multi && multi.encodeAliases && typeof multi.encodeAliases === 'object') {
     for (const [token, pair] of Object.entries(multi.encodeAliases)) {
       if (!Array.isArray(pair) || pair.length === 0) continue;
@@ -252,8 +182,7 @@ function load(mode = 'overlay') {
 
   // Індекс за першим символом токена: encode дивиться лише на кандидати, що
   // починаються з поточного символу (замість лінійного перебору всіх ~300).
-  // Порядок усередині bucket'а — той самий (довші перші), тож результат
-  // ідентичний старому лінійному пошуку.
+  // Порядок усередині bucket'а — той самий (довші перші).
   const byFirstChar = new Map();
   for (const entry of reverse) {
     const c = entry[0].charCodeAt(0);
@@ -262,8 +191,8 @@ function load(mode = 'overlay') {
     bucket.push(entry);
   }
 
-  cache[mode] = { singleMap, multiMap, reverse, byFirstChar, mode };
-  return cache[mode];
+  table = { singleMap, multiMap, reverse, byFirstChar };
+  return table;
 }
 
 function hex2(b) {
@@ -271,13 +200,10 @@ function hex2(b) {
 }
 
 // decode(bytes, opts?) → string
-//   opts.overlay — режим таблиці (див. MODES)
-//   opts.cmd     — 'evmsg' (default) | 'sysmsg' — діалект керівних команд
+//   opts.cmd — 'evmsg' (default) | 'sysmsg' — діалект керівних команд
 function decode(bytes, opts) {
-  const native = schemeFromOpts(opts) === 'native';
-  // native: латиниця читається як латиниця (base), кирилиця — лише з 19 NN
-  const { singleMap, multiMap } = load(native ? 'base' : modeFromOpts(opts));
-  const nat = native ? loadNative() : null;
+  const { singleMap, multiMap } = load();
+  const nat = loadNative();
   const sysmsg = !!(opts && opts.cmd === 'sysmsg');
   const NL = '\n';
   const len = bytes.length;
@@ -287,7 +213,7 @@ function decode(bytes, opts) {
   while (i < len) {
     const b = bytes[i];
 
-    if (nat && b >= 0x19 && b <= 0x1F && i + 1 < len) {
+    if (b >= 0x19 && b <= 0x1F && i + 1 < len) {
       const ch = nat.decodeMap.get((b << 8) | bytes[i + 1]);
       if (ch !== undefined) { out += ch; i += 2; continue; }
       out += '{0x' + hex2(b) + ',0x' + hex2(bytes[i + 1]) + '}';
@@ -367,20 +293,16 @@ function parseRawHexToken(s, i) {
 }
 
 // encodeDetailed(text, opts?) → { bytes: Buffer, unmapped: [{index, char, context}] }
-//   opts.overlay — true|false|'smart' (для encode 'smart' ≡ true)
+//   opts.hybrid  — схожі на латиницю літери (А В С Е…) — 1 байтом латинського
+//                  гліфа (sysmsg.binl з буфером 0x4800).
 //   opts.lenient — не кидати на незакодованих символах: писати 0x3F ('?') і
 //                  повертати їх у result.unmapped.
 // Без lenient кидає Error зі СПИСКОМ усіх незакодованих символів (не лише
 // першого), щоб composeAll міг показати перекладачу, що саме виправляти.
 function encodeDetailed(text, opts) {
-  const native = schemeFromOpts(opts) === 'native';
-  const hybrid = native && !!(opts && opts.hybrid);
-  // native: reverse-таблиця без overlay (щоб «А» не пішла на акцентовану комірку);
-  // типографічні заміни overlay (« » – ’ …, encodeOnly) лишаються потрібними —
-  // беремо їх із overlay-таблиці для НЕкириличних символів.
-  const { byFirstChar } = load(native ? 'base' : modeFromOpts(opts));
-  const typo = native ? load('overlay').byFirstChar : null;
-  const nat = native ? loadNative() : null;
+  const hybrid = !!(opts && opts.hybrid);
+  const { byFirstChar } = load();
+  const nat = loadNative();
   const lenient = !!(opts && opts.lenient);
   let s = text == null ? '' : String(text);
 
@@ -408,7 +330,7 @@ function encodeDetailed(text, opts) {
     }
 
     let matched = false;
-    if (nat) {
+    {
       const ch = s[i];
       if (hybrid && nat.lookalike.has(ch)) {
         const latin = byFirstChar.get(nat.lookalike.get(ch).charCodeAt(0));
@@ -418,8 +340,7 @@ function encodeDetailed(text, opts) {
       const pair = nat.encodeMap.get(ch);
       if (pair) { bytes.push(pair[0], pair[1]); i++; continue; }
     }
-    let bucket = byFirstChar.get(c0);
-    if (!bucket && typo && !(c0 >= 0x0400 && c0 <= 0x04FF)) bucket = typo.get(c0);
+    const bucket = byFirstChar.get(c0);
     if (bucket) {
       for (let j = 0; j < bucket.length; j++) {
         const token = bucket[j][0];
@@ -484,11 +405,11 @@ function legacyCommandKey(key) {
   if (typeof key !== 'string' || !RE_U16_TOKEN.test(key)) return null;
   RE_U16_TOKEN.lastIndex = 0;
   return key.replace(RE_U16_TOKEN, (_m, op, p1, p2) =>
-    '{0x' + op.toUpperCase() + ',0x' + p1.toUpperCase() + '}' + decode(Buffer.from([parseInt(p2, 16)]), { overlay: false }));
+    '{0x' + op.toUpperCase() + ',0x' + p1.toUpperCase() + '}' + decode(Buffer.from([parseInt(p2, 16)])));
 }
 
 function loadMap() {
-  return load('overlay').singleMap;
+  return load().singleMap;
 }
 
-module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, setDefaultScheme, getDefaultScheme, loadNative, setNativeMapPath, getNativeMapPath, SCHEMES, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };
+module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, loadNative, setNativeMapPath, getNativeMapPath, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };

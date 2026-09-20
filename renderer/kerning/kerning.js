@@ -339,6 +339,10 @@ export function _kRebuildReverseCharMap() {
       _kReverseCharMap[ch] = parseInt(k, 10);
     }
   }
+  // Нативна кирилиця (гліфи 224+, коди 19 NN): «А» у фільтрі → її комірка.
+  for (const [idx, ch] of Object.entries(kState.nativeMap || {})) {
+    if (typeof ch === 'string' && !_kReverseCharMap[ch]) _kReverseCharMap[ch] = Number(idx) + BYTE_GLYPH_OFFSET;
+  }
 }
 export function _kCharToGlyphIdx(ch) {
   if (!_kReverseCharMap) _kRebuildReverseCharMap();

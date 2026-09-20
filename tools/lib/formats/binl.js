@@ -6,7 +6,6 @@
 // (усе preserved → 0 слотів), тому caller має передати rusPath або порожній буфер.
 
 const fs = require('fs/promises');
-const codec = require('../../../shared/codec');
 
 function toAb(buf) {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -39,7 +38,7 @@ async function parse(engPath, env) {
   const opts = Object.assign({}, (env.cls && env.cls.extractOpts) || {}, env.opts || {});
   const engAb = toAb(eng);
   const rusAb = toAb(rus);
-  const r = await runWorker({ op: 'extract', eng: engAb, rus: rusAb, opts, scheme: codec.getDefaultScheme() }, [engAb, rusAb]);
+  const r = await runWorker({ op: 'extract', eng: engAb, rus: rusAb, opts }, [engAb, rusAb]);
   const slots = r.slots.map(s => ({
     index: s.index,
     offset: s.offset,
@@ -62,7 +61,7 @@ async function parse(engPath, env) {
       // Буфер міг бути transfer'нутий у worker при extract — читаємо знову.
       const eng2 = await fs.readFile(engPath);
       const ab = toAb(eng2);
-      const c = await runWorker({ op: 'compose', eng: ab, replacements, scheme: codec.getDefaultScheme() }, [ab]);
+      const c = await runWorker({ op: 'compose', eng: ab, replacements }, [ab]);
       return {
         outputs: [{ buf: Buffer.from(c.bytes), pathFor: (outPath) => outPath }],
         applied: c.applied || 0,

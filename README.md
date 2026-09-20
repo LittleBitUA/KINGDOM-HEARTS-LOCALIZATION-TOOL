@@ -26,11 +26,11 @@
 | Категорія | Що працює |
 |---|---|
 | **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game ізольовані налаштування і теки) |
-| **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), українська overlay-карта, lossless round-trip |
+| **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), нативна кирилиця кодами `19 NN` (латиниця недоторкана), lossless round-trip |
 | **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.binl` **«Message v361»** (`sysmsg` — 488 системних повідомлень), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню), `.ev`/`.evdl` (event-скрипти) |
 | **Формати Re:CoM** | `.ctdl` (порт `comtext.py`/`comctd.py`, звірено на всіх 30 503 повідомленнях; `{color xx}` `{icon xx}`, **кирилиця на кодах хіраґани `0x829F–0x82E0`**; round-trip 426/426) |
 | **Формати DDD** | `.ctd` v0x1F7 UTF-16LE (порт `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, сторінкова адресація до 1 МіБ; round-trip 37/37) |
-| **Шрифти UA** | Вкладка «Шрифти UA» для KH1 / BBS / Re:CoM / DDD (KH1: нативна кирилиця у вільних комірках 224+ шрифту діалогів, коди `19 NN`, `tools/py/kh1/kh1font.py`; схема вмикається в Налаштуваннях): растеризує 66 українських літер (ComicHearts для діалогів, KHMenu для інтерфейсу) у вільні комірки ігрових шрифтів еталонними Python-інструментами (`tools/py`), «Встановити у гру» з бекапом оригіналів |
+| **Шрифти UA** | Вкладка «Шрифти UA» для KH1 / BBS / Re:CoM / DDD (KH1: нативна кирилиця у вільних комірках 224+ шрифту діалогів, коди `19 NN`, `tools/py/kh1/kh1font.py`): растеризує 66 українських літер (ComicHearts для діалогів, KHMenu для інтерфейсу) у вільні комірки ігрових шрифтів еталонними Python-інструментами (`tools/py`), «Встановити у гру» з бекапом оригіналів |
 | **text_all.txt** | Експорт/імпорт формату обміну Python-наборів (`### шлях` / `#N` / текст) — переклад лягає у per-file прогрес і глосарій; пара `text_uniq.txt`+`text_ua.txt` (Re:CoM) → глосарій |
 | **Кодек BBS** | Порт еталонного `bbstext.py`: повні таблиці `0x81`/`0x99`, вставки `{icon triangle}` `{color white}` `{sjis xxxx}`, **кирилиця на кодах катакани `0x83xx`** (узгоджено зі згенерованим шрифтом), перевірка наявності гліфа у `FontEn.arc`; byte-identical round-trip 116/116 файлів гри |
 | **Формати BBS** | `.ctd` (event/menu/HUD), HD-PNG атлас фонтів, `mesfont/menufont/cmdfont/helpfont/numeral` шрифти |
@@ -145,11 +145,11 @@ Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: 
 | Category | What works |
 |---|---|
 | **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game isolated settings and folders) |
-| **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), Ukrainian overlay map, lossless round-trip |
+| **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), native Cyrillic via `19 NN` codes (Latin untouched), lossless round-trip |
 | **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.binl` **“Message v361”** (`sysmsg` — 488 system messages), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus), `.ev`/`.evdl` (event scripts) |
 | **Re:CoM formats** | `.ctdl` (port of `comtext.py`/`comctd.py`, verified on all 30 503 messages; `{color xx}` `{icon xx}`, **Ukrainian on hiragana codes `0x829F–0x82E0`**; round-trip 426/426) |
 | **DDD formats** | `.ctd` v0x1F7 UTF-16LE (port of `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, paged addressing up to 1 MiB; round-trip 37/37) |
-| **UA fonts** | "UA fonts" tab for KH1 / BBS / Re:CoM / DDD (KH1: native Cyrillic in the free dialog-font cells 224+, `19 NN` codes, `tools/py/kh1/kh1font.py`; scheme switch in Settings): rasterizes the 66 Ukrainian letters (ComicHearts for dialogue, KHMenu for UI) into free cells of the game fonts using the reference Python tools (`tools/py`); "Install into game" with backups |
+| **UA fonts** | "UA fonts" tab for KH1 / BBS / Re:CoM / DDD (KH1: native Cyrillic in the free dialog-font cells 224+, `19 NN` codes, `tools/py/kh1/kh1font.py`): rasterizes the 66 Ukrainian letters (ComicHearts for dialogue, KHMenu for UI) into free cells of the game fonts using the reference Python tools (`tools/py`); "Install into game" with backups |
 | **text_all.txt** | Export/import of the Python toolkits' interchange format (`### path` / `#N` / text) — translations land in per-file progress and the glossary; a `text_uniq.txt`+`text_ua.txt` pair (Re:CoM) → glossary |
 | **BBS codec** | Port of the reference `bbstext.py`: full `0x81`/`0x99` tables, `{icon triangle}` `{color white}` `{sjis xxxx}` tags, **Ukrainian on katakana codes `0x83xx`** (in sync with the generated font), FontEn.arc glyph check; byte-identical round-trip on 116/116 game files |
 | **BBS formats** | `.ctd` (event/menu/HUD), HD-PNG font atlases, `mesfont/menufont/cmdfont/helpfont/numeral` fonts |

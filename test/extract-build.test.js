@@ -16,10 +16,10 @@ test('splitStrings respects header/footer and 0x00 separators', () => {
 });
 
 test('containsExactSegment: whole-segment match only (Log vs Catalog regression)', () => {
-  const hay = Buffer.concat([codec.encode('Catalog', { overlay: false }), Buffer.from([0]), codec.encode('Logo', { overlay: false }), Buffer.from([0])]);
-  const needle = codec.encode('Log', { overlay: false });
+  const hay = Buffer.concat([codec.encode('Catalog'), Buffer.from([0]), codec.encode('Logo'), Buffer.from([0])]);
+  const needle = codec.encode('Log');
   assert.equal(containsExactSegment(hay, needle), false);
-  const hay2 = Buffer.concat([hay, codec.encode('Log', { overlay: false }), Buffer.from([0])]);
+  const hay2 = Buffer.concat([hay, codec.encode('Log'), Buffer.from([0])]);
   assert.equal(containsExactSegment(hay2, needle), true);
 });
 
@@ -33,7 +33,7 @@ test('extract: strings present verbatim in reference file are preserved, others 
   assert.equal(r.stats.skippedShort, 1); // 'ab' < minLen 3
   assert.equal(r.slots.length, 1);
   assert.equal(r.slots[0].english, 'Attack');
-  assert.doesNotMatch(r.slots[0].english, /[Ѐ-ӿ]/, 'English must be decoded without overlay');
+  assert.doesNotMatch(r.slots[0].english, /[Ѐ-ӿ]/, 'English must decode as Latin');
 });
 
 test('compose applies replacements at offsets and keeps surrounding bytes', () => {

@@ -60,25 +60,12 @@ function walkDirSync(root) {
 
 // translate:getSettings(gameId?) — повертає merged settings (global + game-scoped).
 
-// Схема кирилиці KH1 (overlay/native) живе у per-game settings; кодек у main
-// і worker'и беруть її як default. Оновлюємо при кожному читанні/записі
-// налаштувань гри (renderer читає їх при вході в гру та після змін).
-function applyFontScheme(settings) {
-  codec.setDefaultScheme((settings && settings.fontScheme) || 'overlay');
-  // Карта нативних гліфів, яку записав генератор шрифту (додаткові символи).
-  if (!codec.getNativeMapPath()) codec.setNativeMapPath(nativeMapPathFor());
-  return settings;
-}
-ipcMain.handle('translate:getSettings', (_e, gameId) => {
-  const s = loadSettings(gameId || null);
-  if (gameId) applyFontScheme(s);
-  return s;
-});
-ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => {
-  const s = saveSettings(payload || {}, gameId || null);
-  if (payload && payload.fontScheme !== undefined) applyFontScheme(s);
-  return s;
-});
+// Карта нативних гліфів KH1, яку записав генератор шрифту (додаткові символи):
+// кодек у main і worker'и беруть її замість data/kh1_native.json, якщо існує.
+codec.setNativeMapPath(nativeMapPathFor());
+
+ipcMain.handle('translate:getSettings', (_e, gameId) => loadSettings(gameId || null));
+ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => saveSettings(payload || {}, gameId || null));
 
 ipcMain.handle('translate:pickDirectory', async (_e, title) => {
   const r = await dialog.showOpenDialog(win.get(), {

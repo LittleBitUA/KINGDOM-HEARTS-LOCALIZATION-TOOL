@@ -1,9 +1,10 @@
-import { gRows, modeBbsFontBtn, modeEditorBtn, modeKerningBtn, modeTranslateBtn, tFileSel, tRows, tStatus, viewBbsFont, viewEditor, viewKerning, viewTranslate } from './core/dom.js';
+import { gRows, modeBbsFontBtn, modeKerningBtn, modeTranslateBtn, tStatus, viewBbsFont, viewKerning, viewTranslate } from './core/dom.js';
 import { gState, state, tState } from './core/state.js';
 import { kAutoLoadKnjOnBoot } from './kerning/kerning.js';
 import { maybeFirstRunSettings } from './main.js';
 import { gamesConfig, hideHome, showHome } from './screens/home.js';
 import { cancelAutoSaveTimers, initTranslateMode } from './translate/files.js';
+import { refreshInstallDoneVisibility } from './translate/glossary.js';
 import { clearBulkHistory } from './translate/history.js';
 import { initUaFonts } from './uafonts/uafonts.js';
 
@@ -30,15 +31,10 @@ export function enterEditor(gameId) {
   if (moduleGame) { const g = getCurrentGame(); moduleGame.textContent = g ? g.name : ''; }
   const hasUaFonts = ['kh1-final-mix', 'kh-bbs-final-mix', 'kh-re-com', 'kh-ddd'].includes(_currentGameId);
   // Mode tabs які доступні цій грі.
-  // KH1:    Editor + Translate + Kerning.
-  // BBS:    Translate + Шрифт BBS (font-hack для UA).
-  // Re:CoM: лише Translate. Editor приховано (CTDL = таблично-структурований,
-  //         немає raw-byte representation як у BIN/BINL); Kerning — KH1-формат
-  //         .knj; BBS Font — специфічний для BBS-fontEn.arc.
-  const editorTab  = document.getElementById('mode-editor');
+  // Усі:   Translate (глосарій — єдиний робочий список) + Шрифти UA.
+  // KH1:   + Kerning (.knj); BBS: + Шрифт BBS (FontEn.arc).
   const kerningTab = document.getElementById('mode-kerning');
   const bbsFontTab = document.getElementById('mode-bbs-font');
-  if (editorTab)  editorTab.style.display  = isKh1 ? '' : 'none';
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
   if (bbsFontTab) bbsFontTab.style.display = isBbs ? '' : 'none';
   const uaFontsTab = document.getElementById('mode-ua-fonts');
@@ -50,7 +46,9 @@ export function enterEditor(gameId) {
     resetTranslateState();
   }
 
-  setMode(isKh1 ? 'editor' : 'translate');
+  // Завжди починаємо з перекладу; якщо гра змінилась, а режим уже «Переклад» —
+  // ініціалізуємо його заново (інший список файлів, глосарій, налаштування).
+  setMode('translate', { force: gameChanged });
 
   // First-run settings перевірка для поточної гри (один раз на сесію).
   if (!enterEditor._firstRunChecked) {
@@ -73,25 +71,12 @@ export function resetTranslateState() {
   cancelAutoSaveTimers();
   tState.settings = { engDir: '', rusDir: '', outDir: '', tsvDir: '' };
   tState.files = [];
-  tState.slots = [];
-  tState.currentRel = null;
-  tState.dirty = false;
-  tState.fileName = '';
-  tState.fileMeta = null;
-  // Глосарій — per-game. Якщо лишити старий, loadFile() автозаповнить слоти
-  // іншої гри перекладами з KH1 ("Yes"/"No"/"Cancel" збігаються).
+  // Глосарій — per-game: інакше переклади KH1 ("Yes"/"No"/"Cancel" збігаються)
+  // підхопились би в іншій грі.
   gState.entries = [];
   gState.translations = Object.create(null);
   clearBulkHistory();
   gState.dirty = false;
-  if (tFileSel) {
-    while (tFileSel.firstChild) tFileSel.removeChild(tFileSel.firstChild);
-    const blank = document.createElement('option');
-    blank.value = '';
-    blank.textContent = (window.i18n && window.i18n.t('selectFile')) || '— виберіть файл —';
-    tFileSel.appendChild(blank);
-  }
-  if (tRows) tRows.innerHTML = '';
   if (gRows) gRows.innerHTML = '';
   if (tStatus) tStatus.textContent = '';
 }
@@ -103,10 +88,9 @@ export function goHome() {
 // =====================================================================
 // Mode switching
 // =====================================================================
-export function setMode(mode) {
-  if (state.mode === mode) return;
+export function setMode(mode, opts) {
+  if (state.mode === mode && !(opts && opts.force)) return;
   state.mode = mode;
-  viewEditor.classList.toggle('hidden', mode !== 'editor');
   viewTranslate.classList.toggle('hidden', mode !== 'translate');
   viewKerning.classList.toggle('hidden', mode !== 'kerning');
   if (viewBbsFont) viewBbsFont.classList.toggle('hidden', mode !== 'bbs-font');
@@ -114,17 +98,15 @@ export function setMode(mode) {
   if (viewUaFonts) viewUaFonts.classList.toggle('hidden', mode !== 'ua-fonts');
   const modeUaFontsBtn = document.getElementById('mode-ua-fonts');
   if (modeUaFontsBtn) modeUaFontsBtn.classList.toggle('active', mode === 'ua-fonts');
-  modeEditorBtn.classList.toggle('active', mode === 'editor');
   modeTranslateBtn.classList.toggle('active', mode === 'translate');
   modeKerningBtn.classList.toggle('active', mode === 'kerning');
   if (modeBbsFontBtn) modeBbsFontBtn.classList.toggle('active', mode === 'bbs-font');
-  if (mode === 'translate') { initTranslateMode(); import('./translate/glossary.js').then(m => m.refreshInstallDoneVisibility()).catch(() => {}); }
+  if (mode === 'translate') { initTranslateMode(); refreshInstallDoneVisibility(); }
   if (mode === 'ua-fonts') initUaFonts();
 }
 const _modeUaFontsBtn = document.getElementById('mode-ua-fonts');
 if (_modeUaFontsBtn) _modeUaFontsBtn.addEventListener('click', () => setMode('ua-fonts'));
 
-modeEditorBtn.addEventListener('click', () => setMode('editor'));
 modeTranslateBtn.addEventListener('click', () => setMode('translate'));
 modeKerningBtn.addEventListener('click', () => setMode('kerning'));
 if (modeBbsFontBtn) modeBbsFontBtn.addEventListener('click', () => setMode('bbs-font'));

@@ -10,9 +10,8 @@ const { writeFileAtomicSync } = require('../shared/safe-fs');
 
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'translate-settings.json');
 
-// Дир-ключі специфічні для гри (різні теки для KH1 та BBS).
-// Per-game ключі (не лише теки): fontScheme — схема кирилиці KH1 ('overlay' | 'native').
-const GAME_DIR_KEYS = ['engDir', 'rusDir', 'outDir', 'tsvDir', 'lastFile', 'fontScheme', 'extraLetters', 'extraFont'];
+// Per-game ключі: теки (різні для KH1 та BBS) і параметри генератора шрифту.
+const GAME_DIR_KEYS = ['engDir', 'rusDir', 'outDir', 'tsvDir', 'lastFile', 'extraLetters', 'extraFont'];
 
 // === Стандартна структура воркспейса ===
 // При старті створюємо ці теки (якщо не існують) і пропонуємо як defaults

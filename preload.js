@@ -3,12 +3,9 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const VALID_MENU_CHANNELS = new Set([
-  'menu:open',
   'menu:save',
   'menu:find',
-  'menu:find-next',
   'menu:about',
-  'menu:mode-editor',
   'menu:mode-translate',
   'menu:replace',
   'menu:mode-kerning',
@@ -16,9 +13,6 @@ const VALID_MENU_CHANNELS = new Set([
 ]);
 
 contextBridge.exposeInMainWorld('kh1', {
-  openFile: (opts) => ipcRenderer.invoke('file:open', opts || {}),
-  saveFile: (text, suggestedName) =>
-    ipcRenderer.invoke('file:save', { text, suggestedName }),
   about: () => ipcRenderer.invoke('app:about'),
   // Electron 32+ прибрав нестандартний File.path — єдиний спосіб дістати
   // абсолютний шлях drag-and-drop файла з sandboxed renderer'а.

@@ -1,13 +1,12 @@
 import { getCurrentGameId, goHome, setMode } from './app-shell.js';
-import { aboutCloseBtn, aboutOverlay, btnFind, btnOpen, btnSave, findCancelBtn, findInput, findNextBtn, findOverlay, gSearch, importOverlay, settingsOverlay, tFileSel, tSearchInput } from './core/dom.js';
+import { aboutCloseBtn, aboutOverlay, gSearch, importOverlay, settingsOverlay } from './core/dom.js';
 import { _logBadgeUpdate, _logRender, eventLog, toast } from './core/log.js';
-import { state, tState } from './core/state.js';
-import { doOpen, doSave, findNextFromShortcut, hideAbout, hideFind, performFind, showAbout, showFind } from './editor.js';
+import { state } from './core/state.js';
+import { hideAbout, showAbout } from './about.js';
 import { decodeDds, kApplyKnjLoaded, kRefreshStatus, kRenderGrid, kState } from './kerning/kerning.js';
 import { applyHomeFilter, initHomeNav, renderHome } from './screens/home.js';
 import { bootstrapApp } from './screens/setup.js';
 import { hideSettings, openSettings } from './settings-modal.js';
-import { saveTsvProgress, setSubtab } from './translate/files.js';
 import { gExportTxtBtn, gImportTxtBtn, saveGlossary } from './translate/glossary.js';
 import { hideImport } from './translate/import.js';
 import { showReplace } from './translate/replace.js';
@@ -45,42 +44,19 @@ import { initInspector } from './translate/inspector.js';
 })();
 
 // =====================================================================
-// Wire up — editor + global
+// Wire up — global
 // =====================================================================
-btnOpen.addEventListener('click', doOpen);
-btnSave.addEventListener('click', doSave);
-btnFind.addEventListener('click', () => { if (!btnFind.disabled) showFind(); });
-
-findNextBtn.addEventListener('click', () => performFind(true));
-findCancelBtn.addEventListener('click', hideFind);
-
-findInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); performFind(true); }
-  else if (e.key === 'Escape') { e.preventDefault(); hideFind(); }
-});
-
 aboutCloseBtn.addEventListener('click', hideAbout);
-
-[findOverlay, aboutOverlay].forEach((overlay) => {
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      overlay.classList.add('hidden');
-      overlay.setAttribute('aria-hidden', 'true');
-    }
-  });
-});
+aboutOverlay.addEventListener('click', (e) => { if (e.target === aboutOverlay) hideAbout(); });
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (!findOverlay.classList.contains('hidden')) { hideFind(); return; }
     if (!aboutOverlay.classList.contains('hidden')) { hideAbout(); return; }
     if (!settingsOverlay.classList.contains('hidden')) { hideSettings(); return; }
     if (!importOverlay.classList.contains('hidden')) { hideImport(); return; }
   }
-  // Ctrl+E / Ctrl+I — Експорт/Імпорт TXT (тільки коли в Глосарії та поза input'ами)
-  const tag = e.target && e.target.tagName;
-  const inField = (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable));
-  if (state.mode === 'translate' && tState.subtab === 'glossary' && e.ctrlKey && !e.shiftKey && !e.altKey) {
+  // Ctrl+E / Ctrl+I — Експорт/Імпорт TXT глосарію
+  if (state.mode === 'translate' && e.ctrlKey && !e.shiftKey && !e.altKey) {
     if (e.key === 'e' || e.key === 'E') {
       e.preventDefault();
       if (gExportTxtBtn) gExportTxtBtn.click();
@@ -90,22 +66,6 @@ document.addEventListener('keydown', (e) => {
       e.preventDefault();
       if (gImportTxtBtn) gImportTxtBtn.click();
       return;
-    }
-  }
-  // Ctrl+→ / Ctrl+← — наступний/попередній файл у Translate (Files subtab)
-  if (state.mode === 'translate' && tState.subtab !== 'glossary' && e.ctrlKey && !inField) {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-      const fileSel = tFileSel;
-      if (fileSel && fileSel.options.length > 1) {
-        e.preventDefault();
-        const dir = e.key === 'ArrowRight' ? 1 : -1;
-        const cur = fileSel.selectedIndex;
-        const next = Math.max(0, Math.min(fileSel.options.length - 1, cur + dir));
-        if (next !== cur) {
-          fileSel.selectedIndex = next;
-          fileSel.dispatchEvent(new Event('change'));
-        }
-      }
     }
   }
 });
@@ -152,39 +112,21 @@ window.addEventListener('drop', async (e) => {
       // Підказка про імпорт в глосарій
       if (confirm('Імпортувати "' + (path.split(/[/\\]/).pop()) + '" у Глосарій?')) {
         setMode('translate');
-        setSubtab('glossary');
         if (gImportTxtBtn) gImportTxtBtn.click();
       }
     }
   }
 });
 
-// Menu handlers — context-aware Ctrl+S
-window.kh1.onMenu('menu:open', () => {
-  if (state.mode === 'editor') doOpen();
-});
+// Menu handlers (Ctrl+S / Ctrl+F / Ctrl+H — у режимі перекладу)
 window.kh1.onMenu('menu:save', () => {
-  if (state.mode === 'editor') doSave();
-  else if (state.mode === 'translate') {
-    // У глосарії — зберігаємо саме глосарій (а не TSV конкретного файлу)
-    if (tState.subtab === 'glossary') saveGlossary(false);
-    else saveTsvProgress();
-  }
+  if (state.mode === 'translate') saveGlossary(false);
 });
 window.kh1.onMenu('menu:find', () => {
-  if (state.mode === 'editor' && !btnFind.disabled) showFind();
-  else if (state.mode === 'translate') {
-    // У глосарії — фокус на g-search; інакше на t-search
-    if (tState.subtab === 'glossary' && gSearch) { gSearch.focus(); gSearch.select(); }
-    else { tSearchInput.focus(); tSearchInput.select(); }
-  }
-});
-window.kh1.onMenu('menu:find-next', () => {
-  if (state.mode === 'editor' && !btnFind.disabled) findNextFromShortcut();
+  if (state.mode === 'translate' && gSearch) { gSearch.focus(); gSearch.select(); }
 });
 window.kh1.onMenu('menu:about', showAbout);
 window.kh1.onMenu('menu:replace', () => { if (state.mode === 'translate') showReplace(); });
-window.kh1.onMenu('menu:mode-editor', () => setMode('editor'));
 window.kh1.onMenu('menu:mode-translate', () => setMode('translate'));
 window.kh1.onMenu('menu:mode-kerning', () => setMode('kerning'));
 

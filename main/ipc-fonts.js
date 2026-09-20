@@ -273,31 +273,21 @@ ipcMain.handle('kerning:autoFindDds', async (_e, knjPath) => {
 });
 
 ipcMain.handle('app:getCharMap', async () => {
-  // Повертає об'єкт { byte: char } — об'єднання KH1SYS_Text + ukrainian overlay.
-  // Used by Kerning view to label glyphs as "#192 (г)".
+  // Повертає { map: { byte: char } (KH1SYS_Text), native: { glyphIdx: char } }.
+  // Kerning-режим підписує гліфи як "#40 (H)" / "#224 19 00 (А)".
   try {
     const single = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'kh1sys_text.json'), 'utf8'));
-    const ua = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'ukrainian.json'), 'utf8'));
     const out = {};
     for (const [b, c] of Object.entries(single)) {
       const n = parseInt(b, 10);
       if (!Number.isFinite(n)) continue;
       if (typeof c === 'string') out[n] = c;
     }
-    if (ua && ua.decode) {
-      for (const [b, c] of Object.entries(ua.decode)) {
-        const n = parseInt(b, 10);
-        if (!Number.isFinite(n)) continue;
-        if (typeof c === 'string') out[n] = c;
-      }
-    }
-    // Нативна кирилиця: індекси гліфів 224+ (коди 19 NN) → літера, для підписів у Kerning.
+    // Нативна кирилиця: індекси гліфів 224+ (коди 19 NN) → літера — з тієї самої
+    // карти, що й кодек (користувацька kh1-native-map.json, якщо є).
     const native = {};
     try {
-      const nat = JSON.parse(await fs.readFile(path.join(DATA_DIR, 'kh1_native.json'), 'utf8'));
-      for (const [ch, pair] of Object.entries(nat.map || {})) {
-        if (Array.isArray(pair) && pair.length === 2) native[((pair[0] - 0x19) << 8) + pair[1] + 0xE0] = ch;
-      }
+      for (const [code, ch] of codec.loadNative().decodeMap) native[((code >> 8) - 0x19) * 256 + (code & 0xFF) + 0xE0] = ch;
     } catch (_) {}
     return { ok: true, map: out, native };
   } catch (e) {
@@ -308,7 +298,7 @@ ipcMain.handle('app:getCharMap', async () => {
 ipcMain.handle('kerning:encodeText', async (_e, text) => {
   if (typeof text !== 'string' || text.length === 0) return { ok: true, bytes: [] };
   try {
-    const r = await runWorker({ op: 'encode', text, scheme: codec.getDefaultScheme() });
+    const r = await runWorker({ op: 'encode', text });
     const arr = Array.from(new Uint8Array(r.bytes));
     return { ok: true, bytes: arr };
   } catch (e) {

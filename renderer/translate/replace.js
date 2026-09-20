@@ -1,12 +1,11 @@
 import { repApply, repCancel, repCase, repFind, repOverlay, repPreview, repRegex, repReplace, repStat, repWholeWord } from '../core/dom.js';
 import { toast } from '../core/log.js';
-import { gState, tState } from '../core/state.js';
-import { isRealTranslation, refreshProgress, renderRows, scheduleTsvAutoSave } from './files.js';
+import { gState } from '../core/state.js';
 import { refreshGlossaryProgress, renderGlossaryRows, saveGlossary } from './glossary.js';
 import { snapshotGlossary } from './history.js';
 
 // =====================================================================
-// Find & Replace (Ctrl+H) — у глосарії + у відкритому файлі
+// Find & Replace (Ctrl+H) — у глосарії
 // =====================================================================
 export function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -97,25 +96,16 @@ export function updateReplaceStat() {
       }
     }
   }
-  let openSlots = 0;
-  if (tState.currentRel && tState.slots && tState.slots.length) {
-    for (const slot of tState.slots) {
-      if (isRealTranslation(slot) && countOcc(slot.ukText, find, opts) > 0) openSlots++;
-    }
-  }
-  if (totalOcc === 0 && openSlots === 0) {
-    repStat.textContent = 'Не знайдено в глосарії або відкритому файлі.';
+  if (totalOcc === 0) {
+    repStat.textContent = 'Не знайдено в глосарії.';
     repApply.disabled = true;
     repApply.textContent = 'Замінити';
     if (repPreview) repPreview.classList.add('hidden');
     return;
   }
-  const parts = [];
-  if (totalOcc) parts.push(totalOcc + ' входжень у ' + entries + ' записах глосарія');
-  if (openSlots) parts.push(openSlots + ' слот(ів) у відкритому файлі');
-  repStat.textContent = 'Знайдено ' + parts.join(', ');
+  repStat.textContent = 'Знайдено ' + totalOcc + ' входжень у ' + entries + ' записах глосарія';
   repApply.disabled = false;
-  repApply.textContent = 'Замінити в ' + (entries + openSlots) + ' місцях';
+  repApply.textContent = 'Замінити в ' + entries + ' місцях';
 
   // Preview перших 5 змін
   if (repPreview && previewItems.length) {
@@ -139,7 +129,7 @@ export async function doReplaceAll() {
   const repl = repReplace.value;
   const opts = getReplaceOpts();
   if (!find) return;
-  if (!window.confirm('Замінити "' + find + '" → "' + repl + '" у глосарії та відкритому файлі?')) return;
+  if (!window.confirm('Замінити "' + find + '" → "' + repl + '" у глосарії?')) return;
 
   snapshotGlossary('Find/Replace');
   let changedGloss = 0;
@@ -151,32 +141,14 @@ export async function doReplaceAll() {
     changedGloss++;
   }
 
-  let changedSlots = 0;
-  if (tState.currentRel && tState.slots && tState.slots.length) {
-    for (const slot of tState.slots) {
-      if (!isRealTranslation(slot)) continue;
-      if (countOcc(slot.ukText, find, opts) === 0) continue;
-      slot.ukText = replaceAll(slot.ukText, find, repl, opts);
-      changedSlots++;
-    }
-  }
-
   if (changedGloss) {
     gState.dirty = true;
     await saveGlossary(true);
     renderGlossaryRows();
     refreshGlossaryProgress();
   }
-  if (changedSlots) {
-    tState.dirty = true;
-    renderRows();
-    refreshProgress();
-    scheduleTsvAutoSave();
-  }
   hideReplace();
-  toast(window.i18n.t('toastReplaceCount', {n: changedGloss}) +
-    (changedSlots ? window.i18n.t('toastReplaceSlots', {n: changedSlots}) : ''),
-    'success', 5000);
+  toast(window.i18n.t('toastReplaceCount', {n: changedGloss}), 'success', 5000);
 }
 
 repFind.addEventListener('input', updateReplaceStat);

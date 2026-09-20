@@ -19,7 +19,7 @@ test('msg-v361: parse reads count, offsets, sentinel and entries', () => {
   assert.equal(p.offsetCount, 5);
   assert.equal(p.hasTrailingSentinel, true);
   assert.equal(p.usesCdPadding, true);
-  assert.equal(codec.decode(p.entries[1].bytes, { overlay: false }), 'Ability equipped.{lf}Nice.');
+  assert.equal(codec.decode(p.entries[1].bytes), 'Ability equipped.{lf}Nice.');
   assert.equal(p.entries[0].offset, p.textOffset);
   // Без sentinel і з 0x00-padding теж парситься.
   const p2 = msg.parseMessageV361(buildMsgV361(STRINGS, { sentinel: false, cdPad: false }));
@@ -76,8 +76,9 @@ test('msg-v361: classify + format handler round-trip through the registry', asyn
     assert.equal(r.errors.length, 1);
     assert.match(r.errors[0].message, /\{eol\}/);
     const q = msg.parseMessageV361(r.outputs[0].buf);
-    assert.equal(codec.decode(q.entries[0].bytes), 'Завантажити цю гру?');
-    assert.equal(codec.decode(q.entries[1].bytes, { overlay: false }), 'Ability equipped.{lf}Nice.');
+    // sysmsg збирається гібридно: схожі на латиницю а/р/у — 1 байт латинського гліфа
+    assert.equal(codec.decode(q.entries[0].bytes), 'Зaвaнтaжити цю гpy?');
+    assert.equal(codec.decode(q.entries[1].bytes), 'Ability equipped.{lf}Nice.');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -92,16 +93,16 @@ test('msg-v361: real UK_sysmsg.binl round-trips', { skip: !fs.existsSync(REAL) }
   assert.equal(p.count, 488);
   assert.deepEqual([...msg.composeMessageV361(p, new Map())], [...buf]);
   // Діалект sysmsg: «Kingdom Hearts» з відступом 0D 06 00 — «H» не ховається у токені.
-  assert.match(codec.decode(p.entries[9].bytes, { overlay: false, cmd: 'sysmsg' }), /^Kingdom\{0x0D,0x06,0x00\}Hearts has not been properly/);
+  assert.match(codec.decode(p.entries[9].bytes, { cmd: 'sysmsg' }), /^Kingdom\{0x0D,0x06,0x00\}Hearts has not been properly/);
   // Кожен запис декодується і кодується назад без втрат.
   for (const e of p.entries) {
-    const t = codec.decode(e.bytes, { overlay: false, cmd: 'sysmsg' });
-    assert.deepEqual([...codec.encode(t, { overlay: false })], [...e.bytes], 'entry #' + e.index + ': ' + t);
+    const t = codec.decode(e.bytes, { cmd: 'sysmsg' });
+    assert.deepEqual([...codec.encode(t)], [...e.bytes], 'entry #' + e.index + ': ' + t);
     assert.doesNotMatch(t, /\{eol\}/, 'entry #' + e.index + ' has a bare 0x00 outside commands: ' + t);
   }
   const rep = new Map(p.entries.map(e => [e.index, Buffer.concat([e.bytes, codec.encode(' Ю')])]));
   const out = msg.composeMessageV361(p, rep);
   const q = msg.parseMessageV361(out);
   assert.equal(q.count, 488);
-  assert.equal(q.entries[487].bytes.length, p.entries[487].bytes.length + 2);
+  assert.equal(q.entries[487].bytes.length, p.entries[487].bytes.length + 3);   // ' ' + 19 NN
 });

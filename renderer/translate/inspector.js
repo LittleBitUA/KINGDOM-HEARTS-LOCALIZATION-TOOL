@@ -1,11 +1,12 @@
 import { getCurrentGameId } from '../app-shell.js';
-import { gRows, tRows } from '../core/dom.js';
+import { gRows } from '../core/dom.js';
 import { toast } from '../core/log.js';
-import { gState, tState } from '../core/state.js';
+import { gState } from '../core/state.js';
+import { describeFile } from './files.js';
 
 // =====================================================================
 // Inspector («Інформація») праворуч від таблиці перекладу.
-// Показує контекст вибраного рядка (глосарій або файл): файл, ID, входження,
+// Показує контекст вибраного рядка глосарію: файл (+світ/кімната KH1), ID, входження,
 // статус, токени; дії «Копіювати оригінал» / «Скинути переклад» працюють
 // через textarea рядка + подію input, тож існуючі обробники редагування
 // (state, dirty, автозбереження) відпрацьовують як при ручному вводі.
@@ -21,38 +22,29 @@ const insp = {
   tokens: el('insp-tokens'), copyEn: el('insp-copy-en'), reset: el('insp-reset'),
   copyTokens: el('insp-copy-tokens'), note: el('insp-note'), collapse: el('insp-collapse')
 };
-let selected = null;   // { row, en, kind: 'glossary'|'file' }
+let selected = null;   // { row, en }
 
 function baseName(rel) { return String(rel || '').split(/[\\/]/).pop(); }
 
-// Що за рядок: з глосарію (data-gidx) чи з файла (data-off).
+// Рядок глосарію (data-gidx) → що показати в панелі.
 function describe(row) {
-  if (!row) return null;
-  if (row.dataset.gidx !== undefined) {
-    const e = gState.entries[parseInt(row.dataset.gidx, 10)];
-    if (!e) return null;
-    const occ = (e.occurrences && e.occurrences[0]) || null;
-    const rel = e.file || (occ && occ.rel) || '';
-    const index = e.index != null ? e.index : (occ ? occ.index : null);
-    const files = e.fileCount > 1 ? ' +' + (e.fileCount - 1) : '';
-    return {
-      kind: 'glossary', en: e.english,
-      file: rel ? baseName(rel) + files : '—',
-      id: index != null ? '#' + index : '—',
-      count: String(e.count || 1)
-    };
-  }
-  if (row.dataset.off !== undefined) {
-    const slot = (tState.slots || []).find(s => String(s.offset) === row.dataset.off);
-    if (!slot) return null;
-    return {
-      kind: 'file', en: slot.english,
-      file: baseName(tState.currentRel) || '—',
-      id: '#' + slot.index + ' · 0x' + slot.offset.toString(16).toUpperCase().padStart(4, '0'),
-      count: String(slot.linkedCount || 1)
-    };
-  }
-  return null;
+  if (!row || row.dataset.gidx === undefined) return null;
+  const e = gState.entries[parseInt(row.dataset.gidx, 10)];
+  if (!e) return null;
+  const occ = (e.occurrences && e.occurrences[0]) || null;
+  const rel = e.file || (occ && occ.rel) || '';
+  const index = e.index != null ? e.index : (occ ? occ.index : null);
+  const files = e.fileCount > 1 ? ' +' + (e.fileCount - 1) : '';
+  // Світ/кімната KH1 (.ard) — щоб розуміти, де звучить репліка.
+  const info = rel ? describeFile(rel) : null;
+  const where = info ? info.world + (info.room ? ' / ' + info.room : '') : '';
+  return {
+    en: e.english,
+    file: rel ? baseName(rel) + files : '—',
+    fileTitle: rel + (where ? '\n' + where : ''),
+    id: index != null ? '#' + index : '—',
+    count: String(e.count || 1)
+  };
 }
 
 function statusOf(row) {
@@ -105,9 +97,9 @@ export function selectRow(row) {
   if (!d) return;
   if (selected && selected.row !== row) selected.row.classList.remove('selected');
   row.classList.add('selected');
-  selected = { row, en: d.en, kind: d.kind };
+  selected = { row, en: d.en };
   insp.file.textContent = d.file;
-  insp.file.title = d.file;
+  insp.file.title = d.fileTitle || d.file;
   insp.id.textContent = d.id;
   insp.count.textContent = d.count;
   insp.tokens.textContent = tokensText(d.en);
@@ -130,7 +122,7 @@ function setUk(text) {
 export function initInspector() {
   if (!insp.root) return;
   clear();
-  for (const box of [gRows, tRows]) {
+  for (const box of [gRows]) {
     if (!box) continue;
     // Вибір рядка: клік або фокус у textarea (Tab по рядках теж працює).
     box.addEventListener('click', (e) => {
@@ -146,7 +138,7 @@ export function initInspector() {
     });
     // Перерендер списку (побудова, фільтр, сортування) — вибраного рядка вже нема.
     new MutationObserver(() => {
-      if (selected && !box.contains(selected.row) && !(gRows && gRows.contains(selected.row)) && !(tRows && tRows.contains(selected.row))) clear();
+      if (selected && !box.contains(selected.row)) clear();
     }).observe(box, { childList: true });
   }
   insp.copyEn.addEventListener('click', () => { if (selected) setUk(selected.en); });

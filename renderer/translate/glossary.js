@@ -5,7 +5,7 @@ import { autoFixStructure, syncPaddingFromEn, tokenIssueText, validateTokens } f
 import { gState, tState } from '../core/state.js';
 import { kState } from '../kerning/kerning.js';
 import { openSettings } from '../settings-modal.js';
-import { exportFileTxt, flushGlossaryAutoSave, importFileTxt, refreshProgress, renderRows, scheduleGlossaryAutoSave, setSubtab } from './files.js';
+import { flushGlossaryAutoSave, scheduleGlossaryAutoSave, setOpProgress } from './files.js';
 import { snapshotGlossary, undoLastBulk, canUndoBulk, lastBulkLabel, onHistoryChange } from './history.js';
 import { buildGlossaryTxtMgs, buildGlossaryTxtMgsAppend, looksLikeMgsTxt, parseGlossaryTxtMgs } from './glossary-txt-mgs.js';
 
@@ -42,7 +42,7 @@ export async function buildGlossary() {
   gState.busy = true;
   gBuild.disabled = true;
   tProgress.classList.add('busy');
-  tProgress.textContent = window.i18n.t('gScanning');
+  setOpProgress(window.i18n.t('gScanning'));
 
   try {
     const r = await window.kh1.translate.buildGlossary({
@@ -69,6 +69,8 @@ export async function buildGlossary() {
     gState.busy = false;
     gBuild.disabled = false;
     tProgress.classList.remove('busy');
+    setOpProgress('');
+    refreshGlossaryProgress();
   }
 }
 
@@ -303,10 +305,7 @@ export function refreshGlossaryProgress() {
     }
   }
 
-  if (tState.subtab === 'glossary') {
-    tProgress.textContent = gStat.textContent;
-    tStatus.textContent = 'Глосарій · ' + (gState.dirty ? '● незбережено' : 'збережено');
-  }
+  tStatus.textContent = window.i18n.t(gState.dirty ? 'gStatusUnsaved' : 'gStatusSaved');
 
   gSave.disabled = !tState.settings.tsvDir;
   // compose precondition: ENG + DONE (MYFILES опційна для всіх ігор)
@@ -434,6 +433,7 @@ export async function composeAllFiles() {
     gState.busy = false;
     gComposeAll.disabled = false;
     tProgress.classList.remove('busy');
+    setOpProgress('');
     refreshGlossaryProgress();
   }
 }
@@ -497,17 +497,6 @@ export async function autoWrapGlossary() {
     }
     if (changed) {
       gState.dirty = true;
-      // Synchronize в активний файл якщо він відкритий
-      if (tState.currentRel) {
-        for (const slot of tState.slots) {
-          if (gState.translations[slot.english] && slot.ukText !== gState.translations[slot.english]) {
-            slot.ukText = gState.translations[slot.english];
-            tState.dirty = true;
-          }
-        }
-        renderRows();
-        refreshProgress();
-      }
       renderGlossaryRows();
       refreshGlossaryProgress();
       scheduleGlossaryAutoSave();
@@ -528,8 +517,6 @@ if (gValidateBtn) {
       return;
     }
     toast(window.i18n.t('toastValidateBad', { n: bad, total }), 'error', 7000);
-    // Switch to glossary view + filter to show only problematic entries via search hack
-    setSubtab('glossary');
     // Re-render so token-warn classes are re-applied (in case glossary loaded fresh)
     renderGlossaryRows();
   });
@@ -584,12 +571,11 @@ if (gCleanBrokenBtn) {
 // Ім'я txt-глосарію за грою: kh1_glossary.txt, recom_glossary.txt, bbs_…, ddd_….
 const GLOSSARY_TXT_PREFIX = { 'kh1-final-mix': 'kh1', 'kh-re-com': 'recom', 'kh-bbs-final-mix': 'bbs', 'kh-ddd': 'ddd' };
 function glossaryTxtName() {
-  const g = getCurrentGame();
   const prefix = GLOSSARY_TXT_PREFIX[getCurrentGameId()] || String(getCurrentGameId() || 'kh');
   // BBS/Re:CoM/DDD — формат MGS1: один файл перекладу гри (bbs.txt), KH1 — kh1_glossary.txt
-  return (g && g.singleList) ? prefix + '.txt' : prefix + '_glossary.txt';
+  return isMgsTxtGame() ? prefix + '.txt' : prefix + '_glossary.txt';
 }
-function isMgsTxtGame() { const g = getCurrentGame(); return !!(g && g.singleList); }
+function isMgsTxtGame() { const g = getCurrentGame(); return !!(g && g.txtFormat === 'mgs'); }
 
 // Ключ з txt → ключ індексу: у заголовку MGS-формату переноси показані як ⏎ і
 // відновлюються як '\n'; ключі KH1 містять {lf} — пробуємо обидва варіанти.

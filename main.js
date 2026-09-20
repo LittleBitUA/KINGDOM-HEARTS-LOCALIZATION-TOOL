@@ -5,7 +5,6 @@
 //   worker-pool.js   — пул codec-worker'ів
 //   settings.js      — settings-файл, per-game dirs, міграції
 //   menu.js          — application menu + мова main-процесу
-//   ipc-editor.js    — Editor-режим (file:open/save)
 //   ipc-translate.js — Translate-режим (extract/compose/glossary/TSV)
 //   ipc-setup.js     — onboarding (OpenKH/KHPCPatchManager, unpack)
 //   ipc-fonts.js     — BBS font editor + KH1 kerning
@@ -19,7 +18,6 @@ const menu = require('./main/menu');
 const workerPool = require('./main/worker-pool');
 const { loadSettings, DEFAULT_LOC_ROOT, ensureLocalizationDirs } = require('./main/settings');
 
-require('./main/ipc-editor');
 require('./main/ipc-translate');
 require('./main/ipc-setup');
 require('./main/ipc-fonts');

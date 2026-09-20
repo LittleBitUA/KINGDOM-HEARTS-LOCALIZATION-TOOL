@@ -3,8 +3,7 @@ import { importApplyBtn, importCancelBtn, importConflicts, importOverlay, import
 
 import { toast } from '../core/log.js';
 import { validateTokens } from '../core/shared.js';
-import { gState, tState } from '../core/state.js';
-import { isRealTranslation, refreshProgress, renderRows } from './files.js';
+import { gState } from '../core/state.js';
 import { refreshGlossaryProgress, renderGlossaryRows, saveGlossary } from './glossary.js';
 import { snapshotGlossary } from './history.js';
 
@@ -384,30 +383,11 @@ export function applyImport(includeConflicts) {
   renderGlossaryRows();
   refreshGlossaryProgress();
 
-  // 1) Одразу зберегти глосарій на диск (без чекання auto-save)
+  // Одразу зберегти глосарій на диск (без чекання auto-save)
   saveGlossary(true);
 
-  // 2) Оновити слоти відкритого файлу — підтягнути нові переклади з глосарія
-  let updatedInFile = 0;
-  if (tState.currentRel && tState.slots.length) {
-    for (const slot of tState.slots) {
-      if (isRealTranslation(slot)) continue; // не чіпаємо що користувач сам вводив
-      const fromGloss = gState.translations[slot.english];
-      if (fromGloss && fromGloss !== slot.english) {
-        slot.ukText = fromGloss;
-        updatedInFile++;
-      }
-    }
-    if (updatedInFile > 0) {
-      renderRows();
-      refreshProgress();
-    }
-  }
-
   hideImport();
-  const msg = 'Застосовано ' + applied + ' перекладів у глосарій · збережено' +
-    (updatedInFile ? ' · оновлено ' + updatedInFile + ' слотів у відкритому файлі' : '');
-  toast(msg, 'success', 6000);
+  toast('Застосовано ' + applied + ' перекладів у глосарій · збережено', 'success', 6000);
 }
 
 export function hideImport() {

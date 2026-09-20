@@ -413,17 +413,6 @@ body::after {
 .toolbar-tools .kh-btn { padding: 6px 12px; font-size: 12px; }
 .toolbar-spacer { flex: 1 1 auto; }
 
-.file-status {
-  margin-left: auto;
-  font-size: 13px;
-  color: var(--khn-text-muted);
-  font-style: italic;
-  padding-right: 8px;
-  max-width: 60%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* === Buttons === */
 .kh-btn {
@@ -509,44 +498,9 @@ body::after {
 
 .kh-btn .icon { font-size: 15px; line-height: 1; }
 
-/* === Editor === */
-.editor-wrap {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-  min-height: 0;
-}
 
-#editor {
-  width: 100%;
-  height: 100%;
-  resize: none;
-  background: transparent;
-  color: var(--text);
-  border: none;
-  outline: none;
-  padding: 14px;
-  font-family: "Cascadia Code", "JetBrains Mono", "Consolas", "Courier New", monospace;
-  font-size: 14px;
-  line-height: 1.55;
-  white-space: pre;
-  overflow: auto;
-  user-select: text;
-  caret-color: var(--accent);
-  tab-size: 4;
-}
 
-#editor::placeholder {
-  color: var(--text-muted);
-  font-style: italic;
-}
 
-#editor::selection {
-  background: rgba(255, 215, 90, 0.35);
-}
 
 /* === Statusbar === */
 .statusbar {
@@ -562,7 +516,6 @@ body::after {
   gap: 10px;
 }
 
-#cursor-info, #byte-info { white-space: nowrap; }
 
 .brand {
   color: var(--accent);
@@ -644,15 +597,7 @@ body::after {
   margin-top: 16px;
 }
 
-.find-message {
-  margin-top: 10px;
-  min-height: 18px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
 
-.find-message.error { color: var(--danger); }
-.find-message.success { color: var(--success); }
 
 .about-body {
   font-size: 13px;
@@ -1118,44 +1063,11 @@ body::after {
 }
 .lang-flag { font-size: 16px; line-height: 1; }
 
-/* === Translate subtabs === */
 #view-translate {
   grid-template-rows: auto 1fr auto;
 }
 .t-tabs-bar { padding: 8px 12px; }
 .spacer { flex: 1; }
-.t-subtabs {
-  display: inline-flex;
-  background: rgba(10, 10, 10, 0.6);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 3px;
-  gap: 2px;
-}
-.subtab-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.subtab-btn:hover { color: var(--text); background: rgba(255, 215, 90,0.1); }
-.subtab-btn.active {
-  background: linear-gradient(180deg,
-    rgba(255, 180, 140, 0.4) 0%,
-    var(--kh-red-1) 25%,
-    var(--kh-red-2) 75%,
-    rgba(255, 140, 100, 0.45) 100%);
-  color: #fff;
-  border: 2px solid var(--kh-yellow);
-  padding: 5px 14px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  box-shadow: var(--kh-shadow-red), 0 0 0 1px rgba(255, 200, 100, 0.45);
-}
 
 .t-subview {
   display: flex;
@@ -1411,10 +1323,8 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   .g-dash-label { font-size: 10px; }
 }
 
-/* Narrow (900px = min): робимо file-status коротшим, дозволяємо t-toolbar
-   та import-stats обгортатися. */
+/* Narrow (900px = min): дозволяємо t-toolbar та import-stats обгортатися. */
 @media (max-width: 980px) {
-  .file-status { max-width: 40%; font-size: 12px; }
   .t-toolbar { gap: 6px; }
   .kh-select { min-width: 200px; flex: 1 1 200px; }
   .import-stats { grid-template-columns: repeat(2, 1fr); }
@@ -2117,21 +2027,6 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   font-weight: 600;
 }
 
-/* Inline label + compact select (Editor toolbar decode-mode switch) */
-.kh-inline-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-muted, #9aa3b5);
-  white-space: nowrap;
-}
-.kh-select-sm {
-  padding: 2px 6px;
-  font-size: 12px;
-  min-height: 0;
-  height: 26px;
-}
 
 /* ---- UA fonts view ---- */
 #view-ua-fonts .uf-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1; }
@@ -2900,7 +2795,6 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
   border-color: var(--line);
 }
 .toolbar-tools .kh-btn, .t-toolsbar .kh-btn { padding: 0 11px; font-size: 12.5px; height: 30px; }
-.file-status { color: var(--text-secondary); }
 
 /* --- Buttons: secondary за замовчуванням, primary — одна золота --- */
 .kh-btn {
@@ -2957,7 +2851,7 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .kh-search {
   position: relative;
   display: inline-flex; align-items: center;
-  flex: 1 1 220px; min-width: 180px; max-width: 460px;
+  flex: 1 1 200px; min-width: 150px; max-width: 360px;
 }
 .kh-search .ico { position: absolute; left: 10px; color: var(--text-dim); pointer-events: none; }
 .kh-search .kh-input { width: 100%; padding-left: 32px; }
@@ -3018,22 +2912,8 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .t-module-titles { min-width: 0; }
 .t-module-title { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: 0.2px; color: var(--text-primary); line-height: 1.15; }
 .t-module-game { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
-.t-subtabs { display: inline-flex; gap: 2px; margin-left: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
-.subtab-btn {
-  height: 28px; padding: 0 14px;
-  border: 0; border-radius: 6px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12.5px; font-weight: 500;
-  text-shadow: none;
-}
-.subtab-btn:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.05); }
-.subtab-btn.active { background: rgba(211, 173, 82, 0.16); color: var(--text-primary); border: 0; padding: 0 14px; box-shadow: inset 0 0 0 1px rgba(211, 173, 82, 0.35); }
-.t-safe { margin-left: 6px; }
+.t-safe { margin-left: 4px; }
 .t-module-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.t-module-fileprog { font-size: 12.5px; color: var(--text-secondary); }
-.subtab-glossary .t-module-fileprog { display: none; }
-.single-list .t-subtabs, .single-list #t-subview-files { display: none; }
 .t-prog { min-width: 320px; }
 .t-prog-line { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--text-secondary); }
 .t-prog-nums { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -3047,6 +2927,7 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .t-dot.red { background: var(--c-red); }
 .t-dot.gray { background: var(--c-gray); }
 .t-progress { color: var(--text-secondary); background: transparent; border: 0; padding: 0; font-size: 12.5px; }
+.t-module-op { color: var(--gold); background: rgba(211, 173, 82, 0.1); border: 1px solid rgba(211, 173, 82, 0.35); border-radius: 999px; padding: 4px 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* --- Body: таблиця + inspector --- */
 #view-translate { grid-template-rows: auto minmax(0, 1fr) auto; }
