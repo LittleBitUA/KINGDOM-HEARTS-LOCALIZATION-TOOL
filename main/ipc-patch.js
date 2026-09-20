@@ -4,11 +4,13 @@
 // KHPCPatchManager (<archive>/(original|remastered)/…, Re:CoM — Recom/…) →
 //   patch:build — `KHPCPatchManager <staging>` → <Name>.<kh1|com|bbs|ddd>pcpatch
 //                 поруч (файл для поширення: інші застосовують перетягуванням на exe);
-//   patch:apply — `KHPCPatchManager <archive>.pkg <staging>/<archive>` для кожного
-//                 архіву (партійний патч .pkg; сам менеджер кладе оригінали у
-//                 Image/dt/backup/). Гра при цьому має бути закрита.
-// Автовизначення теки гри у самому менеджері працює лише для типових шляхів
-// Steam/Epic на C:, тому застосовуємо через явний <pkg> <folder>.
+//   patch:apply — `KHPCPatchManager <Name>.<ext>` — те саме, що перетягнути файл
+//                 патчу на exe: менеджер переписує .pkg у грі й кладе оригінали
+//                 у Image/dt/backup/ (довго: .pkg на кілька ГБ). Гра має бути закрита.
+// Теку гри менеджер сам шукає лише на типових шляхах Steam/Epic на C:; інакше
+// питає «drag your en/dt folder» у консолі (Console.ReadLine) — відповідаємо
+// через stdin текою, де лежать .pkg цієї гри. Режим `<pkg> <folder>` НЕ підходить:
+// він пише пропатчений .pkg у `<folder>_out`, а не в гру.
 
 const { ipcMain, app } = require('electron');
 const path = require('path');
@@ -65,9 +67,10 @@ async function copyTree(src, dst, stats, top) {
   return stats;
 }
 
-function runExe(exe, args, cwd, onLine) {
+function runExe(exe, args, cwd, onLine, stdinText) {
   return new Promise((resolve, reject) => {
-    const child = spawn(exe, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const child = spawn(exe, args, { cwd, stdio: [stdinText ? 'pipe' : 'ignore', 'pipe', 'pipe'], windowsHide: true });
+    if (stdinText) { child.stdin.on('error', () => {}); child.stdin.end(stdinText); }
     let last = '';
     const consume = (b) => {
       for (const t of b.toString().split(/\r?\n/)) { const line = t.trim(); if (line) { last = line; onLine(line); } }
@@ -164,18 +167,29 @@ ipcMain.handle('patch:apply', async (_e, payload) => {
   }
   // dryRun — лише план (що у який .pkg піде), без запису.
   if (p.dryRun) return { ok: true, dryRun: true, plan, exe };
+  const file = patchFileFor(gameId);
+  if (!fs.existsSync(file)) return { ok: false, error: 'Спершу «Зібрати патч» — нема ' + file };
+  // усі .pkg однієї гри лежать в одній теці (Image/dt або Image/en) — її й віддаємо менеджеру
+  const imageDirs = [...new Set(plan.map(x => path.dirname(x.pkg)))];
+  if (imageDirs.length !== 1) return { ok: false, error: 'Архіви патчу лежать у різних теках гри: ' + imageDirs.join(' | ') };
+  const imageDir = imageDirs[0];
   const log = [];
   const line = (t) => { log.push(t); sendProgress({ phase: 'apply', line: t + '\n' }); };
   const applied = [];
+  const before = Object.fromEntries(plan.map(x => [x.arc, fs.statSync(x.pkg).mtimeMs]));
   try {
-    for (const { arc, pkg, folder } of plan) {
-      const t0 = Date.now();
-      line('▶ ' + arc + ': ' + pkg);
-      await runExe(exe, [pkg, folder], path.dirname(exe), line);
-      applied.push({ arc, pkg, sec: Math.round((Date.now() - t0) / 1000) });
-      line('✓ ' + arc + ' (' + applied[applied.length - 1].sec + ' с)');
+    const t0 = Date.now();
+    line('▶ KHPCPatchManager ' + path.basename(file) + ' → ' + imageDir);
+    // менеджер спитає теку гри лише якщо не знайде її сам; відповідь чекає у stdin
+    await runExe(exe, [file], path.dirname(exe), line, imageDir + '\r\n');
+    const sec = Math.round((Date.now() - t0) / 1000);
+    for (const { arc, pkg } of plan) {
+      const changed = fs.statSync(pkg).mtimeMs !== before[arc];
+      applied.push({ arc, pkg, sec, changed });
+      line((changed ? '✓ ' : '• ') + arc + (changed ? '' : ' — .pkg не змінився'));
     }
-    const backup = path.join(path.dirname(plan[0].pkg), 'backup');
+    if (!applied.some(a => a.changed)) return { ok: false, error: 'KHPCPatchManager завершився, але жоден .pkg у ' + imageDir + ' не змінився — дивись лог', applied, log };
+    const backup = path.join(imageDir, 'backup');
     return { ok: true, applied, backupDir: fs.existsSync(backup) ? backup : '', log };
   } catch (e) {
     return { ok: false, error: (e && e.message) || String(e), applied, log };
