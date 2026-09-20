@@ -218,7 +218,7 @@ function renderPreview() {
   const y0 = (cv.height - cell * scale) / 2;
   let x = 8, missing = 0, drawn = 0;
   for (const ch of Array.from(text)) {
-    if (ch === ' ') { x += (ckState.widths[glyphOfCode(0x20)] || 5) * S * scale; continue; }
+    if (ch === ' ') { x += Math.round((ckState.line || 26) * 0.35) * S * scale; continue; }   // пробіл у грі ≈ 0,35·line, не ширина гліфа 0
     const code = codeOfChar(ch);
     const idx = code >= 0 ? glyphOfCode(code) : 0;
     if (idx <= 0) { missing++; x += 6 * scale; continue; }

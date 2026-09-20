@@ -199,6 +199,14 @@ function updateLimitBadge(el, entry, ukText) {
   el.title = window.i18n.t('limitBadgeTitle', { n: entry.maxBytes });
 }
 
+// Висота поля перекладу: щоб було видно увесь текст — за кількістю рядків EN/UK
+// (переноси + довгі рядки по ~70 символів), без прокрутки всередині textarea.
+function ukRows(en, uk) {
+  const lines = (txt) => String(txt || '').split('
+').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 70)), 0);
+  return Math.min(12, Math.max(1, lines(en), lines(uk)));
+}
+
 function buildRow(i) {
   const entry = gState.entries[i];
   const ukText = gState.translations[entry.english] || '';
@@ -242,7 +250,7 @@ function buildRow(i) {
   uk.placeholder = 'Український переклад…';
   uk.value = ukText;
   uk.spellcheck = false;
-  uk.rows = Math.min(4, Math.max(1, Math.ceil(entry.english.length / 70)));
+  uk.rows = ukRows(entry.english, ukText);
 
   // файл першого входження (+N інших) — колонка «Файл»
   const file = document.createElement('div');
@@ -406,6 +414,7 @@ gRows.addEventListener('input', (e) => {
   if (!row) return;
   const idx = parseInt(row.dataset.gidx, 10);
   const entry = gState.entries[idx];
+  ta.rows = ukRows(entry.english, ta.value);
   if (!entry) return;
   const v = ta.value;
   if (v.trim()) {

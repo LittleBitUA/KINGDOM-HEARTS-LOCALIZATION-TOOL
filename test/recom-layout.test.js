@@ -35,7 +35,12 @@ test('recom-layout: lineWidths counts glyph advances per line, icons and colors'
   const widths = new Array(6816).fill(10); widths[224 + 0xC0] = 7; widths[0] = 4;
   const font = { count: 6816, widths, map, line: 26 };
   const bytes = Buffer.from([0x41, 0x42, 0x20, 0x0A, 0xF9, 0x43, 0x82, 0xC0, 0xF5, 0x66]);   // "AB " / {color 43}а{icon 66}
-  assert.deepEqual(layout.lineWidths(bytes, font, 26), [24, 33]);
+  // пробіл — не ширина гліфа 0 (4), а round(0.35·line) = 9, як у грі
+  assert.deepEqual(layout.lineWidths(bytes, font, 26), [29, 33]);
+  assert.equal(layout.spaceAdvance(font), 9);
+  // макет-заглушка: EN не влазить → не використовується грою
+  assert.equal(layout.layoutUsable({ w: 250, h: 50, lineHeight: 18 }, [400, 400, 400, 400]), false);
+  assert.equal(layout.layoutUsable({ w: 250, h: 52, lineHeight: 22 }, [300, 280]), true);
 });
 
 test('recom-layout: suggestGeometry keeps original padding, centre and screen bounds', () => {

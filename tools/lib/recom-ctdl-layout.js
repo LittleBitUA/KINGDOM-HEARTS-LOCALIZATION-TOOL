@@ -29,8 +29,15 @@ const LAYOUT_SIZE = 0x30;
 const OFF = { ordinal: 0x01, flags: 0x02, msgId: 0x10, count: 0x14, x: 0x16, y: 0x18, w: 0x1A, h: 0x1C, style: 0x1E, pad: 0x20, lineHeight: 0x22, tail: 0x2C, tailOff: 0x2E };
 const SCREEN_W = 512;
 const SCREEN_H = 416;
-const UNIT_PX = 2 / 3;      // одиниця ширини .binl → px PS2 (HD-атлас 1:1 при 1080p, 3 px на px PS2)
-const MIN_PAD = 24;          // найменший запас W − текст в оригіналі ≈ 2×12 px
+// Одиниця ширини .binl → px PS2. Підібрано за скриншотами (sysfont і evtfont
+// дають 0,70–0,71) і за 19 903 англійськими макетами: при 0,7 і пробілі
+// 0,35·line найтісніший оригінал має запас ≈ 10 px, при 2/3 чи 0,75 частина
+// оригіналів «не влазила б» у власні хмаринки.
+const UNIT_PX = 0.7;
+// Пробіл: гра НЕ бере ширину гліфа 0 (18–20 од. — ширший за «m»), крок ≈ 0,35·line.
+const SPACE_RATIO = 0.35;
+const spaceAdvance = (font) => Math.round(((font && font.line) || 26) * SPACE_RATIO);
+const MIN_PAD = 12;          // найменший запас W − текст в оригіналі ≈ 10–12 px
 const MIN_VPAD = 8;          // H − рядки×lineHeight у типових макетах: 8 (1–2 рядки), 10 (3)
 
 function readLayout(buf) {
@@ -79,7 +86,7 @@ function applyLayoutOverrides(parsed, overrides) {
   return n;
 }
 
-// Ширина рядків повідомлення в одиницях .binl. font = { count, widths, map }
+// Ширина рядків повідомлення в одиницях .binl. font = { count, widths, map, line }
 // (parseHeader з ipc-comkern); ключ таблиці: ASCII → code−0x20, двобайтові →
 // (lead−0x81)·192 + lo + 32 (0x82xx → 224+lo); {icon}/{color} — 2 байти
 // (іконка ≈ ширина комірки).
@@ -87,11 +94,13 @@ function lineWidths(bytes, font, iconWidth) {
   const lines = [];
   let w = 0, i = 0;
   const iw = iconWidth == null ? 26 : iconWidth;
+  const sp = spaceAdvance(font);
   while (i < bytes.length) {
     const c = bytes[i++];
     if (c === 0x0A) { lines.push(w); w = 0; continue; }
     if (c === 0xF5) { i++; w += iw; continue; }
     if (c === 0xF9) { i++; continue; }
+    if (c === 0x20) { w += sp; continue; }
     let code = c;
     if (c >= 0x81 && c <= 0x9F && i < bytes.length) {
       const t = bytes[i];
@@ -104,6 +113,17 @@ function lineWidths(bytes, font, iconWidth) {
   }
   lines.push(w);
   return lines;
+}
+
+// Макет-заглушка: якщо англійський текст сам не влазить у X/Y/W/H (у FORM/SYS
+// усі макети файла однакові 40,40,250×50), розмір вікна задає код гри — такі
+// пропускаємо.
+function layoutUsable(layout, enWidths) {
+  const enMax = Math.max(0, ...enWidths) * UNIT_PX;
+  const lh = layout.lineHeight || 22;
+  if (enMax > layout.w - 2) return false;
+  if (enWidths.length * lh > layout.h + 12) return false;
+  return true;
 }
 
 // suggestGeometry(layout, enWidths, ukWidths, ukLines) → { w, h, x, y }
@@ -141,4 +161,4 @@ function suggestGeometry(layout, enWidths, ukWidths) {
   return { w, h, x, y };
 }
 
-module.exports = { LAYOUT_SIZE, OFF, SCREEN_W, SCREEN_H, UNIT_PX, MIN_PAD, MIN_VPAD, readLayout, writeLayout, applyLayoutOverrides, lineWidths, suggestGeometry, effectiveX };
+module.exports = { LAYOUT_SIZE, OFF, SCREEN_W, SCREEN_H, UNIT_PX, SPACE_RATIO, MIN_PAD, MIN_VPAD, readLayout, writeLayout, applyLayoutOverrides, lineWidths, suggestGeometry, effectiveX, layoutUsable, spaceAdvance };

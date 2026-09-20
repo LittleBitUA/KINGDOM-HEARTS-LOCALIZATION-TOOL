@@ -92,13 +92,14 @@ ipcMain.handle('bubbles:scan', async (_e, payload) => {
       const linesMax = (arr) => arr.reduce((m, w) => Math.max(m, w ? w.length : 0), 0);
       const enWH = enW.slice(); while (enWH.length < linesMax(pages.map(pg => pg.enW))) enWH.push(0);
       const ukWH = ukW ? ukW.slice() : null; if (ukWH) while (ukWH.length < linesMax(ukPages.map(pg => pg.ukW))) ukWH.push(0);
-      const sug = ukWH ? layout.suggestGeometry(L, enWH, ukWH) : null;
+      const usable = layout.layoutUsable(L, enWH);
+      const sug = ukWH && usable ? layout.suggestGeometry(L, enWH, ukWH) : null;
       const fit = ukW ? L.w - Math.max(...ukW) * layout.UNIT_PX : null;
       const uk = pages.some(pg => pg.uk);
       total++;
       if (uk) translated++;
-      if (fit != null && fit < layout.MIN_PAD) over++;
-      items.push({ li, id: L.msgId, count: pages.length, pages, en: pages[0].en, uk: pages[0].uk, x: L.x, y: L.y, w: L.w, h: L.h, style: L.style, lh: L.lineHeight, tail: L.tail, tailOff: L.tailOff, colors: L.colors, enW, ukW, sug, fit });
+      if (usable && fit != null && fit < layout.MIN_PAD) over++;
+      items.push({ li, id: L.msgId, count: pages.length, pages, en: pages[0].en, uk: pages[0].uk, x: L.x, y: L.y, w: L.w, h: L.h, style: L.style, lh: L.lineHeight, tail: L.tail, tailOff: L.tailOff, colors: L.colors, enW, ukW, sug, fit, usable });
     }
     if (items.length) files.push({ rel, items });
   }
@@ -110,7 +111,7 @@ ipcMain.handle('bubbles:scan', async (_e, payload) => {
 });
 
 // bubbles:glyphs — індекси гліфів по рядках (для малювання з атласу у preview):
-//   -1 = іконка (крок = висота рядка), -2-g = пробіл (крок гліфа g, не малюється).
+//   -1 = іконка (крок = висота рядка), -2 = пробіл (крок space, не малюється).
 ipcMain.handle('bubbles:glyphs', async (_e, payload) => {
   const text = (payload && payload.text) || '';
   const name = (payload && payload.font) || 'evtfont';
@@ -125,15 +126,15 @@ ipcMain.handle('bubbles:glyphs', async (_e, payload) => {
     const c = bytes[i++];
     if (c === 0x0A) { lines.push([]); continue; }
     if (c === 0xF5 || c === 0xF9) { i++; if (c === 0xF5) lines[lines.length - 1].push(-1); continue; }
+    if (c === 0x20) { lines[lines.length - 1].push(-2); continue; }   // пробіл: лише крок spaceAdvance, без гліфа
     let code = c;
     if (c >= 0x81 && c <= 0x9F && i < bytes.length) { const t = bytes[i]; if (t >= 0x40 && t <= 0xFC && t !== 0x7F) { code = (c << 8) | t; i++; } }
     let g = 0;
-    if (code === 0x20) { lines[lines.length - 1].push(-2 - (font.map[0] || 0)); continue; }   // пробіл: лише крок, без гліфа
     if (code >= 0x20 && code < 0x80) g = font.map[code - 0x20];
     else if (code > 0xFF) { const k = ((code >> 8) - 0x81) * 192 + (code & 0xFF) + 32; g = k < font.map.length ? font.map[k] : 0; }
     lines[lines.length - 1].push(g);
   }
-  return { ok: true, lines, widths: font.widths, line: font.line, count: font.count };
+  return { ok: true, lines, widths: font.widths, line: font.line, count: font.count, space: layout.spaceAdvance(font) };
 });
 
 ipcMain.handle('bubbles:load', async (_e, payload) => {

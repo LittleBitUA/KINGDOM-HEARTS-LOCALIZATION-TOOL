@@ -40,7 +40,7 @@ function fitOf(f, it) {
   if (!it.ukW) return null;
   return geomOf(f, it).w - maxW(it.ukW) * bState.unitPx;
 }
-const isOver = (f, it) => { const v = fitOf(f, it); return v != null && v < bState.minPad; };
+const isOver = (f, it) => { if (it.usable === false) return false; const v = fitOf(f, it); return v != null && v < bState.minPad; };
 const isDirty = () => JSON.stringify(bState.overrides) !== bState.saved;
 
 function setOverrideOne(f, it, g) {
@@ -78,6 +78,8 @@ function rebuildRows() {
       if (bState.filter === 'over' && !isOver(f, it)) continue;
       if (bState.filter === 'translated' && !it.pages.some(pg => pg.uk)) continue;
       if (bState.filter === 'changed' && !ovOf(f, it)) continue;
+      if (bState.filter === 'unused' && it.usable !== false) continue;
+      if (bState.filter !== 'unused' && bState.filter !== 'all' && it.usable === false) continue;
       if (q && !(relL.includes(q) || it.pages.some(pg => pg.en.toLowerCase().includes(q) || (pg.uk && pg.uk.toLowerCase().includes(q))))) continue;
       rows.push({ f, it });
     }
@@ -97,9 +99,9 @@ function rowEl(r) {
   const g = geomOf(f, it);
   const fit = fitOf(f, it);
   const need = it.ukW ? Math.ceil(maxW(it.ukW) * bState.unitPx) : null;
-  const typeIcon = { bubble: '💬', shout: '💥', system: '▭', frame: '▭', plain: '¶', none: '¶' }[wndTypeOf(it.style)] || '';
+  const typeIcon = it.usable === false ? '⚠' : ({ bubble: '💬', shout: '💥', system: '▭', frame: '▭', plain: '¶', none: '¶' }[wndTypeOf(it.style)] || '');
   d.innerHTML =
-    '<div class="bb-row-head"><span class="bb-type" title="' + esc(t('bbType_' + wndTypeOf(it.style))) + '">' + typeIcon + '</span><span class="bb-file" title="' + esc(f.rel) + '">' + esc(shortRel(f.rel)) + '</span><span class="bb-id">#' + it.id + '</span>' +
+    '<div class="bb-row-head"><span class="bb-type" title="' + esc(it.usable === false ? t('bbUnusedTitle') : t('bbType_' + wndTypeOf(it.style))) + '">' + typeIcon + '</span><span class="bb-file" title="' + esc(f.rel) + '">' + esc(shortRel(f.rel)) + '</span><span class="bb-id">#' + it.id + '</span>' +
     (it.twins && it.twins.length > 1 ? '<span class="bb-twins" title="' + esc(it.twins.map(tw => tw.f.rel).join('\n')) + '">×' + it.twins.length + '</span>' : '') +
     '<span class="bb-geom">' + g.w + '×' + g.h + (need != null ? ' · ' + t('bbNeed') + ' ' + need : '') + '</span>' +
     (fit != null ? '<span class="bb-fit' + (fit < 0 ? ' bad' : (fit < bState.minPad ? ' warn' : '')) + '">' + (fit >= 0 ? '+' : '') + Math.round(fit) + '</span>' : '') + '</div>' +
@@ -155,7 +157,7 @@ function fillInspector() {
   const g = geomOf(r.f, r.it);
   for (const k of ['x', 'y', 'w', 'h']) ui[k].value = g[k];
   const it = r.it;
-  ui.selInfo.textContent = shortRel(r.f.rel) + ' #' + it.id + (it.count > 1 ? '–' + (it.id + it.count - 1) : '') + (it.twins && it.twins.length > 1 ? ' · ' + t('bbTwins', { n: it.twins.length }) : '') + ' · ' + t('bbOrig') + ' ' + it.x + ',' + it.y + ' ' + it.w + '×' + it.h +
+  ui.selInfo.textContent = (it.usable === false ? '⚠ ' + t('bbUnusedTitle') + ' · ' : '') + shortRel(r.f.rel) + ' #' + it.id + (it.count > 1 ? '–' + (it.id + it.count - 1) : '') + (it.twins && it.twins.length > 1 ? ' · ' + t('bbTwins', { n: it.twins.length }) : '') + ' · ' + t('bbOrig') + ' ' + it.x + ',' + it.y + ' ' + it.w + '×' + it.h +
     ' · ' + t('bbLine') + ' ' + it.lh + (it.sug ? ' · ' + t('bbSuggest') + ' ' + it.sug.w + '×' + it.sug.h : '') +
     ' · ' + t('bbType_' + wndTypeOf(it.style)) + ((it.style & 0xFF) ? ' (' + t('bbAlign' + (it.style & 0xFF)) + ')' : '') +
     ' · ' + t('bbTail') + ' ' + tailText(it);
@@ -228,6 +230,7 @@ async function glyphsFor(text, name) {
   if (bState.glyphCache.has(k)) return bState.glyphCache.get(k);
   const r = await window.kh1.bubbles.glyphs({ text, font: name });
   const lines = r && r.ok ? r.lines : null;
+  if (r && r.ok && bState.fonts[name]) bState.fonts[name].space = r.space;
   bState.glyphCache.set(k, lines);
   return lines;
 }
@@ -350,7 +353,7 @@ async function renderPreview() {
   const lines = await glyphsFor(text, name);
   if (bState.sel !== r) return;
   let widthsPs2 = [];
-  const adv = (gi) => (gi === -1 ? (font.line || 26) : (gi < -1 ? (font.widths[-2 - gi] || 0) : (font.widths[gi] || 0)));
+  const adv = (gi) => (gi === -1 ? (font.line || 26) : (gi === -2 ? (font.space || Math.round((font.line || 26) * 0.35)) : (font.widths[gi] || 0)));
   if (font && font.widths && lines) {
     widthsPs2 = lines.map(ln => ln.reduce((a, gi) => a + adv(gi), 0) * u);
   } else if (page.ukW || page.enW) widthsPs2 = (page.uk ? page.ukW : page.enW).map(w => w * u);
