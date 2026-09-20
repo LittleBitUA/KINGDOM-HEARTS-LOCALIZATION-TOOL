@@ -7,6 +7,7 @@ import { cancelAutoSaveTimers, initTranslateMode } from './translate/files.js';
 import { refreshInstallDoneVisibility } from './translate/glossary.js';
 import { enterComKerning } from './kerning/comkern.js';
 import { enterBubbles } from './bubbles/bubbles.js';
+import { enterTextures } from './textures/textures.js';
 import { clearBulkHistory } from './translate/history.js';
 import { initUaFonts } from './uafonts/uafonts.js';
 
@@ -39,6 +40,8 @@ export function enterEditor(gameId) {
   const kerningTab = document.getElementById('mode-kerning');
   const comKerningTab = document.getElementById('mode-com-kerning');
   const bubblesTab = document.getElementById('mode-bubbles');
+  const texturesTab = document.getElementById('mode-textures');
+  if (texturesTab) texturesTab.style.display = isCom ? '' : 'none';
   const bbsFontTab = document.getElementById('mode-bbs-font');
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
   if (comKerningTab) comKerningTab.style.display = isCom ? '' : 'none';
@@ -108,6 +111,10 @@ export function setMode(mode, opts) {
   if (viewBubbles) viewBubbles.classList.toggle('hidden', mode !== 'bubbles');
   const modeBubblesBtn = document.getElementById('mode-bubbles');
   if (modeBubblesBtn) modeBubblesBtn.classList.toggle('active', mode === 'bubbles');
+  const viewTextures = document.getElementById('view-textures');
+  if (viewTextures) viewTextures.classList.toggle('hidden', mode !== 'textures');
+  const modeTexturesBtn = document.getElementById('mode-textures');
+  if (modeTexturesBtn) modeTexturesBtn.classList.toggle('active', mode === 'textures');
   if (viewBbsFont) viewBbsFont.classList.toggle('hidden', mode !== 'bbs-font');
   const viewUaFonts = document.getElementById('view-ua-fonts');
   if (viewUaFonts) viewUaFonts.classList.toggle('hidden', mode !== 'ua-fonts');
@@ -120,11 +127,14 @@ export function setMode(mode, opts) {
   if (mode === 'ua-fonts') initUaFonts();
   if (mode === 'com-kerning') enterComKerning();
   if (mode === 'bubbles') enterBubbles();
+  if (mode === 'textures') enterTextures();
 }
 const _modeComKerningBtn = document.getElementById('mode-com-kerning');
 if (_modeComKerningBtn) _modeComKerningBtn.addEventListener('click', () => setMode('com-kerning'));
 const _modeBubblesBtn = document.getElementById('mode-bubbles');
 if (_modeBubblesBtn) _modeBubblesBtn.addEventListener('click', () => setMode('bubbles'));
+const _modeTexturesBtn = document.getElementById('mode-textures');
+if (_modeTexturesBtn) _modeTexturesBtn.addEventListener('click', () => setMode('textures'));
 const _modeUaFontsBtn = document.getElementById('mode-ua-fonts');
 if (_modeUaFontsBtn) _modeUaFontsBtn.addEventListener('click', () => setMode('ua-fonts'));
 

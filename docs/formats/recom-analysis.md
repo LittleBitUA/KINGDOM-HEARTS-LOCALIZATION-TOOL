@@ -114,9 +114,12 @@ SYNTHESIS, підказки…) — у `remastered/FORM/<n>/FOxxxx.RTM/<LANG>_*.
 (155 файлів `UK_*`). `.imz` — контейнер: `'IMGZ'`, u32 версія 0x100, u32 зсув
 таблиці (0x10), u32 кількість; таблиця `(offset, size)` u32×2 на текстуру;
 далі IMGD (як у KH2: 32bpp RGBA або 8bpp+CLUT, альфа PS2 0x80 = непрозоро;
-усі `UK_*` — 32bpp). `tools/py/recom/imz_tool.py export|import` розпаковує
-їх у PNG і збирає назад у розкладці патчу (`Recom/remastered/…`); шрифти
-(`SYS/0001`) інструмент не чіпає. Ключові файли: `0002/UK_Cockpit.imz`
+усі `UK_*` — 32bpp). У застосунку — вкладка «Текстури» (`main/ipc-textures.js`,
+`tools/lib/recom-imgz.js`, PNG-кодек `tools/lib/png.js` без залежностей):
+мініатюри, перегляд, заміна однієї текстури PNG того самого розміру →
+`DONE/Recom/<rel>`, облік у `PROGRESS/_textures.json`; експорт/імпорт теки PNG.
+Консольний варіант — `tools/py/recom/imz_tool.py export|import` (та сама
+розкладка `Recom/remastered/…`); шрифти (`SYS/0001`) інструменти не чіпають. Ключові файли: `0002/UK_Cockpit.imz`
 (бойовий HUD, 1024×1024), `0103`/`0104/UK_levelup.imz`, `0005/UK_get_card.imz`,
 `0050–0052/UK_card.imz` (22 текстури), `0102/UK_room01.imz`.
 

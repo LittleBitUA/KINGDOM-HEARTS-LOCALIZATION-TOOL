@@ -126,6 +126,16 @@ contextBridge.exposeInMainWorld('kh1', {
     load:   (payload) => ipcRenderer.invoke('bubbles:load', payload),
     save:   (payload) => ipcRenderer.invoke('bubbles:save', payload)
   },
+  textures: {
+    scan:      (payload) => ipcRenderer.invoke('textures:scan', payload),
+    thumb:     (payload) => ipcRenderer.invoke('textures:thumb', payload),
+    pick:      () => ipcRenderer.invoke('textures:pick'),
+    replace:   (payload) => ipcRenderer.invoke('textures:replace', payload),
+    reset:     (payload) => ipcRenderer.invoke('textures:reset', payload),
+    export:    (payload) => ipcRenderer.invoke('textures:export', payload),
+    importDir: (payload) => ipcRenderer.invoke('textures:importDir', payload),
+    reveal:    (payload) => ipcRenderer.invoke('textures:reveal', payload)
+  },
   patch: {
     status: (payload) => ipcRenderer.invoke('patch:status', payload),
     build:  (payload) => ipcRenderer.invoke('patch:build', payload),

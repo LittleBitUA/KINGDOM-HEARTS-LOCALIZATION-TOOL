@@ -306,6 +306,7 @@
     <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-crosshair" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
     <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6.5h12M8 12h12M8 17.5h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="4.5" cy="6.5" r="1.1" fill="currentColor"/><circle cx="4.5" cy="12" r="1.1" fill="currentColor"/><circle cx="4.5" cy="17.5" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="10" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 17l4.5-4.5 3 3 3-3.5 4.5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
     <symbol id="i-lang" viewBox="0 0 24 24"><path d="M4 5.5h9M8.5 4v1.5M11 5.5c-.8 3.6-3 6.4-6 8.3M6.5 8.5c1 2.5 3 4.5 5.5 5.5M12 20l4-9 4 9M13.6 16.5h4.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-heart" viewBox="0 0 454 495"><path fill="currentColor" d="M373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></symbol>
   </svg>
@@ -316,6 +317,7 @@
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
         <button id="mode-com-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeComKerning">Кернінг CoM</button>
         <button id="mode-bubbles" class="mode-btn" type="button" role="tab" data-i18n="modeBubbles">Хмаринки</button>
+        <button id="mode-textures" class="mode-btn" type="button" role="tab" data-i18n="modeTextures">Текстури</button>
         <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
         <button id="mode-ua-fonts" class="mode-btn" type="button" role="tab" data-i18n="modeUaFonts">Шрифти UA</button>
       </div>
@@ -837,6 +839,106 @@
         <span id="bb-status" class="bb-status-text"></span>
         <span id="bb-info" class="statusbar-right"></span>
         <span class="bb-tagline" aria-hidden="true" data-i18n="bbTagline">Серця поєднують світи.</span>
+      </footer>
+    </div>
+
+    <!-- ============ RE:COM TEXTURES VIEW ============ -->
+    <div id="view-textures" class="view hidden">
+      <section class="toolbar tx-toolbar">
+        <button id="tx-scan" class="kh-btn" type="button" data-i18n-title="txScanTitle" title="Перечитати UK_*.imz / UK_*.png із розпакованої гри">
+          <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="txScan">Сканувати</span>
+        </button>
+        <select id="tx-filter" class="kh-select kh-select-narrow" aria-label="Filter">
+          <option value="all" data-i18n="txFilterAll">Усі текстури</option>
+          <option value="replaced" data-i18n="txFilterReplaced">Замінені</option>
+          <option value="orig" data-i18n="txFilterOrig">Не замінені</option>
+        </select>
+        <label class="kh-search tx-search">
+          <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="tx-search" class="kh-input" type="search" data-i18n-placeholder="txSearchPlaceholder" placeholder="Пошук: файл, тека…">
+        </label>
+        <select id="tx-folder" class="kh-select kh-select-narrow" aria-label="Folder">
+          <option value="" data-i18n="txAllFolders">Усі теки</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <button id="tx-import-dir" class="kh-btn" type="button" disabled data-i18n-title="txImportDirTitle" title="Тека з відредагованими PNG (<назва>.imz.<n>.png) — зареєструвати як заміни; незмінені PNG пропускаються">
+          <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="txImportDir">Імпортувати теку PNG</span>
+        </button>
+        <button id="tx-export-all" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="txExportAllTitle" title="Розпакувати всі текстури у PNG (розкладка Recom/remastered/…)">
+          <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="txExportAll">Експортувати всі у PNG</span>
+        </button>
+      </section>
+
+      <section class="tx-body">
+        <div class="bb-pane tx-pane-list">
+          <header class="bb-pane-head">
+            <span class="bb-pane-mark" aria-hidden="true"><svg class="ico"><use href="#i-image"/></svg></span>
+            <h3 class="bb-pane-title"><span data-i18n="txListTitle">Текстури</span> <span id="tx-count" class="bb-pane-count"></span></h3>
+            <span class="spacer"></span>
+            <label class="bb-sort">
+              <span data-i18n="txThumbSize">Мініатюри</span>
+              <select id="tx-size" class="kh-select kh-select-mini" aria-label="Thumbnail size">
+                <option value="120">S</option>
+                <option value="180" selected>M</option>
+                <option value="260">L</option>
+              </select>
+            </label>
+          </header>
+          <div id="tx-grid" class="tx-grid" tabindex="0">
+            <div class="t-empty"><p data-i18n="txEmpty">Натисни «Сканувати» — покажу всі текстури інтерфейсу Re:CoM (UK_*.imz) з написами: FRIENDS, CARDS, LEVEL UP!, підказки меню…</p></div>
+          </div>
+        </div>
+
+        <div class="bb-pane-side tx-side">
+          <div class="bb-card tx-preview-card">
+            <header class="bb-pane-head">
+              <span class="bb-pane-mark" aria-hidden="true"><svg class="ico"><use href="#i-eye"/></svg></span>
+              <h3 class="bb-pane-title" data-i18n="txPreviewTitle">Перегляд</h3>
+              <span class="spacer"></span>
+              <label class="checkbox compact"><input id="tx-checker" type="checkbox" checked><span data-i18n="txChecker">шахівниця</span></label>
+              <div class="bb-zoom">
+                <button id="tx-zoom-out" class="kh-btn kh-btn-icon kh-btn-ghost bb-zoom-btn" type="button" data-i18n-title="bbZoomOut" title="Зменшити" aria-label="Zoom out"><svg class="ico" aria-hidden="true"><use href="#i-zoom-out"/></svg></button>
+                <button id="tx-zoom-val" class="kh-btn kh-btn-ghost bb-zoom-val" type="button" data-i18n-title="bbZoomAutoTitle" title="Автомасштаб (клік — скинути зум)">—</button>
+                <button id="tx-zoom-in" class="kh-btn kh-btn-icon kh-btn-ghost bb-zoom-btn" type="button" data-i18n-title="bbZoomIn" title="Збільшити" aria-label="Zoom in"><svg class="ico" aria-hidden="true"><use href="#i-zoom-in"/></svg></button>
+              </div>
+            </header>
+            <div id="tx-preview-wrap" class="tx-preview-wrap checker">
+              <img id="tx-preview" class="tx-preview" alt="" hidden>
+              <div id="tx-preview-empty" class="tx-preview-empty" data-i18n="txSelectHint">Вибери текстуру у списку</div>
+            </div>
+          </div>
+
+          <div class="bb-card tx-inspector">
+            <header class="bb-pane-head">
+              <span class="bb-pane-mark" aria-hidden="true"><svg class="ico"><use href="#i-replace"/></svg></span>
+              <h3 class="bb-pane-title" data-i18n="txActionsTitle">Заміна текстури</h3>
+              <span class="spacer"></span>
+              <span id="tx-sel-name" class="bb-pane-note"></span>
+            </header>
+            <div class="bb-fields tx-actions">
+              <button id="tx-replace" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="txReplaceTitle" title="Вибрати PNG того самого розміру — одразу перезбирається у DONE/Recom/… і потрапляє в патч">
+                <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="txReplace">Замінити PNG…</span>
+              </button>
+              <button id="tx-reset" class="kh-btn" type="button" disabled data-i18n-title="txResetTitle" title="Прибрати заміну — у патч піде оригінал">
+                <svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg><span data-i18n="txReset">Оригінал</span>
+              </button>
+              <button id="tx-export-one" class="kh-btn" type="button" disabled data-i18n-title="txExportOneTitle" title="Зберегти цю текстуру у PNG">
+                <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="txExportOne">Експорт PNG</span>
+              </button>
+              <button id="tx-reveal" class="kh-btn kh-btn-icon" type="button" disabled data-i18n-title="txRevealTitle" title="Показати файл у Провіднику" aria-label="Reveal"><svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg></button>
+            </div>
+            <div id="tx-sel-info" class="bb-sel-info"></div>
+          </div>
+          <p class="bb-hint" data-i18n="txHint">PNG має бути того самого розміру, що й оригінал; альфа 255 = непрозоро. Замінені текстури лежать у PROGRESS/textures, перезібрані .imz — у DONE/Recom/… (їх підхоплює «Зібрати патч»).</p>
+        </div>
+      </section>
+
+      <footer class="statusbar bb-statusbar">
+        <span id="tx-status-dot" class="bb-status-dot" aria-hidden="true"></span>
+        <span id="tx-status-state" class="bb-status-state" data-i18n="bbStateIdle">Ще не скановано</span>
+        <span class="bb-status-sep" aria-hidden="true"></span>
+        <span id="tx-status" class="bb-status-text"></span>
+        <span id="tx-info" class="statusbar-right"></span>
       </footer>
     </div>
 
