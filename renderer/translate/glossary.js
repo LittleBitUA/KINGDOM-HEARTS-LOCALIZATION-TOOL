@@ -508,7 +508,13 @@ export async function composeAllFiles() {
     if (r.skippedUnsafe) parts.push('🛡 заблоковано небезпечних: ' + r.skippedUnsafe);
     if (r.errors && r.errors.length) {
       parts.push('з помилками: ' + r.errors.length);
-      toast(parts.join(' · '), 'error', 9000);
+      // перші помилки — текстом, щоб було видно, що саме не зібралось
+      const detail = r.errors.slice(0, 3).map(e => {
+        const rel = String(e.rel || e.path || '').split('/').slice(-2).join('/');
+        const msg = e.error || (e.samples && e.samples[0] && e.samples[0].message) || '';
+        return rel + (e.count ? ' (' + e.count + ')' : '') + ': ' + String(msg).split('\n')[0].slice(0, 120);
+      });
+      toast(parts.join(' · ') + '\n' + detail.join('\n'), 'error', 14000);
     } else {
       toast(parts.join(' · '), 'success', 7000);
     }
