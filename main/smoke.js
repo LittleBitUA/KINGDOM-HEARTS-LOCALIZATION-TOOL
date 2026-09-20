@@ -174,7 +174,9 @@ async function runSmoke(win) {
       const card = document.querySelector('#home-grid .game-card.needs-setup');
       if (!card) return { noCard: true };
       card.click();
-      await new Promise(r => setTimeout(r, 900));
+      // автопошук Steam + перевірка тек — асинхронні; чекаємо до 6 с, поки Setup з'явиться
+      for (let i = 0; i < 60 && setup.classList.contains('hidden'); i++) await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 300));
       const active = setup.querySelector('.setup-game.active');
       const res = {
         gameId: card.dataset.gameId,

@@ -264,6 +264,33 @@
     </div>
   </section>
 
+  <!-- Єдиний набір лінійних іконок для тулбарів/inspector'а: <svg class="ico"><use href="#i-…"/></svg> -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2a1.5 1.5 0 0 1 1.06.44L11 6.7h8.5A1.5 1.5 0 0 1 21 8.2v9.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 4v5h7V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 4v10M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 14V4M8 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 7H4v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 11A8 8 0 1 1 6 16.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-install" viewBox="0 0 24 24"><path d="M3.5 8.5 12 4l8.5 4.5L12 13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.5 8.5V16l8.5 4.5 8.5-4.5V8.5M12 13v7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12.5l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repair" viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0 4.9 4.9L21 13l-2 2-1.6-1.6a4 4 0 0 1-4.9-4.9L10.9 6.9l2-2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 13l-6.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-build" viewBox="0 0 24 24"><path d="M4 20l6-6M12.5 5.5l6 6M9 9l6-6 6 6-6 6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-replace" viewBox="0 0 24 24"><path d="M4 8h12l-3-3M20 16H8l3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M15 9V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15H9" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4 4v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.5-5.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5.5v13l11-6.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-wrap" viewBox="0 0 24 24"><path d="M4 6h16M4 12h11a3 3 0 0 1 0 6h-3M4 18h5M14 15l-2 3 2 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.2 1.2M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.2-1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pad" viewBox="0 0 24 24"><path d="M4 5v14M20 5v14M8 12h8M8 12l2-2M8 12l2 2M16 12l-2-2M16 12l-2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 454 495"><path fill="currentColor" d="M373.17 258.49c80.56-70.15 80.06-108.12 80.06-139.77-4.58-127.33-116.89-118.48-116.89-118.48 0 0.00197-100.38 0.00197-108.02 94.225 2.75 58.465 56.09 60.495 56.09 60.495s46.45-0.1 46.45-40.86c0-40.748-42.91-32.869-42.91-32.869s26.58 9.401 26.58 27.489c0 12.47-18.97 24.98-29.2 24.98s-27.93-8.44-27.93-29.94c0-59.653 69.28-59.936 76.96-59.936s76.65 6.201 78.03 77.366c0.47 24.02 0 49.77-38.68 89.51-135.38 113.54-146.45 191.72-146.45 191.72-1.03 0-12.1-78.18-147.48-191.72-38.679-39.74-39.147-65.49-38.679-89.51 1.387-71.165 70.349-77.366 78.029-77.366s76.97 0.283 76.97 59.936c0 21.5-17.7 29.94-27.93 29.94s-29.2-12.51-29.2-24.98c0-18.088 26.58-27.489 26.58-27.489s-42.92-7.879-42.92 32.869c0 40.76 46.46 40.86 46.46 40.86s53.33-2.03 56.08-60.495c-7.64-94.223-108.02-94.223-108.02-94.223 0-0.00003-112.3-8.8535-116.89 118.48 0.00008 31.65-0.49541 69.62 80.069 139.77 108.94 94.85 134.99 169.74 146.71 236.5 11.13-66.76 37.19-141.65 146.13-236.5z"/></symbol>
+  </svg>
   <div class="app hidden">
     <header class="topbar">
       <div class="mode-toggle" role="tablist">
@@ -279,13 +306,13 @@
     <div id="view-editor" class="view">
       <section class="toolbar" role="toolbar" aria-label="Панель інструментів">
         <button id="btn-open" class="kh-btn kh-btn-primary" type="button">
-          <span class="icon" aria-hidden="true">📂</span><span data-i18n="importBtn">Імпорт</span>
+          <svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span data-i18n="importBtn">Імпорт</span>
         </button>
         <button id="btn-save" class="kh-btn kh-btn-primary" type="button" disabled>
-          <span class="icon" aria-hidden="true">💾</span><span data-i18n="exportBtn">Експорт</span>
+          <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="exportBtn">Експорт</span>
         </button>
         <button id="btn-find" class="kh-btn" type="button" disabled>
-          <span class="icon" aria-hidden="true">🔍</span><span data-i18n="findBtn">Пошук</span>
+          <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span data-i18n="findBtn">Пошук</span>
         </button>
         <label class="kh-inline-label" title="Як показувати спільні байти латиниці/кирилиці (A↔А, o↔о). Байти у файлі однакові — це лише відображення." data-i18n-title="editorDecodeModeTitle">
           <span data-i18n="editorDecodeMode">Показ:</span>
@@ -317,215 +344,332 @@
 
     <!-- ============ TRANSLATE VIEW ============ -->
     <div id="view-translate" class="view hidden">
-      <section class="toolbar t-tabs-bar">
-        <button id="t-settings-btn" class="kh-btn" type="button" data-i18n-title="settingsBtnTitle" title="Налаштувати теки локалізації">
-          <span class="icon" aria-hidden="true">⚙</span><span data-i18n="settings">Налаштування</span>
-        </button>
-        <div class="t-subtabs" role="tablist">
-          <button id="tab-files" class="subtab-btn active" type="button" role="tab" data-i18n="tabFiles">📂 Файли</button>
-          <button id="tab-glossary" class="subtab-btn" type="button" role="tab" data-i18n="tabGlossary">📚 Глосарій</button>
+      <!-- ===== Module header: модуль · гра · підвкладки · прогрес ===== -->
+      <header class="t-module">
+        <div class="t-module-left">
+          <span class="t-module-mark" aria-hidden="true"><svg class="ico"><use href="#i-heart"/></svg></span>
+          <div class="t-module-titles">
+            <h2 id="t-module-title" class="t-module-title" data-i18n="tabGlossary">Глосарій</h2>
+            <div id="t-module-game" class="t-module-game"></div>
+          </div>
+          <div class="t-subtabs" role="tablist">
+            <button id="tab-files" class="subtab-btn active" type="button" role="tab" data-i18n="tabFiles">Файли</button>
+            <button id="tab-glossary" class="subtab-btn" type="button" role="tab" data-i18n="tabGlossary">Глосарій</button>
+          </div>
+          <label class="checkbox compact t-safe" data-i18n-title="safeModeTitle" title="Показувати лише файли, які перекладач уміє безпечно зчитати й перепакувати: .binl, сирі .bin, .ev/.evdl з текстом та _mes_ofs.bin/_mes_data.bin пари. Інші невпізнані формати приховуються.">
+            <input id="t-safe-mode" type="checkbox" checked>
+            <span data-i18n="safeMode">Безпечно (підтримувані формати)</span>
+          </label>
+          <button id="t-settings-btn" class="kh-btn kh-btn-icon" type="button" data-i18n-title="settingsBtnTitle" title="Налаштувати теки локалізації" aria-label="Налаштування">
+            <svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>
+          </button>
         </div>
-        <label class="checkbox compact" data-i18n-title="safeModeTitle" title="Показувати лише файли, які перекладач уміє безпечно зчитати й перепакувати: .binl, сирі .bin, .ev/.evdl з текстом та _mes_ofs.bin/_mes_data.bin пари. Інші невпізнані формати приховуються.">
-          <input id="t-safe-mode" type="checkbox" checked>
-          <span data-i18n="safeMode">🛡 Безпечно (підтримувані формати)</span>
-        </label>
-        <span class="spacer"></span>
-        <span id="t-progress" class="t-progress">—</span>
-      </section>
-
-      <!-- ===== Files subtab ===== -->
-      <div id="t-subview-files" class="t-subview">
-        <section class="toolbar">
-          <select id="t-file" class="kh-select" aria-label="Select file to translate">
-            <option value="" data-i18n="selectFile">— виберіть файл —</option>
-          </select>
-          <button id="t-reload" class="kh-btn" type="button" data-i18n-title="reloadList" title="Оновити список файлів">↻</button>
-          <input id="t-search" class="kh-input" type="search" data-i18n-placeholder="searchInFile" placeholder="🔎 пошук в цьому файлі (для всіх — вкладка Глосарій)">
-          <select id="t-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
-            <option value="all" data-i18n="filterAll">Усі</option>
-            <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
-            <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
-          </select>
-          <button id="t-save-tsv" class="kh-btn" type="button" disabled>
-            <span class="icon" aria-hidden="true">💾</span><span data-i18n="saveProgress">Зберегти прогрес</span>
-          </button>
-          <button id="t-export-txt" class="kh-btn" type="button" disabled
-                  data-i18n-title="exportTxtTitle"
-                  title="Експортувати поточний файл у читабельний .txt для перекладу в Notepad++/Word.">
-            <span class="icon" aria-hidden="true">📤</span><span data-i18n="exportTxt">Експорт .txt</span>
-          </button>
-          <button id="t-import-txt" class="kh-btn" type="button" disabled
-                  data-i18n-title="importTxtTitle"
-                  title="Імпортувати переклад з .txt назад у поточний файл (зіставлення за offset).">
-            <span class="icon" aria-hidden="true">📥</span><span data-i18n="importTxt">Імпорт .txt</span>
-          </button>
-          <label class="checkbox compact" data-i18n-title="wrapMaxWidthTitle"
-                 title="Максимальна ширина рядка в пікселях. ~380 безпечно для вузьких рамок діалогів, ~460 для широких.">
-            <span data-i18n="wrapMaxWidth">max-px</span>
-            <input id="t-maxwidth" type="number" min="100" max="900" value="380" class="k-threshold-input">
-          </label>
-          <button id="t-autowrap" class="kh-btn" type="button" disabled
-                  data-i18n-title="autoWrapTitle"
-                  title="Авто-розбити UK-переклади по словах щоб уміщались у max-px. Вимагає завантаженого .knj у режимі Кернінг.">
-            <span class="icon" aria-hidden="true">📏</span><span data-i18n="autoWrap">Auto-wrap</span>
-          </button>
-          <button id="t-compose" class="kh-btn kh-btn-primary" type="button" disabled
-                  data-i18n-title="composeCurrentTitle"
-                  title="Скомпонувати лише поточний файл. Для масового збирання — вкладка Глосарій → 'Зібрати ВСІ файли'.">
-            <span class="icon" aria-hidden="true">⚡</span><span data-i18n="composeCurrent">Зібрати поточний</span>
-          </button>
-        </section>
-
-        <section id="t-rows" class="t-rows" tabindex="0">
-          <div class="t-empty">
-            <p data-i18n="emptyFilesView">Налаштуйте теки і виберіть файл зі списку, щоб почати переклад.</p>
-          </div>
-        </section>
-      </div>
-
-      <!-- ===== Glossary subtab ===== -->
-      <div id="t-subview-glossary" class="t-subview hidden">
-        <!-- ROW 1: основні дії + пошук/фільтр -->
-        <section class="toolbar">
-          <button id="g-build" class="kh-btn kh-btn-primary" type="button">
-            <span class="icon" aria-hidden="true">🔨</span><span data-i18n="glossaryBuild">Побудувати/Оновити</span>
-          </button>
-          <button id="g-import" class="kh-btn" type="button" data-i18n-title="glossaryImportTitle" title="Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)">
-            <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImport">Імпорт HTML</span>
-          </button>
-          <input id="g-search" class="kh-input" type="search" data-i18n-placeholder="glossarySearch" placeholder="🔎 пошук в англійській...">
-          <select id="g-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
-            <option value="all" data-i18n="filterAll">Усі</option>
-            <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
-            <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
-            <option value="same-as-en" data-i18n="filterSameAsEn">UK == EN (нетронуте)</option>
-            <option value="token-issues" data-i18n="filterTokenIssues">З проблемами токенів</option>
-          </select>
-          <select id="g-sort-mode" class="kh-select kh-select-narrow" aria-label="Sort">
-            <option value="default" data-i18n="sortDefault">↕ За замовчуванням</option>
-            <option value="en-len-desc" data-i18n="sortEnLenDesc">↓ EN найдовші</option>
-            <option value="en-len-asc" data-i18n="sortEnLenAsc">↑ EN найкоротші</option>
-            <option value="uk-len-desc" data-i18n="sortUkLenDesc">↓ UK найдовші</option>
-            <option value="count-desc" data-i18n="sortCountDesc">↓ Найчастіші</option>
-          </select>
-          <span id="g-stat" class="t-progress">—</span>
-          <span class="toolbar-spacer"></span>
-          <button id="g-save" class="kh-btn" type="button" disabled>
-            <span class="icon" aria-hidden="true">💾</span><span data-i18n="glossarySave">Зберегти</span>
-          </button>
-          <button id="g-compose-all" class="kh-btn kh-btn-primary" type="button" disabled>
-            <span class="icon" aria-hidden="true">⚡</span><span data-i18n="glossaryComposeAll">Зібрати ВСІ файли</span>
-          </button>
-          <button id="g-install-done" class="kh-btn" type="button" hidden
-                  data-i18n-title="installDoneTitle"
-                  title="Розкласти файли з DONE у розпаковану гру (kh1_first.hed_out: remastered/ і original/exchange/) з бекапом оригіналів. Далі — пакування як звичайно.">
-            <span class="icon" aria-hidden="true">📦</span><span data-i18n="installDone">Встановити DONE у гру</span>
-          </button>
-        </section>
-        <!-- ROW 2: інструменти (валідація, очистка, пошук-заміна, авто-wrap, txt I/O) -->
-        <section class="toolbar toolbar-tools">
-          <button id="g-validate" class="kh-btn" type="button"
-                  data-i18n-title="validateTokensTitle"
-                  title="Перевірити що в UK-перекладах присутні всі токени з EN ({Color X}, {VarItem}, {lf} тощо). Втрачений токен = краш гри.">
-            <span class="icon" aria-hidden="true">🔍</span><span data-i18n="validateTokens">Перевірити токени</span>
-          </button>
-          <button id="g-clean-broken" class="kh-btn" type="button"
-                  data-i18n-title="cleanBrokenTitle"
-                  title="Видалити з глосарію всі записи, де UK-переклад не зберігає {…}-токени з EN. Зазвичай це сміттєві фрагменти, що з'явилися від {lf}-сплітінгу при HTML-імпорті ще до v2.18.6.">
-            <span class="icon" aria-hidden="true">🧹</span><span data-i18n="cleanBroken">Видалити поламані</span>
-          </button>
-          <button id="g-sync-padding" class="kh-btn" type="button"
-                  data-i18n-title="syncPaddingTitle"
-                  title="Скопіювати з EN у UK leading/trailing/post-{lf} пробіли — для візуального padding (центрування меню в exchange/ файлах). Не торкає UK, які вже мають свій padding.">
-            <span class="icon" aria-hidden="true">📐</span><span data-i18n="syncPadding">Pad з EN</span>
-          </button>
-          <button id="g-fix-structure" class="kh-btn" type="button"
-                  data-i18n-title="fixStructureTitle"
-                  title="Реконструює UK з EN-skeleton'у (всі {…}-токени, контрольні байти, whitespace, пунктуацію — копіює з EN). Літерний контент UK залишається. Виправляє НЕструктуроване UK 1:1 з EN.">
-            <span class="icon" aria-hidden="true">🩹</span><span data-i18n="fixStructure">Авто-фікс структури</span>
-          </button>
-          <button id="g-textall-export" class="kh-btn" type="button"
-                  data-i18n-title="textAllExportTitle"
-                  title="Експортувати ВЕСЬ текст гри у text_all.txt (### шлях / #N / текст) з поточними перекладами — формат Python-наборів і таблиць для друзів">
-            <span class="icon" aria-hidden="true">📄</span><span data-i18n="textAllExport">text_all →</span>
-          </button>
-          <button id="g-textall-import" class="kh-btn" type="button"
-                  data-i18n-title="textAllImportTitle"
-                  title="Імпортувати text_all.txt / ua_all_text.txt: переклади лягають у per-file прогрес (TSV) і в глосарій">
-            <span class="icon" aria-hidden="true">📥</span><span data-i18n="textAllImport">← text_all</span>
-          </button>
-          <button id="g-textall-pair" class="kh-btn" type="button"
-                  data-i18n-title="textAllPairTitle"
-                  title="Пара text_uniq.txt (EN) + text_ua.txt (UA) з однаковими #N (Re:CoM) → у глосарій">
-            <span class="icon" aria-hidden="true">🔗</span><span data-i18n="textAllPair">EN+UA пара</span>
-          </button>
-          <button id="g-undo-bulk" class="kh-btn" type="button" disabled
-                  data-i18n-title="undoBulkTitle"
-                  title="Скасувати останню масову операцію над глосарієм">
-            <span class="icon" aria-hidden="true">↶</span><span data-i18n="undoBulk">Скасувати</span>
-          </button>
-          <button id="g-find-replace" class="kh-btn" type="button"
-                  data-i18n-title="glossaryFindReplaceTitle"
-                  title="Знайти і замінити в усіх UK-перекладах + у відкритому файлі (Ctrl+H). Підтримує: case-sensitive, whole word, regex.">
-            <span class="icon" aria-hidden="true">🔄</span><span data-i18n="glossaryFindReplace">Find/Replace</span>
-          </button>
-          <button id="g-autowrap" class="kh-btn" type="button"
-                  data-i18n-title="autoWrapAdaptiveTitle"
-                  title="Адаптивно розбити глосарій: для кожного перекладу maxWidth береться з ширини EN-оригіналу. UA вкладеться в ту саму рамку що й ENG.">
-            <span class="icon" aria-hidden="true">📐</span><span data-i18n="autoWrapAdaptive">Auto-wrap</span>
-          </button>
-          <label class="checkbox compact" data-i18n-title="wrapMinWidthTitle"
-                 title="Мінімальна ширина рядка для дуже коротких EN-фраз. Зазвичай 250 — щоб коротке слово не розбивалось.">
-            <span data-i18n="wrapMinWidth">min-px</span>
-            <input id="g-maxwidth" type="number" min="100" max="900" value="250" class="k-threshold-input">
-          </label>
-          <span class="toolbar-spacer"></span>
-          <button id="g-export-txt" class="kh-btn" type="button"
-                  data-i18n-title="glossaryExportTxtTitle"
-                  title="Експортувати весь глосарій у .txt-файл (формат із блоками --- EN --- / --- UK ---). Для роботи поза програмою.">
-            <span class="icon" aria-hidden="true">📤</span><span data-i18n="glossaryExportTxt">Експорт .txt</span>
-          </button>
-          <button id="g-import-txt" class="kh-btn" type="button"
-                  data-i18n-title="glossaryImportTxtTitle"
-                  title="Імпортувати переклади з .txt (того самого формату що експорт). Існуючі ключі оновлюються, нові — додаються.">
-            <span class="icon" aria-hidden="true">📥</span><span data-i18n="glossaryImportTxt">Імпорт .txt</span>
-          </button>
-          <button id="g-append-txt" class="kh-btn" type="button" hidden
-                  data-i18n-title="glossaryAppendTxtTitle"
-                  title="Дописати у наявний .txt EN-рядки, яких там ще немає (з порожнім UK). Наявні блоки не змінюються.">
-            <span class="icon" aria-hidden="true">➕</span><span data-i18n="glossaryAppendTxt">Дописати відсутні у .txt</span>
-          </button>
-        </section>
-
-        <section id="g-dashboard" class="g-dash" hidden>
-          <div class="g-dash-cell">
-            <div class="g-dash-label" data-i18n="dashProgress">Прогрес</div>
+        <div class="t-module-right">
+          <span id="t-progress" class="t-progress t-module-fileprog">—</span>
+          <div id="g-dashboard" class="t-prog" hidden>
+            <div class="t-prog-line">
+              <span class="t-prog-nums"><span id="g-dash-done">0</span> / <span id="g-dash-total">0</span></span>
+              <span class="t-prog-label" data-i18n="dashRowsTranslated">рядків перекладено</span>
+              <span id="g-dash-pct" class="t-prog-pct">0%</span>
+            </div>
             <div class="g-dash-bar"><div class="g-dash-bar-fill" id="g-dash-bar-fill"></div></div>
-            <div class="g-dash-value"><span id="g-dash-done">0</span> / <span id="g-dash-total">0</span> · <span id="g-dash-pct">0%</span></div>
+            <div class="t-prog-stats">
+              <span class="t-stat"><i class="t-dot gray"></i><b id="g-dash-untrans">0</b> <span data-i18n="dashUntranslated">не перекладено</span></span>
+              <span class="t-stat"><i class="t-dot green"></i><b id="g-dash-sameen">0</b> <span data-i18n="dashSameAsEn">EN = UA</span></span>
+              <span class="t-stat"><i class="t-dot red"></i><b id="g-dash-issues">0</b> <span data-i18n="dashIssues">помилок токенів</span></span>
+            </div>
           </div>
-          <div class="g-dash-cell">
-            <div class="g-dash-label" data-i18n="dashUntranslated">Не перекладено</div>
-            <div class="g-dash-value" id="g-dash-untrans">0</div>
-          </div>
-          <div class="g-dash-cell">
-            <div class="g-dash-label" data-i18n="dashSameAsEn">UK == EN</div>
-            <div class="g-dash-value" id="g-dash-sameen">0</div>
-          </div>
-          <div class="g-dash-cell warn-cell">
-            <div class="g-dash-label" data-i18n="dashIssues">Token issues</div>
-            <div class="g-dash-value" id="g-dash-issues">0</div>
-          </div>
-        </section>
+        </div>
+      </header>
 
-        <section id="g-rows" class="t-rows" tabindex="0">
-          <div class="t-empty">
-            <p data-i18n="glossaryEmpty">Натисніть "Побудувати/Оновити" щоб просканувати всі файли і витягнути унікальні рядки.</p>
+      <div class="t-body">
+        <!-- ===== Files subtab ===== -->
+        <div id="t-subview-files" class="t-subview">
+          <section class="toolbar t-cmdbar">
+            <select id="t-file" class="kh-select" aria-label="Select file to translate">
+              <option value="" data-i18n="selectFile">— виберіть файл —</option>
+            </select>
+            <button id="t-reload" class="kh-btn kh-btn-icon" type="button" data-i18n-title="reloadList" title="Оновити список файлів" aria-label="Оновити список">
+              <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
+            </button>
+            <label class="kh-search">
+              <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+              <input id="t-search" class="kh-input" type="search" data-i18n-placeholder="searchInFile" placeholder="Пошук у цьому файлі (для всіх — Глосарій)…">
+            </label>
+            <select id="t-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
+              <option value="all" data-i18n="filterAll">Усі</option>
+              <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
+              <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
+            </select>
+            <div class="kh-dd">
+              <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-text"/></svg><span data-i18n="ddText">Текст</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="kh-menu" role="menu" hidden>
+                <button id="t-export-txt" class="kh-menu-item" type="button" disabled
+                        data-i18n-title="exportTxtTitle"
+                        title="Експортувати поточний файл у читабельний .txt для перекладу в Notepad++/Word.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="exportTxt">Експорт .txt</span>
+                </button>
+                <button id="t-import-txt" class="kh-menu-item" type="button" disabled
+                        data-i18n-title="importTxtTitle"
+                        title="Імпортувати переклад з .txt назад у поточний файл (зіставлення за offset).">
+                  <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="importTxt">Імпорт .txt</span>
+                </button>
+                <div class="kh-menu-sep"></div>
+                <button id="t-autowrap" class="kh-menu-item" type="button" disabled
+                        data-i18n-title="autoWrapTitle"
+                        title="Авто-розбити UK-переклади по словах щоб уміщались у max-px. Вимагає завантаженого .knj у режимі Кернінг.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-wrap"/></svg><span data-i18n="autoWrap">Auto-wrap</span>
+                </button>
+                <label class="kh-menu-field" data-i18n-title="wrapMaxWidthTitle"
+                       title="Максимальна ширина рядка в пікселях. ~380 безпечно для вузьких рамок діалогів, ~460 для широких.">
+                  <span data-i18n="wrapMaxWidth">max-px</span>
+                  <input id="t-maxwidth" type="number" min="100" max="900" value="380" class="k-threshold-input">
+                </label>
+              </div>
+            </div>
+            <span class="toolbar-spacer"></span>
+            <button id="t-save-tsv" class="kh-btn" type="button" disabled>
+              <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="saveProgress">Зберегти прогрес</span>
+            </button>
+            <button id="t-compose" class="kh-btn kh-btn-primary" type="button" disabled
+                    data-i18n-title="composeCurrentTitle"
+                    title="Скомпонувати лише поточний файл. Для масового збирання — вкладка Глосарій → 'Зібрати ВСІ файли'.">
+              <svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="composeCurrent">Зібрати поточний</span>
+            </button>
+          </section>
+
+          <div class="t-table">
+            <div class="t-table-head" aria-hidden="true">
+              <span class="t-th t-th-meta">#</span>
+              <span class="t-th" data-i18n="thOriginal">Оригінал (EN)</span>
+              <span class="t-th" data-i18n="thTranslation">Український переклад</span>
+            </div>
+            <section id="t-rows" class="t-rows" tabindex="0">
+              <div class="t-empty">
+                <p data-i18n="emptyFilesView">Налаштуйте теки і виберіть файл зі списку, щоб почати переклад.</p>
+              </div>
+            </section>
           </div>
-        </section>
+        </div>
+
+        <!-- ===== Glossary subtab ===== -->
+        <div id="t-subview-glossary" class="t-subview hidden">
+          <!-- Primary command bar -->
+          <section class="toolbar t-cmdbar">
+            <div class="kh-split">
+              <button id="g-build" class="kh-btn kh-btn-primary" type="button">
+                <svg class="ico" aria-hidden="true"><use href="#i-build"/></svg><span data-i18n="glossaryBuild">Побудувати / оновити</span>
+              </button>
+              <div class="kh-dd">
+                <button class="kh-btn kh-btn-primary kh-dd-btn kh-split-caret" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Більше">
+                  <svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+                </button>
+                <div class="kh-menu" role="menu" hidden>
+                  <button id="g-compose-all" class="kh-menu-item" type="button" disabled>
+                    <svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="glossaryComposeAll">Зібрати ВСІ файли</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button id="g-import" class="kh-btn" type="button" data-i18n-title="glossaryImportTitle" title="Імпорт перекладів з HTML/CSV/TSV (наприклад Google Sheets)">
+              <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="glossaryImport">Імпорт</span>
+            </button>
+            <label class="kh-search">
+              <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>
+              <input id="g-search" class="kh-input" type="search" data-i18n-placeholder="glossarySearch" placeholder="Пошук в англійському тексті…">
+            </label>
+            <select id="g-filter-mode" class="kh-select kh-select-narrow" aria-label="Filter by translation status">
+              <option value="all" data-i18n="filterAll">Усі</option>
+              <option value="untranslated" data-i18n="filterUntranslated">Лише неперекладене</option>
+              <option value="translated" data-i18n="filterTranslated">Лише перекладене</option>
+              <option value="same-as-en" data-i18n="filterSameAsEn">UK == EN (нетронуте)</option>
+              <option value="token-issues" data-i18n="filterTokenIssues">З проблемами токенів</option>
+            </select>
+            <select id="g-sort-mode" class="kh-select kh-select-narrow" aria-label="Sort">
+              <option value="default" data-i18n="sortDefault">За замовчуванням</option>
+              <option value="en-len-desc" data-i18n="sortEnLenDesc">EN найдовші</option>
+              <option value="en-len-asc" data-i18n="sortEnLenAsc">EN найкоротші</option>
+              <option value="uk-len-desc" data-i18n="sortUkLenDesc">UK найдовші</option>
+              <option value="count-desc" data-i18n="sortCountDesc">Найчастіші</option>
+            </select>
+            <span id="g-stat" class="t-progress" hidden>—</span>
+            <span class="toolbar-spacer"></span>
+            <button id="g-save" class="kh-btn" type="button" disabled>
+              <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="glossarySave">Зберегти глосарій</span>
+            </button>
+            <button id="g-install-done" class="kh-btn kh-btn-primary" type="button" hidden
+                    data-i18n-title="installDoneTitle"
+                    title="Розкласти файли з DONE у розпаковану гру (kh1_first.hed_out: remastered/ і original/exchange/) з бекапом оригіналів. Далі — пакування як звичайно.">
+              <svg class="ico" aria-hidden="true"><use href="#i-install"/></svg><span data-i18n="installDone">Встановити DONE у гру</span>
+            </button>
+          </section>
+
+          <!-- Secondary tools bar: групи у dropdown'ах, ті самі кнопки/ID -->
+          <section class="toolbar t-toolsbar">
+            <div class="kh-dd">
+              <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span data-i18n="ddCheck">Перевірка</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="kh-menu" role="menu" hidden>
+                <button id="g-validate" class="kh-menu-item" type="button"
+                        data-i18n-title="validateTokensTitle"
+                        title="Перевірити що в UK-перекладах присутні всі токени з EN ({Color X}, {VarItem}, {lf} тощо). Втрачений токен = краш гри.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-check"/></svg><span data-i18n="validateTokens">Перевірити токени</span>
+                </button>
+                <button id="g-show-broken" class="kh-menu-item" type="button" data-i18n-title="showBrokenTitle" title="Показати лише рядки з проблемами токенів (фільтр)">
+                  <svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span data-i18n="showBroken">Знайти поламані рядки</span>
+                </button>
+              </div>
+            </div>
+            <div class="kh-dd">
+              <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-repair"/></svg><span data-i18n="ddFix">Виправлення</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="kh-menu" role="menu" hidden>
+                <button id="g-clean-broken" class="kh-menu-item" type="button"
+                        data-i18n-title="cleanBrokenTitle"
+                        title="Видалити з глосарію всі записи, де UK-переклад не зберігає {…}-токени з EN. Зазвичай це сміттєві фрагменти, що з'явилися від {lf}-сплітінгу при HTML-імпорті ще до v2.18.6.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg><span data-i18n="cleanBroken">Видалити поламані</span>
+                </button>
+                <button id="g-fix-structure" class="kh-menu-item" type="button"
+                        data-i18n-title="fixStructureTitle"
+                        title="Реконструює UK з EN-skeleton'у (всі {…}-токени, контрольні байти, whitespace, пунктуацію — копіює з EN). Літерний контент UK залишається. Виправляє НЕструктуроване UK 1:1 з EN.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-repair"/></svg><span data-i18n="fixStructure">Авто-фікс структури</span>
+                </button>
+                <button id="g-sync-padding" class="kh-menu-item" type="button"
+                        data-i18n-title="syncPaddingTitle"
+                        title="Скопіювати з EN у UK leading/trailing/post-{lf} пробіли — для візуального padding (центрування меню в exchange/ файлах). Не торкає UK, які вже мають свій padding.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-pad"/></svg><span data-i18n="syncPadding">Pad з EN</span>
+                </button>
+                <div class="kh-menu-sep"></div>
+                <button id="g-autowrap" class="kh-menu-item" type="button"
+                        data-i18n-title="autoWrapAdaptiveTitle"
+                        title="Адаптивно розбити глосарій: для кожного перекладу maxWidth береться з ширини EN-оригіналу. UA вкладеться в ту саму рамку що й ENG.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-wrap"/></svg><span data-i18n="autoWrapAdaptive">Auto-wrap</span>
+                </button>
+                <label class="kh-menu-field" data-i18n-title="wrapMinWidthTitle"
+                       title="Мінімальна ширина рядка для дуже коротких EN-фраз. Зазвичай 250 — щоб коротке слово не розбивалось.">
+                  <span data-i18n="wrapMinWidth">min-px</span>
+                  <input id="g-maxwidth" type="number" min="100" max="900" value="250" class="k-threshold-input">
+                </label>
+              </div>
+            </div>
+            <div class="kh-dd">
+              <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-text"/></svg><span data-i18n="ddText">Текст</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="kh-menu" role="menu" hidden>
+                <button id="g-textall-export" class="kh-menu-item" type="button"
+                        data-i18n-title="textAllExportTitle"
+                        title="Експортувати ВЕСЬ текст гри у text_all.txt (### шлях / #N / текст) з поточними перекладами — формат Python-наборів і таблиць для друзів">
+                  <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="textAllExport">text_all →</span>
+                </button>
+                <button id="g-textall-import" class="kh-menu-item" type="button"
+                        data-i18n-title="textAllImportTitle"
+                        title="Імпортувати text_all.txt / ua_all_text.txt: переклади лягають у per-file прогрес (TSV) і в глосарій">
+                  <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="textAllImport">← text_all</span>
+                </button>
+                <button id="g-textall-pair" class="kh-menu-item" type="button"
+                        data-i18n-title="textAllPairTitle"
+                        title="Пара text_uniq.txt (EN) + text_ua.txt (UA) з однаковими #N (Re:CoM) → у глосарій">
+                  <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg><span data-i18n="textAllPair">EN+UA пара</span>
+                </button>
+                <button id="g-append-txt" class="kh-menu-item" type="button"
+                        data-i18n-title="glossaryAppendTxtTitle"
+                        title="Дописати у наявний .txt EN-рядки, яких там ще немає (з порожнім UK). Наявні блоки не змінюються.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="glossaryAppendTxt">Дописати відсутні у .txt</span>
+                </button>
+              </div>
+            </div>
+            <button id="g-find-replace" class="kh-btn" type="button"
+                    data-i18n-title="glossaryFindReplaceTitle"
+                    title="Знайти і замінити в усіх UK-перекладах + у відкритому файлі (Ctrl+H). Підтримує: case-sensitive, whole word, regex.">
+              <svg class="ico" aria-hidden="true"><use href="#i-replace"/></svg><span data-i18n="glossaryFindReplace">Find / Replace</span>
+            </button>
+            <div class="kh-dd">
+              <button class="kh-btn kh-dd-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="ddExport">Експорт</span><svg class="ico ico-caret" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="kh-menu" role="menu" hidden>
+                <button id="g-export-txt" class="kh-menu-item" type="button"
+                        data-i18n-title="glossaryExportTxtTitle"
+                        title="Експортувати весь глосарій у .txt-файл (формат із блоками --- EN --- / --- UK ---). Для роботи поза програмою.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="glossaryExportTxt">Експорт .txt</span>
+                </button>
+                <button id="g-import-txt" class="kh-menu-item" type="button"
+                        data-i18n-title="glossaryImportTxtTitle"
+                        title="Імпортувати переклади з .txt (того самого формату що експорт). Існуючі ключі оновлюються, нові — додаються.">
+                  <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="glossaryImportTxt">Імпорт .txt</span>
+                </button>
+              </div>
+            </div>
+            <span class="toolbar-spacer"></span>
+            <button id="g-undo-bulk" class="kh-btn" type="button" disabled
+                    data-i18n-title="undoBulkTitle"
+                    title="Скасувати останню масову операцію над глосарієм">
+              <svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="undoBulk">Скасувати</span>
+            </button>
+          </section>
+
+          <div class="t-table">
+            <div class="t-table-head" aria-hidden="true">
+              <span class="t-th t-th-meta">#</span>
+              <span class="t-th" data-i18n="thOriginal">Оригінал (EN)</span>
+              <span class="t-th" data-i18n="thTranslation">Український переклад</span>
+              <span class="t-th t-th-file" data-i18n="thFile">Файл</span>
+            </div>
+            <section id="g-rows" class="t-rows" tabindex="0">
+              <div class="t-empty">
+                <p data-i18n="glossaryEmpty">Натисніть "Побудувати/Оновити" щоб просканувати всі файли і витягнути унікальні рядки.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- ===== Inspector ===== -->
+        <aside id="t-inspector" class="t-inspector" aria-label="Інформація">
+          <div class="t-insp-head">
+            <span data-i18n="inspTitle">Інформація</span>
+            <button id="insp-collapse" class="kh-btn kh-btn-icon kh-btn-ghost" type="button" aria-label="Згорнути" data-i18n-title="inspCollapse" title="Згорнути панель">
+              <svg class="ico" aria-hidden="true"><use href="#i-chevron"/></svg>
+            </button>
+          </div>
+          <div class="t-insp-body">
+            <dl class="t-insp-dl">
+              <dt data-i18n="inspFile">Файл</dt><dd id="insp-file">—</dd>
+              <dt data-i18n="inspId">ID</dt><dd id="insp-id">—</dd>
+              <dt data-i18n="inspCount">Входжень</dt><dd id="insp-count">—</dd>
+              <dt data-i18n="inspStatus">Статус</dt><dd id="insp-status" class="t-insp-status">—</dd>
+            </dl>
+            <div class="t-insp-sec">
+              <div class="t-insp-sec-head"><span data-i18n="inspTokens">Токени</span>
+                <button id="insp-copy-tokens" class="kh-btn kh-btn-icon kh-btn-ghost" type="button" aria-label="Копіювати токени" data-i18n-title="inspCopyTokens" title="Копіювати токени">
+                  <svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>
+                </button>
+              </div>
+              <pre id="insp-tokens" class="t-insp-tokens">—</pre>
+            </div>
+            <div class="t-insp-actions">
+              <button id="insp-copy-en" class="kh-btn" type="button" disabled>
+                <svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span data-i18n="inspCopyEn">Копіювати оригінал</span>
+              </button>
+              <button id="insp-reset" class="kh-btn" type="button" disabled>
+                <svg class="ico" aria-hidden="true"><use href="#i-reset"/></svg><span data-i18n="inspReset">Скинути переклад</span>
+              </button>
+            </div>
+            <div class="t-insp-sec">
+              <div class="t-insp-sec-head"><span data-i18n="inspNotes">Примітки</span></div>
+              <textarea id="insp-note" class="t-insp-note" rows="3" spellcheck="false" data-i18n-placeholder="inspNotePlaceholder" placeholder="Додати примітку…" disabled></textarea>
+            </div>
+          </div>
+        </aside>
       </div>
 
-      <footer class="statusbar">
+      <footer class="statusbar t-statusbar">
         <span id="t-status" data-i18n="selectFileToTranslate">Виберіть файл для перекладу</span>
+        <span class="statusbar-right"><span data-i18n="hubTogether">Разом сильніші</span> ♡ · <span data-i18n="hubGlory">Слава Україні!</span> 🇺🇦</span>
       </footer>
     </div>
 

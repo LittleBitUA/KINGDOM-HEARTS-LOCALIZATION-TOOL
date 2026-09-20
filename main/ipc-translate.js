@@ -100,7 +100,9 @@ ipcMain.handle('translate:listFiles', (_e, rusDir) => {
 ipcMain.handle('translate:extract', async (_e, payload) => {
   const engPath = payload && payload.engPath;
   // rusPath опційний: без нього працює вбудований еталон (data/kh1_oracle.json).
-  const rusPath = (payload && payload.rusPath) || undefined;
+  // Стара плоска RUS-тека (kh1_first без префікса) — пробуємо обидві розкладки.
+  let rusPath = (payload && payload.rusPath) || undefined;
+  if (rusPath && !fsSync.existsSync(rusPath) && payload.rusDir && payload.rel) rusPath = ops.rusPathFor(payload.rusDir, payload.rel);
   if (!engPath) return { error: 'Не вказано шляхи' };
   try {
     return await ops.extractFile(engPath, { rusPath, opts: payload.opts || {}, runWorker });

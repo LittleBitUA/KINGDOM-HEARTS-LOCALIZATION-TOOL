@@ -30,11 +30,23 @@ export async function initTranslateMode() {
   await loadFileList();
   await loadGlossaryFromDisk();
 
+  // BBS / Re:CoM / DDD: один список усіх рядків (вкладка «Файли» = колишній
+  // глосарій), без окремої per-file вкладки.
+  const single = !!(game && game.singleList);
+  const view = document.getElementById('view-translate');
+  if (view) view.classList.toggle('single-list', single);
+  if (single) setSubtab('glossary');
+
   // Авто-відновлення останнього файлу
   const last = tState.settings.lastFile;
-  if (last && tState.files.some(f => f.rel === last)) {
+  if (!single && last && tState.files.some(f => f.rel === last)) {
     tFileSel.value = last;
     await loadFile(last);
+  }
+  // Індекс не зберігається між запусками — будуємо у фоні, щоб прогрес і список
+  // були одразу (для single-list ігор це і є робочий екран).
+  if (!gState.entries.length && tState.files.length && tState.settings.engDir) {
+    buildGlossary().catch(() => {});
   }
 }
 
@@ -50,7 +62,9 @@ export async function loadWorldsMap() {
 }
 export function describeFile(rel) {
   if (!_worldsMap) return null;
-  const seg = (rel.split('/')[0] || '').toLowerCase();
+  // `kh1_second/al01.ard/…` → світ шукаємо за `al01.ard`
+  const inner = window.KH.textStructure.kh1StripArchive(rel);
+  const seg = (inner.split('/')[0] || '').toLowerCase();
   return _worldsMap[seg] || null;
 }
 // Номер «набору» кімнати (gg3502 docs/ard_evdl_binl.md): `*_xx01_ard<N>.evdl` ↔
@@ -88,6 +102,16 @@ export function setSubtab(name) {
   subviewGlossary.classList.toggle('hidden', name !== 'glossary');
   tabFiles.classList.toggle('active', name === 'files');
   tabGlossary.classList.toggle('active', name === 'glossary');
+  // Заголовок модуля і прогрес у header'і залежать від підвкладки.
+  const view = document.getElementById('view-translate');
+  if (view) view.classList.toggle('subtab-glossary', name === 'glossary');
+  const title = document.getElementById('t-module-title');
+  if (title) {
+    const single = !!(getCurrentGame() && getCurrentGame().singleList);
+    const key = (name === 'glossary' && !single) ? 'tabGlossary' : 'tabFiles';
+    title.setAttribute('data-i18n', key);
+    title.textContent = window.i18n ? window.i18n.t(key) : (key === 'tabGlossary' ? 'Глосарій' : 'Файли');
+  }
   if (name === 'glossary') refreshGlossaryProgress();
   else refreshProgress();
 }
@@ -127,7 +151,7 @@ export async function loadFileList() {
     const info = describeFile(f.rel);
     const filename = f.rel.split('/').pop();
     let label;
-    const ard = (f.rel.split('/')[0] || '').toLowerCase();
+    const ard = (window.KH.textStructure.kh1StripArchive(f.rel).split('/')[0] || '').toLowerCase();
     if (info) {
       const room = info.room ? ' / ' + info.room : '';
       const set = setNumberOf(f.rel);
@@ -179,7 +203,7 @@ export async function loadFile(rel) {
 
   let r;
   try {
-    r = await window.kh1.translate.extract({ engPath, rusPath });
+    r = await window.kh1.translate.extract({ engPath, rusPath, rusDir: tState.settings.rusDir || '', rel });
   } catch (e) {
     toast(window.i18n.t('toastExtractError', {msg: e.message}), 'error', 6000);
     renderEmpty(window.i18n.t('tLoadError'));
@@ -422,6 +446,9 @@ export function renderRows() {
 
     const meta = document.createElement('div');
     meta.className = 't-meta';
+    const dot = document.createElement('i');
+    dot.className = 't-dot';
+    meta.appendChild(dot);
     const idxSpan = document.createElement('span');
     idxSpan.className = 't-idx';
     idxSpan.textContent = '#' + slot.index;

@@ -259,21 +259,32 @@ test('text-quality: bytecode fragments are not translatable slots', () => {
   }
 });
 
-test('composeAll outLayout kh1-hedout writes DONE in the game layout (remastered/, original/exchange/)', async () => {
+test('composeAll outLayout kh1-hedout writes DONE per archive (kh1_first/remastered/, kh1_second/original/exchange/)', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-layout-'));
   try {
-    const eng = path.join(dir, 'ENG'), out = path.join(dir, 'DONE');
+    const eng = path.join(dir, 'ENG'), out = path.join(dir, 'DONE'), rus = path.join(dir, 'RUS');
+    // старий плоский шлях (kh1_first без префікса) + новий з префіксом архіву
     fs.mkdirSync(path.join(eng, 'dh01.ard'), { recursive: true });
-    fs.mkdirSync(path.join(eng, 'exchange'), { recursive: true });
+    fs.mkdirSync(path.join(eng, 'kh1_second', 'exchange'), { recursive: true });
     fs.writeFileSync(path.join(eng, 'dh01.ard', 'UK_a.binl'), synth.buildBinl(['Wake up!']));
-    fs.writeFileSync(path.join(eng, 'exchange', 'UK_x.bin'), synth.buildBinl(['Potion', 'Ether', 'Elixir'], { header: 0, footer: 0 }));
-    const r = await ops.composeAll(['dh01.ard/UK_a.binl', 'exchange/UK_x.bin'], { engDir: eng, rusDir: path.join(dir, 'none'), outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Potion': 'Зілля' }, safeMode: true, outLayout: 'kh1-hedout' });
+    fs.writeFileSync(path.join(eng, 'kh1_second', 'exchange', 'UK_x.bin'), synth.buildBinl(['Potion', 'Ether', 'Elixir'], { header: 0, footer: 0 }));
+    const r = await ops.composeAll(['dh01.ard/UK_a.binl', 'kh1_second/exchange/UK_x.bin'], { engDir: eng, rusDir: rus, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Potion': 'Зілля' }, safeMode: true, outLayout: 'kh1-hedout' });
     assert.equal(r.written, 2);
-    assert.ok(fs.existsSync(path.join(out, 'remastered', 'dh01.ard', 'UK_a.binl')));
-    assert.ok(fs.existsSync(path.join(out, 'original', 'exchange', 'UK_x.bin')));
-    const { kh1OutRel } = require('../shared/text-structure');
-    assert.equal(kh1OutRel('remastered/dh01.ard/UK_a.binl'), 'remastered/dh01.ard/UK_a.binl');
-    assert.equal(kh1OutRel('menu/uk/sysmsg.bin/UK_sysmsg.binl'), 'remastered/menu/uk/sysmsg.bin/UK_sysmsg.binl');
+    assert.ok(fs.existsSync(path.join(out, 'kh1_first', 'remastered', 'dh01.ard', 'UK_a.binl')));
+    assert.ok(fs.existsSync(path.join(out, 'kh1_second', 'original', 'exchange', 'UK_x.bin')));
+    const { kh1OutRel, kh1SplitRel, kh1StripArchive } = require('../shared/text-structure');
+    assert.equal(kh1OutRel('remastered/dh01.ard/UK_a.binl'), 'kh1_first/remastered/dh01.ard/UK_a.binl');
+    assert.equal(kh1OutRel('menu/uk/sysmsg.bin/UK_sysmsg.binl'), 'kh1_first/remastered/menu/uk/sysmsg.bin/UK_sysmsg.binl');
+    assert.equal(kh1OutRel('kh1_third/remastered/menu/md_dic_msg.kmb/UK_md_dic_msg.kmb'), 'kh1_third/remastered/menu/md_dic_msg.kmb/UK_md_dic_msg.kmb');
+    assert.equal(kh1OutRel('kh1_fourth/worldmap/challe.dat/UK_ChallengeMsg.bin'), 'kh1_fourth/remastered/worldmap/challe.dat/UK_ChallengeMsg.bin');
+    assert.deepEqual(kh1SplitRel('kh1_second/al01.ard/UK_al01_ard0.binl'), { archive: 'kh1_second', rest: 'al01.ard/UK_al01_ard0.binl' });
+    assert.equal(kh1StripArchive('dc01.ard/UK_dc01_ard0.evdl'), 'dc01.ard/UK_dc01_ard0.evdl');
+    // RUS: стара плоска тека покриває kh1_first і з префіксом, і без
+    fs.mkdirSync(path.join(rus, 'dh01.ard'), { recursive: true });
+    fs.writeFileSync(path.join(rus, 'dh01.ard', 'UK_a.binl'), Buffer.alloc(1));
+    assert.equal(ops.rusPathFor(rus, 'kh1_first/dh01.ard/UK_a.binl'), path.join(rus, 'dh01.ard', 'UK_a.binl'));
+    assert.equal(ops.rusPathFor(rus, 'dh01.ard/UK_a.binl'), path.join(rus, 'dh01.ard', 'UK_a.binl'));
+    assert.equal(ops.rusPathFor(rus, 'kh1_second/al01.ard/UK_b.binl'), undefined);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

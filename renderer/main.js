@@ -12,6 +12,8 @@ import { gExportTxtBtn, gImportTxtBtn, saveGlossary } from './translate/glossary
 import { hideImport } from './translate/import.js';
 import { showReplace } from './translate/replace.js';
 import './translate/textall-ui.js';
+import { initDropdowns } from './ui/dropdown.js';
+import { initInspector } from './translate/inspector.js';
 
 // =====================================================================
 // Custom title bar handlers (Stage 1 редизайну).
@@ -309,3 +311,6 @@ export async function maybeFirstRunSettings() {
 // при першому вході в редактор (щоб не виконувати KH1-specific логіку, коли
 // користувач ще на головному екрані з вибором іншої гри).
 
+// Тулбарні dropdown-меню та inspector translate-екрана.
+initDropdowns();
+initInspector();

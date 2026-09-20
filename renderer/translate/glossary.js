@@ -1,5 +1,5 @@
-import { getCurrentGameId } from '../app-shell.js';
-import { gBuild, gComposeAll, gDashBarFill, gDashDone, gDashIssues, gDashPct, gDashSameEn, gDashTotal, gDashUntrans, gDashboard, gRows, gSave, gStat, tProgress, tStatus } from '../core/dom.js';
+import { getCurrentGame, getCurrentGameId } from '../app-shell.js';
+import { gBuild, gComposeAll, gDashBarFill, gDashDone, gDashIssues, gDashPct, gDashSameEn, gDashTotal, gDashUntrans, gDashboard, gFilterMode, gRows, gSave, gStat, tProgress, tStatus } from '../core/dom.js';
 import { toast } from '../core/log.js';
 import { autoFixStructure, syncPaddingFromEn, tokenIssueText, validateTokens } from '../core/shared.js';
 import { gState, tState } from '../core/state.js';
@@ -7,6 +7,7 @@ import { kState } from '../kerning/kerning.js';
 import { openSettings } from '../settings-modal.js';
 import { exportFileTxt, flushGlossaryAutoSave, importFileTxt, refreshProgress, renderRows, scheduleGlossaryAutoSave, setSubtab } from './files.js';
 import { snapshotGlossary, undoLastBulk, canUndoBulk, lastBulkLabel, onHistoryChange } from './history.js';
+import { buildGlossaryTxtMgs, buildGlossaryTxtMgsAppend, looksLikeMgsTxt, parseGlossaryTxtMgs } from './glossary-txt-mgs.js';
 
 // =====================================================================
 // Glossary
@@ -192,10 +193,14 @@ export function renderGlossaryRows() {
 
     const meta = document.createElement('div');
     meta.className = 't-meta';
+    // крапка статусу (колір через CSS за класами рядка) + бейдж входжень
+    const dot = document.createElement('i');
+    dot.className = 't-dot';
     const cnt = document.createElement('span');
     cnt.className = 't-count';
     cnt.textContent = '× ' + entry.count;
     cnt.title = window.i18n.t('gInFiles', { n: entry.fileCount });
+    meta.appendChild(dot);
     meta.appendChild(cnt);
 
     const en = document.createElement('div');
@@ -209,9 +214,18 @@ export function renderGlossaryRows() {
     uk.spellcheck = false;
     uk.rows = Math.min(4, Math.max(1, Math.ceil(entry.english.length / 70)));
 
+    // файл першого входження (+N інших) — колонка «Файл»
+    const file = document.createElement('div');
+    file.className = 't-file';
+    const rel = entry.file || (entry.occurrences && entry.occurrences[0] && entry.occurrences[0].rel) || '';
+    const base = rel ? String(rel).split(/[\\/]/).pop() : '';
+    file.textContent = base + (entry.fileCount > 1 ? ' +' + (entry.fileCount - 1) : '');
+    file.title = rel;
+
     row.appendChild(meta);
     row.appendChild(en);
     row.appendChild(uk);
+    row.appendChild(file);
     frag.appendChild(row);
   }
   gRows.appendChild(frag);
@@ -299,6 +313,13 @@ export function refreshGlossaryProgress() {
   gComposeAll.disabled = total === 0 || done === 0 ||
     !tState.settings.engDir || !tState.settings.outDir;
 }
+
+// «Знайти поламані рядки» у меню Перевірка — це фільтр «З проблемами токенів».
+const gShowBroken = document.getElementById('g-show-broken');
+if (gShowBroken) gShowBroken.addEventListener('click', () => {
+  gFilterMode.value = 'token-issues';
+  gFilterMode.dispatchEvent(new Event('change', { bubbles: true }));
+});
 
 // edit handler for glossary rows — event delegation
 gRows.addEventListener('input', (e) => {
@@ -559,6 +580,25 @@ if (gCleanBrokenBtn) {
 }
 
 // =====================================================================
+// Ім'я txt-глосарію за грою: kh1_glossary.txt, recom_glossary.txt, bbs_…, ddd_….
+const GLOSSARY_TXT_PREFIX = { 'kh1-final-mix': 'kh1', 'kh-re-com': 'recom', 'kh-bbs-final-mix': 'bbs', 'kh-ddd': 'ddd' };
+function glossaryTxtName() {
+  const g = getCurrentGame();
+  const prefix = GLOSSARY_TXT_PREFIX[getCurrentGameId()] || String(getCurrentGameId() || 'kh');
+  // BBS/Re:CoM/DDD — формат MGS1: один файл перекладу гри (bbs.txt), KH1 — kh1_glossary.txt
+  return (g && g.singleList) ? prefix + '.txt' : prefix + '_glossary.txt';
+}
+function isMgsTxtGame() { const g = getCurrentGame(); return !!(g && g.singleList); }
+
+// Ключ з txt → ключ індексу: у заголовку MGS-формату переноси показані як ⏎ і
+// відновлюються як '\n'; ключі KH1 містять {lf} — пробуємо обидва варіанти.
+function resolveTxtKey(en) {
+  if (Object.prototype.hasOwnProperty.call(gState.translations, en) || (gState.entries || []).some(e => e.english === en)) return en;
+  const lf = en.replace(/\n/g, '{lf}');
+  if (lf !== en && (gState.entries || []).some(e => e.english === lf)) return lf;
+  return en;
+}
+
 // Glossary TXT export/import — людино-читабельний формат для роботи поза
 // програмою. Блок-структура:
 //   [#N]
@@ -572,9 +612,28 @@ if (gCleanBrokenBtn) {
 // =====================================================================
 export function buildGlossaryTxt() {
   const out = [];
-  const entries = Object.entries(gState.translations).filter(([_, uk]) => uk && uk.trim());
-  out.push('# KH1 Glossary Export');
-  out.push('# Total: ' + entries.length + ' entries');
+  // Усі рядки індексу (у порядку списку) з поточним перекладом або порожнім UK —
+  // щоб перекладати у txt і те, чого ще нема. Якщо індекс не побудовано —
+  // лише наявні переклади.
+  let entries;
+  if (gState.entries && gState.entries.length) {
+    const seen = new Set();
+    entries = [];
+    for (const e of gState.entries) {
+      if (seen.has(e.english)) continue;
+      seen.add(e.english);
+      entries.push([e.english, gState.translations[e.english] || '']);
+    }
+    for (const [en, uk] of Object.entries(gState.translations)) {
+      if (!seen.has(en) && uk && uk.trim()) { seen.add(en); entries.push([en, uk]); }
+    }
+  } else {
+    entries = Object.entries(gState.translations).filter(([_, uk]) => uk && uk.trim());
+  }
+  const translated = entries.filter(([_, uk]) => uk && uk.trim()).length;
+  const game = getCurrentGame();
+  out.push('# ' + (game ? game.name : 'KH') + ' — Glossary Export');
+  out.push('# Total: ' + entries.length + ' entries, translated: ' + translated);
   out.push('# ');
   out.push('# Інструкція:');
   out.push('#  • Редагуй ЛИШЕ блоки --- UK ---. EN — це ключ, не змінювати.');
@@ -685,11 +744,13 @@ if (gAppendTxtBtn) {
       const r = await window.kh1.translate.importFileTxt();
       if (r.canceled) return;
       if (r.error) { toast(window.i18n.t('toastImportError', {msg: r.error}), 'error', 6000); return; }
-      const res = buildGlossaryTxtAppend(r.content, keys, gState.translations);
+      const res = looksLikeMgsTxt(r.content) || (isMgsTxtGame() && !/^\[#\d+\]/m.test(r.content))
+        ? buildGlossaryTxtMgsAppend(r.content, gState.entries, gState.translations)
+        : buildGlossaryTxtAppend(r.content, keys, gState.translations);
       if (!res.added) { toast(window.i18n.t('toastAppendTxtNothing', { n: keys.length }), 'info', 5000); return; }
       // Запис — лише через діалог збереження: користувач сам вирішує, куди (за
       // замовчуванням — той самий файл).
-      const name = (r.filePath || 'kh1_glossary.txt').split(/[\\/]/).pop();
+      const name = (r.filePath || glossaryTxtName()).split(/[\\/]/).pop();
       const w = await window.kh1.translate.exportFileTxt({ defaultName: name, content: res.content });
       if (w.canceled) return;
       if (w.error) { toast(window.i18n.t('toastExportError', {msg: w.error}), 'error', 6000); return; }
@@ -782,13 +843,17 @@ export const gImportTxtBtn = document.getElementById('g-import-txt');
 
 if (gExportTxtBtn) {
   gExportTxtBtn.addEventListener('click', async () => {
-    if (!Object.keys(gState.translations).length) {
+    if (isMgsTxtGame() && !(gState.entries && gState.entries.length)) {
+      toast(window.i18n.t('toastAppendTxtNeedIndex'), 'info', 5000); return;
+    }
+    if (!isMgsTxtGame() && !Object.keys(gState.translations).length && !(gState.entries && gState.entries.length)) {
       toast(window.i18n.t('toastEmptyGlossary'), 'info'); return;
     }
-    const content = buildGlossaryTxt();
+    const gameName = (getCurrentGame() && getCurrentGame().name) || 'KH';
+    const content = isMgsTxtGame() ? buildGlossaryTxtMgs(gState.entries, gState.translations, gameName) : buildGlossaryTxt();
     try {
       const r = await window.kh1.translate.exportFileTxt({
-        defaultName: 'kh1_glossary.txt',
+        defaultName: glossaryTxtName(),
         content
       });
       if (r.canceled) return;
@@ -806,7 +871,11 @@ if (gImportTxtBtn) {
       const r = await window.kh1.translate.importFileTxt();
       if (r.canceled) return;
       if (r.error) { toast(window.i18n.t('toastImportError', {msg: r.error}), 'error', 6000); return; }
-      const parsed = parseGlossaryTxt(r.content);
+      const parsed = looksLikeMgsTxt(r.content) ? parseGlossaryTxtMgs(r.content) : parseGlossaryTxt(r.content);
+      if (looksLikeMgsTxt(r.content)) {
+        // ключі з ⏎ → '\n' або {lf} — як в індексі
+        parsed.pairs = parsed.pairs.map(p => { const en = resolveTxtKey(p.en); return en === p.en ? p : { en, uk: /\{lf\}/.test(en) ? p.uk.replace(/\n/g, '{lf}') : p.uk }; });
+      }
       if (!parsed.pairs.length) {
         toast(window.i18n.t('toastNoValidPairs'), 'error'); return;
       }
@@ -860,7 +929,7 @@ export const gInstallDoneBtn = document.getElementById('g-install-done');
 export function refreshInstallDoneVisibility() {
   const notKh1 = getCurrentGameId() !== 'kh1-final-mix';
   if (gInstallDoneBtn) gInstallDoneBtn.hidden = notKh1;
-  if (gAppendTxtBtn) gAppendTxtBtn.hidden = notKh1;
+  if (gAppendTxtBtn) gAppendTxtBtn.hidden = false;
 }
 if (gInstallDoneBtn) {
   gInstallDoneBtn.addEventListener('click', async () => {

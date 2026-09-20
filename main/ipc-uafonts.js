@@ -324,9 +324,15 @@ ipcMain.handle('translate:installDone', async (_e, payload) => {
   const backupDir = payload && payload.backupDir;
   if (!doneDir || !gameDir || !backupDir) return { ok: false, error: 'Не вказано теки' };
   if (!fs.existsSync(doneDir)) return { ok: false, error: 'Теки DONE нема: ' + doneDir };
-  const hedOut = findDirNamed(gameDir, 'kh1_first.hed_out', 4);
-  if (!hedOut) return { ok: false, error: 'У грі не знайдено kh1_first.hed_out — спершу розпакуй (Setup)' };
-  const stats = { copied: 0, backedUp: 0, skipped: 0, errors: [], target: hedOut };
+  // DONE/<archive>/(remastered|original)/… → <archive>.hed_out у грі; старі
+  // розкладки (remastered/… чи плоскі шляхи) — це kh1_first.
+  const hedOuts = {};
+  const hedOutFor = (arc) => {
+    if (!(arc in hedOuts)) hedOuts[arc] = findDirNamed(gameDir, arc + '.hed_out', 4);
+    return hedOuts[arc];
+  };
+  if (!hedOutFor('kh1_first')) return { ok: false, error: 'У грі не знайдено kh1_first.hed_out — спершу розпакуй (Setup)' };
+  const stats = { copied: 0, backedUp: 0, skipped: 0, errors: [], target: path.dirname(hedOutFor('kh1_first')) };
   const stack = [''];
   while (stack.length) {
     const rel = stack.pop();
@@ -337,13 +343,16 @@ ipcMain.handle('translate:installDone', async (_e, payload) => {
       if (e.isDirectory()) { stack.push(childRel); continue; }
       if (!e.isFile() || /\.(tsv|json|bak\.\d+)$/i.test(e.name)) continue;
       const posix = childRel.split(path.sep).join('/');
-      // DONE вже у розкладці гри (remastered/…, original/…); старі плоскі шляхи — мапимо.
-      const gameRel = kh1OutRel(posix);
+      const gameRel = kh1OutRel(posix);                  // kh1_second/remastered/al01.ard/…
+      const arc = gameRel.split('/')[0];
+      const inner = gameRel.slice(arc.length + 1);
+      const hedOut = hedOutFor(arc);
+      if (!hedOut) { stats.skipped++; stats.errors.push('нема розпакованого ' + arc + '.hed_out: ' + gameRel); continue; }
       const src = path.join(doneDir, childRel);
-      const dst = path.join(hedOut, gameRel);
+      const dst = path.join(hedOut, inner);
       // Кладемо лише туди, де такий файл існує в грі (захист від сміття/чужих шляхів).
       if (!fs.existsSync(dst)) { stats.skipped++; stats.errors.push('нема в грі: ' + gameRel); continue; }
-      const bak = path.join(backupDir, 'kh1_first.hed_out', gameRel);
+      const bak = path.join(backupDir, arc + '.hed_out', inner);
       try {
         if (!fs.existsSync(bak)) {
           await fsP.mkdir(path.dirname(bak), { recursive: true });
@@ -358,7 +367,7 @@ ipcMain.handle('translate:installDone', async (_e, payload) => {
       }
     }
   }
-  return Object.assign({ ok: stats.copied > 0 && stats.errors.every(x => x.startsWith('нема в грі')) }, stats);
+  return Object.assign({ ok: stats.copied > 0 && stats.errors.every(x => x.startsWith('нема ')) }, stats);
 });
 
 ipcMain.handle('uafonts:openDir', async (_e, dir) => {

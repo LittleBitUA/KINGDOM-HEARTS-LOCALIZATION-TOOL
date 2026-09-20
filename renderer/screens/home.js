@@ -46,6 +46,8 @@ export const gamesConfig = [
     id: 'kh-re-com',
     title: 'KINGDOM HEARTS\nRE:CHAIN OF MEMORIES',
     name: 'Kingdom Hearts Re:Chain of Memories',
+    // Один список усіх рядків з усіх файлів (без вкладки «Глосарій»), txt — формат MGS1.
+    singleList: true,
     image: 'assets/covers/kh-re-com.png',
     platform: 'PC (Steam / Epic Games)',
     format: '.ctdl (subtitles + menu text)',
@@ -63,6 +65,8 @@ export const gamesConfig = [
     id: 'kh-ddd',
     title: 'KINGDOM HEARTS\nDREAM DROP DISTANCE HD',
     name: 'Kingdom Hearts 3D: Dream Drop Distance HD',
+    // Один список усіх рядків з усіх файлів (без вкладки «Глосарій»), txt — формат MGS1.
+    singleList: true,
     image: 'assets/covers/kh-ddd.png',
     platform: 'PC (KH HD 2.8)',
     format: '.ctd (UTF-16, event/menu/report)',
@@ -78,6 +82,8 @@ export const gamesConfig = [
     id: 'kh-bbs-final-mix',
     title: 'KINGDOM HEARTS\nBIRTH BY SLEEP\nFINAL MIX',
     name: 'Kingdom Hearts: Birth by Sleep Final Mix',
+    // Один список усіх рядків з усіх файлів (без вкладки «Глосарій»), txt — формат MGS1.
+    singleList: true,
     image: 'assets/covers/kh-bbs-final-mix.png',
     platform: 'PC (Steam / Epic Games)',
     format: '.ctd (subtitles + menu text)',

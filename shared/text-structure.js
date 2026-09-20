@@ -211,17 +211,33 @@
     return out;
   }
 
-  // KH1: у DONE кладемо файли так, як вони лежать у розпакованій грі
-  // (kh1_first.hed_out): exchange/* → original/exchange/*, решта → remastered/*.
-  // Шляхи, що вже мають префікс, лишаємо.
-  function kh1OutRel(rel) {
+  // KH1: текст лежить у п'яти архівах kh1_first…kh1_fifth. У робочій теці (ENG/
+  // PROGRESS/DONE) шлях починається з імені архіву: `kh1_second/al01.ard/UK_….binl`;
+  // старий плоский шлях без префікса (`dc01.ard/…`) — це kh1_first.
+  var KH1_ARCHIVES = ['kh1_first', 'kh1_second', 'kh1_third', 'kh1_fourth', 'kh1_fifth'];
+  var KH1_ARC_RE = /^(kh1_(?:first|second|third|fourth|fifth))\/(.*)$/i;
+  // { archive, rest } — архів і шлях усередині нього (без remastered/|original/).
+  function kh1SplitRel(rel) {
     const r = String(rel || '').replace(/\\/g, '/');
-    if (/^(remastered|original)\//i.test(r)) return r;
-    return (/^exchange\//i.test(r) ? 'original/' : 'remastered/') + r;
+    const m = KH1_ARC_RE.exec(r);
+    return m ? { archive: m[1].toLowerCase(), rest: m[2] } : { archive: 'kh1_first', rest: r };
+  }
+  // Шлях без префікса архіву (для підписів світів/кімнат: `al01.ard/…`).
+  function kh1StripArchive(rel) { return kh1SplitRel(rel).rest; }
+  // Шлях у DONE / грі: `<archive>/(original|remastered)/…` — так, як лежить у
+  // розпакованому `<archive>.hed_out`: exchange/* → original/, решта → remastered/.
+  // Шляхи, що вже мають remastered/|original/, лишаємо.
+  function kh1OutRel(rel) {
+    const { archive, rest } = kh1SplitRel(rel);
+    if (/^(remastered|original)\//i.test(rest)) return archive + '/' + rest;
+    return archive + '/' + (/^exchange\//i.test(rest) ? 'original/' : 'remastered/') + rest;
   }
 
   return {
     LETTER_RE,
+    KH1_ARCHIVES,
+    kh1SplitRel,
+    kh1StripArchive,
     kh1OutRel,
     legacyTokenPairs,
     lookupEolVariant,

@@ -50,32 +50,62 @@ const HED_PATHS = {
     heds: [{ rel: 'Image/dt/kh3d_first.hed', namePattern: /^kh3d_first\.hed$/i }],
     copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) }
   },
-  // KH1: Steam — Image/dt/kh1_first.hed, старі збірки — Image/en/. Текст лежить у
-  // remastered/<map>.ard/UK_*.{binl,evdl,ev} (+ .ev без мовного префікса), btltbl.bin,
-  // menu/uk/sysmsg.bin/UK_sysmsg.binl і original/exchange/UK_*.bin (без TTUI-layout'ів).
-  // У ENG кладемо без 'remastered/' / 'original/' — так, як у старій робочій теці.
+  // KH1: текст розкиданий по п'яти архівах kh1_first…kh1_fifth (Steam — Image/dt/,
+  // старі збірки — Image/en/): kh1_first — Destiny Islands/Traverse Town/Deep Jungle…
+  // + btltbl/menu/exchange, kh1_second — Аграба/Країна чудес, kh1_third — End of the
+  // World + exchange/gummi/md_*.kmb, kh1_fourth — worldmap/challenge. Текст:
+  // remastered/<map>.ard/UK_*.{binl,evdl,ev} (+ .ev без мовного префікса),
+  // btltbl.bin, menu/uk/sysmsg.bin/UK_sysmsg.binl, original/exchange/UK_*.bin
+  // (без TTUI-layout'ів), gummi/worldmap-повідомлення, md_*.kmb.
+  // У ENG кладемо як `<archive>/<шлях без remastered/|original/>`.
   'kh1-final-mix': {
-    heds: [{ rel: 'Image/dt/kh1_first.hed', alt: ['Image/en/kh1_first.hed'], namePattern: /^kh1_first\.hed$/i }],
+    heds: ['first', 'second', 'third', 'fourth', 'fifth'].map(n => ({
+      rel: 'Image/dt/kh1_' + n + '.hed', alt: ['Image/en/kh1_' + n + '.hed'], namePattern: new RegExp('^kh1_' + n + '\\.hed$', 'i')
+    })),
     copy: {
       subdir: 'ENG', withPrefix: false,
+      prefix: (hedBase) => hedBase.toLowerCase(),     // kh1_first, kh1_second, …
       filter: (rel) => isKh1TextFile(rel),
       mapRel: (rel) => rel.replace(/^(remastered|original)\//i, '')
-    }
+    },
+    // Перед копіюванням: стара плоска розкладка (лише kh1_first без префікса)
+    // у ENG/PROGRESS → kh1_first/… (один раз, зі збереженням TSV-прогресу).
+    migrate: (textAssetsDir) => migrateKh1FlatLayout(textAssetsDir)
   }
 };
 
-const KH1_UI_LAYOUT = /^UK_(uibin_|mg_|get_|com_battle|danger)/i;
-function isKh1TextFile(rel) {
-  const base = rel.split('/').pop();
-  if (/^remastered\/[^/]+\.ard\/[^/]+$/i.test(rel)) {
-    if (/^UK_[^/]+\.(binl|evdl|ev)$/i.test(base)) return true;
-    return /\.ev$/i.test(base) && !/^[A-Z]{2}_/.test(base);   // di01a.ev — без мовного префікса
+// Плоска розкладка v2.24 (dc01.ard/…, exchange/…, btltbl.bin/…, menu/…) → kh1_first/….
+// Переносимо каталоги цілком (rename) у ENG і PROGRESS; DONE не чіпаємо.
+const KH1_FLAT_TOP = /^([a-z]{2}\d{2}\.ard|btltbl\.bin|exchange|menu)$/i;
+function migrateKh1FlatLayout(textAssetsDir) {
+  const raw = migrateIfNeeded(loadSettingsRaw());
+  const g = (raw.games && raw.games['kh1-final-mix']) || {};
+  const base = path.join(textAssetsDir, GAME_DIR_LAYOUT['kh1-final-mix'].base);
+  const dirs = [g.engDir || path.join(base, 'ENG'), g.tsvDir || path.join(base, 'PROGRESS')];
+  const moved = [];
+  for (const dir of dirs) {
+    let entries;
+    try { entries = fsSync.readdirSync(dir, { withFileTypes: true }); } catch (_) { continue; }
+    for (const e of entries) {
+      if (!e.isDirectory() || !KH1_FLAT_TOP.test(e.name)) continue;
+      const src = path.join(dir, e.name);
+      const dstDir = path.join(dir, 'kh1_first');
+      const dst = path.join(dstDir, e.name);
+      try {
+        fsSync.mkdirSync(dstDir, { recursive: true });
+        if (fsSync.existsSync(dst)) continue;     // уже мігровано / зібрано наново
+        fsSync.renameSync(src, dst);
+        moved.push(path.relative(textAssetsDir, src));
+      } catch (err) {
+        sendSetupProgress({ phase: 'copy-files', key: 'spMigrateFail', params: { path: src, msg: err.message || String(err) } });
+      }
+    }
   }
-  if (/^remastered\/btltbl\.bin\/UK_[^/]+\.bin$/i.test(rel)) return true;
-  if (/^remastered\/menu\/uk\/sysmsg\.bin\/UK_sysmsg\.binl$/i.test(rel)) return true;
-  if (/^original\/exchange\/UK_[^/]+\.bin$/i.test(rel)) return !KH1_UI_LAYOUT.test(base);
-  return false;
+  if (moved.length) sendSetupProgress({ phase: 'copy-files', key: 'spMigrated', params: { n: moved.length } });
+  return moved;
 }
+
+const { isKh1TextFile } = require('../tools/lib/kh1-files');
 
 // Рекурсивно копіює файли з srcRoot у dstRoot, зберігаючи відносну ієрархію.
 // Копіює лише ті, чий basename матчить namePattern (regex). onProgress
@@ -383,6 +413,7 @@ async function prepareGame(gameId, gameRoot, textAssetsDir, exePath, opts) {
 
   const info = { ok: true, gameId, heds: [], copyFiles: { copied: 0, skippedExisting: 0, scanned: 0, errors: [] } };
   const filesDst = gameSourceDir(gameId, textAssetsDir);
+  if (typeof cfg.migrate === 'function') { try { cfg.migrate(textAssetsDir); } catch (_) {} }
   for (const hed of cfg.heds) {
     const hedAbs = locateHed(gameRoot, hed);
     if (!hedAbs) {
@@ -406,7 +437,8 @@ async function prepareGame(gameId, gameRoot, textAssetsDir, exePath, opts) {
       sendSetupProgress({ phase: 'copy-files', key: 'spCopyOutMissing', params: { path: unpackOutDir } });
       continue;
     }
-    const dst = cfg.copy.withPrefix ? path.join(filesDst, hedBase + '.hed_out') : filesDst;
+    const dst = cfg.copy.withPrefix ? path.join(filesDst, hedBase + '.hed_out')
+      : (typeof cfg.copy.prefix === 'function' ? path.join(filesDst, cfg.copy.prefix(hedBase)) : filesDst);
     sendSetupProgress({ phase: 'copy-files', key: 'spCopyStart', params: { dst } });
     await fs.mkdir(dst, { recursive: true });
     const cr = await _copyMatchingFiles(unpackOutDir, dst, cfg.copy.filter, (p) => {
