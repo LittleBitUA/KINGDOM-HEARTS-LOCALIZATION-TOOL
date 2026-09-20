@@ -19,7 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { isMesOfsName, pairedDataName, pairedOfsName } = require('../mes-ofs');
+const { isMesOfsName, pairedDataName, pairedOfsName, pairedDataDirs, pairDialect } = require('../mes-ofs');
 const { isEvName } = require('../ev-format');
 const { MAGIC: CTD_MAGIC } = require('../ctd-format');
 const { MAGIC: CTDL_MAGIC } = require('../recom-ctdl-format');
@@ -51,21 +51,40 @@ function readHead(absPath, n) {
   }
 }
 
+// Таблиця зсувів для data-файла: та сама тека або (SASAMSG у gumi/SASAMSG.BIN/)
+// `../../exchange/` чи `../../../original/exchange/`.
+function hasOfsNearby(absPath, ofsName) {
+  const dir = path.dirname(absPath);
+  for (const rel of ['', '../../exchange', '../../../original/exchange']) {
+    if (fs.existsSync(path.join(dir, rel, ofsName))) return true;
+  }
+  return false;
+}
+
 function classifyUncached(absPath, ext) {
   const baseName = path.basename(absPath);
 
-  // Парний формат за іменем — найдешевша перевірка.
+  // Парний формат за іменем — найдешевша перевірка. Data-половина може лежати
+  // в іншій теці (SASAOMSG у exchange/, SASAMSG — у gumi/SASAMSG.BIN/).
   if (isMesOfsName(baseName)) {
-    const dataPath = path.join(path.dirname(absPath), pairedDataName(baseName));
-    if (fs.existsSync(dataPath)) {
-      return { kind: 'mesofs', magic: 'mes_ofs', extractOpts: { dataPath }, isTranslatable: true };
+    const dataName = pairedDataName(baseName);
+    for (const rel of pairedDataDirs(baseName)) {
+      const dataPath = path.join(path.dirname(absPath), rel, dataName);
+      if (fs.existsSync(dataPath)) {
+        return { kind: 'mesofs', magic: 'mes_ofs', extractOpts: { dataPath, cmd: pairDialect(baseName) }, isTranslatable: true };
+      }
     }
   }
-  // Друга половина пари (`_mes_data.bin`, або `_data.bin` поруч із `_offset.bin`) —
-  // редагується через таблицю зсувів, не як raw .bin (інакше зсуви «поїдуть»).
+  // Друга половина пари (`_mes_data.bin`, `_data.bin` поруч із `_offset.bin`, `*MSG.BIN`
+  // з `*OMSG.BIN`, ChallengeMsg з ChallengeOfs) — редагується через таблицю зсувів,
+  // не як raw .bin (інакше зсуви «поїдуть»).
   const ofsName = pairedOfsName(baseName);
-  if (ofsName && (/_mes_data\.bin$/i.test(baseName) || fs.existsSync(path.join(path.dirname(absPath), ofsName)))) {
+  if (ofsName && (/_mes_data\.bin$/i.test(baseName) || hasOfsNearby(absPath, ofsName))) {
     return { kind: 'mesdata', magic: 'mes_data', extractOpts: null, isTranslatable: false };
+  }
+  // menu/md_*.kmb — `u32 count` + рядки меню (словник, гімн, Jiminy, синопсис).
+  if (/\.kmb$/i.test(baseName)) {
+    return { kind: 'kmb', magic: 'kmb', extractOpts: null, isTranslatable: true };
   }
   // .ev/.evdl: footer/bytecode позиційно-незалежний (підтверджено byte-by-byte
   // порівнянням ENG vs RUS), оновлюється лише header pointer table.

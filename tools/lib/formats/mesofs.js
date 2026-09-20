@@ -12,9 +12,10 @@ const { parsePair, composePair, pairedDataName } = require('../mes-ofs');
 async function parse(engPath, env) {
   const dataPath = env.cls && env.cls.extractOpts && env.cls.extractOpts.dataPath;
   if (!dataPath) throw new Error('Не знайдено пару _mes_data.bin для ' + path.basename(engPath));
+  const cmd = (env.cls && env.cls.extractOpts && env.cls.extractOpts.cmd) || 'evmsg';
   const ofsBuf = await fs.readFile(engPath);
   const dataBuf = await fs.readFile(dataPath);
-  const parsed = parsePair(ofsBuf, dataBuf, codec);
+  const parsed = parsePair(ofsBuf, dataBuf, codec, { cmd });
 
   // Унікальні offsets у порядку першої появи в ofs (зручно для UI).
   const seen = new Map();
@@ -58,12 +59,14 @@ async function parse(engPath, env) {
       return {
         outputs: [
           { buf: c.ofsBuf, pathFor: (outPath) => outPath },
-          { buf: c.dataBuf, pathFor: (outPath) => path.join(path.dirname(outPath), pairedDataName(path.basename(outPath))) }
+          // data-половина: поруч з ofs у DONE; якщо у джерелі вона в іншій теці
+          // (SASAMSG) — composeAll кладе її за srcPath у тій самій розкладці.
+          { buf: c.dataBuf, srcPath: dataPath, pathFor: (outPath) => path.join(path.dirname(outPath), pairedDataName(path.basename(outPath))) }
         ],
         applied: ukByOffset.size,
         skipped: parsed.uniqueStrings - ukByOffset.size,
         errors: [],
-        extra: { mesofs: { layout: c.layout } }
+        extra: { mesofs: { layout: c.layout, cmd } }
       };
     }
   };

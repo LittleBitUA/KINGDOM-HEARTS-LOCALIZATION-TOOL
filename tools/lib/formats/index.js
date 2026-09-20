@@ -37,7 +37,8 @@ const handlers = {
   ev:     require('./ev'),
   ctd:    require('./ctd'),
   ctdl:   require('./ctdl'),
-  'ctd-ddd': require('./ddd')
+  'ctd-ddd': require('./ddd'),
+  kmb:    require('./kmb')
 };
 
 function getHandler(kind) {

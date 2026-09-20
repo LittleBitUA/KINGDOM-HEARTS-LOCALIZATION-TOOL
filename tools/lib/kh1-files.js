@@ -13,13 +13,14 @@ function isKh1TextFile(rel) {
   }
   if (/^remastered\/btltbl\.bin\/UK_[^/]+\.bin$/i.test(rel)) return true;
   if (/^remastered\/menu\/uk\/sysmsg\.bin\/UK_sysmsg\.binl$/i.test(rel)) return true;
-  // kh1_third: original/exchange/UK_*.bin|BIN (магазини, SAWDMSG…), UK/psel.bin, *.nam (назви локацій)
-  if (/^original\/exchange\/UK_[^/]+\.(bin|nam)$/i.test(rel)) return !KH1_UI_LAYOUT.test(base);
-  if (/^original\/exchange\/UK\/[^/]+\.bin$/i.test(rel)) return true;
-  if (/^original\/exchange\/US_allarea\.nam$/i.test(rel)) return true;
-  // kh1_third: gummi-повідомлення, словник/гімн/Jiminy у md_*.kmb
+  // kh1_third: original/exchange/UK_*.bin|BIN (магазини, кубки, SAW*MSG + таблиці зсувів)
+  if (/^original\/exchange\/UK_[^/]+\.bin$/i.test(rel)) return !KH1_UI_LAYOUT.test(base);
+  // НЕ текст: exchange/UK/psel.bin (графіка), *_allarea.nam — назви кімнат у
+  // fullwidth Shift-JIS для шрифту меню (окрема задача разом із sysmsg).
+  // kh1_third: gummi-повідомлення, словник/гімн/Jiminy/синопсис (md_*.kmb), memo sysmsg
   if (/^remastered\/gumi\/[^/]+\/UK_[^/]+\.bin$/i.test(rel)) return true;
   if (/^remastered\/menu\/md_[^/]+\.kmb\/UK_[^/]+\.kmb$/i.test(rel)) return true;
+  if (/^remastered\/menu\/md_memo_sysmsg\.bin\/UK_[^/]+\.binl$/i.test(rel)) return true;
   // kh1_fourth: worldmap/challenge (ChallengeMsg.bin + ChallengeOfs.binl)
   if (/^remastered\/worldmap\/[^/]+\/UK_[^/]+\.(bin|binl)$/i.test(rel)) return true;
   return false;

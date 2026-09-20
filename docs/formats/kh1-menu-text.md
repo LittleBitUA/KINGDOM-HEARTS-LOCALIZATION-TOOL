@@ -10,14 +10,16 @@
 |---|---|---|
 | `menu/<lang>/sysmsg.bin` → `XX_sysmsg.binl` | 488 системних повідомлень («Load this game?», «Ability equipped.», налаштування, гейм-овер) | ✅ handler `binl-v361` |
 | `menu/<lang>/sysfont.bin` | шрифт меню (гліфи 0x20+, таблиця метрик 16 байт/гліф) | — |
-| `menu/md_syno.kmb`, `menu/md_jiminy.kmb`, `menu/md_dic_msg.kmb`, `menu/md_anthem.kmb` | Синопсис, Журнал Джиміні, словник, «Ансем-репорти» | ⏳ формат KMB (u32 count + рядки з `00`, за OpenKh PR #1275) — файлів у `kh1_first` немає, шукати в інших `.hed` |
-| `menu/md_memo_sysmsg.bin` → `md_memo_sysmsg.binl` | sysmsg-повідомлення журналу | ⏳ той самий Message v361, файл не знайдено |
+| `menu/md_syno.kmb`, `menu/md_jiminy.kmb`, `menu/md_dic_msg.kmb`, `menu/md_anthem.kmb` (`kh1_third`, `remastered/menu/md_*.kmb/UK_*.kmb`) | Синопсис, Журнал Джиміні, словник, «Ансем-репорти» | ✅ handler `kmb` (див. нижче) |
+| `menu/md_memo_sysmsg.bin` → `md_memo_sysmsg.binl` (`kh1_third`, `remastered/menu/md_memo_sysmsg.bin/UK_…binl`) | 267 sysmsg-повідомлень журналу («Which character?», «Rotate with…») | ✅ той самий Message v361 (`binl-v361`) |
 | `exchange/%s_wsysmsg_offset.bin` + `_data.bin` | «Power / Armor / Shield / Special» | ✅ пара `mesofs` |
 | `exchange/%s_wname_offset.bin` + `_data.bin` | **назви світів** (End of the World, Monstro, …) | ✅ пара `mesofs` (у `E:\RUS_KH\ENG` цих файлів ще нема — взяти з `original/exchange`) |
 | `exchange/%s_name_mes.bin`, `%s_name_o_mes.bin`, `%s_ShopMessage.bin`, `%s_PresentMessage.bin`, `%s_HZRankingMsg.bin`, кубки `%s_*_cup.bin` | raw-таблиці | ✅ `rawbin` |
-| `exchange/%s_gumi_mes_ofs.bin` + `_data.bin`, `%s_gumi_shop_msg.bin`, `%s_item_shop_msg.bin` | gummi/магазини | ✅ / ⏳ |
+| `exchange/%s_gumi_mes_ofs.bin` + `_data.bin`, `%s_gumi_shop_msg.bin`, `%s_item_shop_msg.bin` | gummi/магазини | ✅ пара `mesofs` / ✅ `rawbin` (u32 count + рядки; гра читає послідовно — RU-мод виріс з 2272 до 2928 байт) |
 | `btltbl.bin` → `XX_AbilityName/AbilityHelp/ItemHelp/Word.bin` | бойові таблиці | ✅ `rawbin` |
-| `ChallengeMsg.bin`, `ChallengeOfs.binl`, `SASAMSG.BIN`, `SAWDMSG.BIN`, `SAWEMSG.BIN`, `ghelp.bin` | міні-ігри / gummi | ⏳ не в `kh1_first` |
+| `worldmap/challe.dat/XX_ChallengeOfs.binl` + `XX_ChallengeMsg.bin` (`kh1_fourth`), `exchange/XX_SAWEOMSG.BIN` + `XX_SAWEMSG.BIN`, `XX_SAWDOMSG.BIN` + `XX_SAWDMSG.BIN`, `exchange/XX_SASAOMSG.BIN` + `remastered/gumi/SASAMSG.BIN/XX_SASAMSG.BIN` (`kh1_third`) | gummi-меню, карта світу, челенджі | ✅ пари `mesofs` у діалекті меню (див. нижче) |
+| `exchange/XX_allarea.nam` | назви кімнат (18 світів × кімнати) у **fullwidth Shift-JIS** (`Ｄｉｎｉｎｇ　Ｒｏｏｍ`) — рендер шрифтом меню за unicode-полем `US_font_data_tbl.bin`; RU-мод поклав літери на коди хіраґани | ⏳ разом із нативним шрифтом меню (окрема задача) — формат: `u32 worlds`, таблиця `(u32 off, u32 size)` @0x10; блок світу: `u32 rooms`, 12×00, `(u32 off, u32 size)` відносно блоку, рядки з `00`, комірки кратні 4 |
+| `exchange/UK/psel.bin` | не текст (графіка/палітра, 0xD0-заповнення; UK/GR різняться лише хвостом) | — |
 
 ## `Message v361` — контейнер
 
@@ -67,3 +69,26 @@ Sentinel-зсув у старого імпортера = `textLength` (а не `
 **Це не те саме, що діалоги подій (`EvMsg` .binl в ARD):** там свій байткод (`05/06/07` + u16,
 `0A/0B/0D` 4 байти, `0C/0E` 2 байти), а розмір вікна задає скрипт EVDL syscall-ами
 (`Set_window_size`, `Set_window_type`, `Set_window_width_auto`…) перед `Display_message(id)`.
+
+## `.kmb` — списки рядків меню (`tools/lib/menu-msg.js`, handler `kmb`)
+
+`u32 count`, далі `count` рядків у діалекті меню з термінатором `00`. Кінець рядка шукаємо,
+перестрибуючи команди (`0D 0C 00` = зсув X на 12, а не термінатор). Хвіст — нулі:
+`md_syno` доповнено до `0x4800`, `md_anthem`/`md_dic_msg` мають один завершальний `00`,
+`md_jiminy` — до кратного 16. Compose зберігає розмір оригіналу, якщо вміщується; інакше —
+той самий хвіст, вирівняний на 16 (якщо оригінал був кратний 16). Перевірено байт-у-байт на
+UK/FR/GR/IT/SP; RU-мод змінював розміри вільно (`md_syno` 18432 → 17443).
+
+## Пари таблиця-зсувів + дані у діалекті меню
+
+Той самий формат, що `_mes_ofs/_mes_data` (u16-зсуви, `0xCD`/`00`-доповнення), але текст —
+діалект меню, тож `parsePair(…, {cmd:'sysmsg'})` шукає термінатор з урахуванням команд.
+`SAWDOMSG` має 1024 вказівники, з яких лише 40 ненульові (решта — посилання на рядок 0);
+`SASAOMSG` лежить в `original/exchange/`, а його дані — в `remastered/gumi/SASAMSG.BIN/` —
+класифікатор шукає data-половину в `../gumi/SASAMSG.BIN/` і `../../remastered/gumi/SASAMSG.BIN/`,
+а `composeAll` кладе її у DONE за власним шляхом джерела (`kh1_third/remastered/gumi/SASAMSG.BIN/`).
+Розміри інших мов (FR/GR/IT/SP більші за UK) показують, що гра не тримає їх у фіксованому буфері.
+
+**Рендер:** усе це — шрифт меню (`sysfont.bin` + `US_font_data_tbl.bin`), де нативних гліфів
+`19 NN` ще немає — як і для `sysmsg.binl`. Компонування працює, кирилиця в цих файлах
+з'явиться разом із нативним шрифтом меню.

@@ -101,10 +101,12 @@ async function extractFile(engPath, env) {
   };
 }
 
-async function writeOutputs(outPath, result) {
+// writeOutputs(outPath, result, resolveSrc?) — resolveSrc(srcAbs) → шлях у DONE для
+// парного файла, що у джерелі лежить в іншій теці (SASAMSG.BIN у gumi/, зсуви — у exchange/).
+async function writeOutputs(outPath, result, resolveSrc) {
   const written = [];
   for (const o of result.outputs) {
-    const p = o.pathFor(outPath);
+    const p = (o.srcPath && resolveSrc && resolveSrc(o.srcPath)) || o.pathFor(outPath);
     await writeFileAtomic(p, o.buf);
     written.push({ path: p, byteLength: o.buf.length });
   }
@@ -254,8 +256,13 @@ async function composeAll(files, env) {
     const rusPath = rusPathFor(rusDir, rel);
     // env.outLayout === 'patch' — тека, готова для KHPCPatchManager: <archive>/(original|remastered)/…
     // (env.gameId визначає правило); 'kh1-hedout' — старий синонім для KH1.
-    const outRel = env.outLayout === 'patch' ? patchOutRel(env.gameId, rel) : (env.outLayout === 'kh1-hedout' ? kh1OutRel(rel) : rel);
-    const outPath = path.join(outDir, outRel);
+    const layoutRel = (r) => env.outLayout === 'patch' ? patchOutRel(env.gameId, r) : (env.outLayout === 'kh1-hedout' ? kh1OutRel(r) : r);
+    const outPath = path.join(outDir, layoutRel(rel));
+    // парний файл з іншої теки джерела → та сама розкладка від його власного rel
+    const resolveSrc = (srcAbs) => {
+      const r = path.relative(engDir, srcAbs).split(path.sep).join('/');
+      return r.startsWith('..') ? null : path.join(outDir, layoutRel(r));
+    };
     if (!fs.existsSync(engPath)) return { rel, status: 'missing' };
     if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
     try {
@@ -281,7 +288,7 @@ async function composeAll(files, env) {
       if (ukByOffset.size === 0 && guardErrors.length === 0) { skippedNoTranslations++; return { rel, status: 'no-translations' }; }
       const result = ukByOffset.size ? await parsed.compose(ukByOffset) : { outputs: [], applied: 0, skipped: 0, errors: [] };
       if (guardErrors.length) result.errors = guardErrors.concat(result.errors || []);
-      if (ukByOffset.size) { await writeOutputs(outPath, result); written++; }
+      if (ukByOffset.size) { await writeOutputs(outPath, result, resolveSrc); written++; }
       else { skippedNoTranslations++; }
       totalReplacements += result.applied || 0;
       if (result.errors && result.errors.length) {

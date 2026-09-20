@@ -27,7 +27,7 @@
 |---|---|
 | **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game ізольовані налаштування і теки) |
 | **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), нативна кирилиця кодами `19 NN` (латиниця недоторкана), lossless round-trip |
-| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.binl` **«Message v361»** (`sysmsg` — 488 системних повідомлень), `.ard` (KGR контейнер), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange меню), `.ev`/`.evdl` (event-скрипти) |
+| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.binl` **«Message v361»** (`sysmsg`, `md_memo_sysmsg`), `.ard` (KGR контейнер), пари таблиця-зсувів + дані (`_mes_ofs`/`_mes_data`, `_offset`/`_data`, `SAW*OMSG`/`SAW*MSG`, `SASAOMSG`/`SASAMSG`, `ChallengeOfs`/`ChallengeMsg`), `.kmb` (словник, Jiminy, синопсис, гімн), `.ev`/`.evdl` (event-скрипти) — усі п'ять архівів `kh1_first…fifth` |
 | **Формати Re:CoM** | `.ctdl` (порт `comtext.py`/`comctd.py`, звірено на всіх 30 503 повідомленнях; `{color xx}` `{icon xx}`, **кирилиця на кодах хіраґани `0x829F–0x82E0`**; round-trip 426/426) |
 | **Формати DDD** | `.ctd` v0x1F7 UTF-16LE (порт `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, сторінкова адресація до 1 МіБ; round-trip 37/37) |
 | **Шрифти UA** | Вкладка «Шрифти UA» для KH1 / BBS / Re:CoM / DDD (KH1: нативна кирилиця у вільних комірках 224+ шрифту діалогів, коди `19 NN`, `tools/py/kh1/kh1font.py`): растеризує 66 українських літер (ComicHearts для діалогів, KHMenu для інтерфейсу) у вільні комірки ігрових шрифтів еталонними Python-інструментами (`tools/py`), «Встановити у гру» з бекапом оригіналів |
@@ -146,7 +146,7 @@ Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: 
 |---|---|
 | **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game isolated settings and folders) |
 | **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), native Cyrillic via `19 NN` codes (Latin untouched), lossless round-trip |
-| **KH1 formats** | `.bin` (raw text), `.binl` (with EvMsg header), `.binl` **“Message v361”** (`sysmsg` — 488 system messages), `.ard` (KGR container), `_mes_ofs.bin`+`_mes_data.bin` (gummi/exchange menus), `.ev`/`.evdl` (event scripts) |
+| **KH1 formats** | `.bin` (raw text), `.binl` (EvMsg header), `.binl` **“Message v361”** (`sysmsg`, `md_memo_sysmsg`), `.ard` (KGR container), offset-table + data pairs (`_mes_ofs`/`_mes_data`, `_offset`/`_data`, `SAW*OMSG`/`SAW*MSG`, `SASAOMSG`/`SASAMSG`, `ChallengeOfs`/`ChallengeMsg`), `.kmb` (dictionary, Jiminy, synopsis, anthem), `.ev`/`.evdl` (event scripts) — all five `kh1_first…fifth` archives |
 | **Re:CoM formats** | `.ctdl` (port of `comtext.py`/`comctd.py`, verified on all 30 503 messages; `{color xx}` `{icon xx}`, **Ukrainian on hiragana codes `0x829F–0x82E0`**; round-trip 426/426) |
 | **DDD formats** | `.ctd` v0x1F7 UTF-16LE (port of `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, paged addressing up to 1 MiB; round-trip 37/37) |
 | **UA fonts** | "UA fonts" tab for KH1 / BBS / Re:CoM / DDD (KH1: native Cyrillic in the free dialog-font cells 224+, `19 NN` codes, `tools/py/kh1/kh1font.py`): rasterizes the 66 Ukrainian letters (ComicHearts for dialogue, KHMenu for UI) into free cells of the game fonts using the reference Python tools (`tools/py`); "Install into game" with backups |

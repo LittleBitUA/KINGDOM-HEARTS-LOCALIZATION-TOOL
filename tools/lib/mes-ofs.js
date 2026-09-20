@@ -21,6 +21,13 @@
 // =====================================================================
 
 const PAD_BYTE = 0xCD;
+const { scanMsgEnd } = require('./menu-msg');
+
+function naiveEnd(buf, start, end) {
+  let e = start;
+  while (e < end && buf[e] !== 0x00) e++;
+  return e;
+}
 
 function trimCdPadding(buf) {
   let end = buf.length;
@@ -28,7 +35,10 @@ function trimCdPadding(buf) {
   return { length: end, padCount: buf.length - end };
 }
 
-function parsePair(ofsBuf, dataBuf, codec) {
+// parsePair(ofsBuf, dataBuf, codec, opts?) — opts.cmd: 'evmsg' (default) | 'sysmsg'
+// (діалект команд: SAW*/SASA/Challenge — текст меню, 0x00 усередині команд).
+function parsePair(ofsBuf, dataBuf, codec, opts) {
+  const cmd = (opts && opts.cmd) || 'evmsg';
   const ofsTrim = trimCdPadding(ofsBuf);
   const dataTrim = trimCdPadding(dataBuf);
 
@@ -43,11 +53,10 @@ function parsePair(ofsBuf, dataBuf, codec) {
   for (let i = 0; i < sortedOffsets.length; i++) {
     const off = sortedOffsets[i];
     if (off >= dataTrim.length) continue; // pointer лежить у padding-зоні?
-    let end = off;
-    while (end < dataTrim.length && dataBuf[end] !== 0x00) end++;
+    const end = cmd === 'sysmsg' ? scanMsgEnd(dataBuf, off, dataTrim.length) : naiveEnd(dataBuf, off, dataTrim.length);
     const sliceWithEol = dataBuf.slice(off, end + 1); // include 0x00
     let decoded = '';
-    try { decoded = codec.decode(sliceWithEol, { overlay: false }); } catch (_) { decoded = ''; }
+    try { decoded = codec.decode(sliceWithEol, { cmd }); } catch (_) { decoded = ''; }
     stringByOffset.set(off, {
       english: decoded.replace(/\n$/, ''), // codec додає '\n' після {eol} — приберемо
       byteLen: sliceWithEol.length,
@@ -233,21 +242,46 @@ function describeOverflow(overflow) {
 }
 
 // Допоміжне: чи це файл-пара mes_ofs?
-// Пари таблиця-зсувів + дані: `X_mes_ofs.bin`+`X_mes_data.bin` (gummi) і
-// `X_offset.bin`+`X_data.bin` (exchange/UK_wsysmsg_*, UK_wname_* — назви світів;
-// exe читає їх як `exchange/%s_wsysmsg_offset.bin`). Формат той самий: u16-зсуви + 0xCD.
-function isMesOfsName(filename) {
-  return /_mes_ofs\.bin$/i.test(filename) || /_offset\.bin$/i.test(filename);
-}
+// Пари таблиця-зсувів + дані (u16-зсуви + 0xCD/0x00-доповнення):
+//   `X_mes_ofs.bin`+`X_mes_data.bin`      — gummi-меню (діалект evmsg — команд меню там нема)
+//   `X_offset.bin`+`X_data.bin`           — exchange/UK_wsysmsg_*, UK_wname_* (назви світів)
+//   `X_ChallengeOfs.binl`+`X_ChallengeMsg.bin` — worldmap/challe.dat (діалект меню)
+//   `X_SAWEOMSG.BIN`+`X_SAWEMSG.BIN`, `X_SAWDOMSG.BIN`+`X_SAWDMSG.BIN` — exchange (меню)
+//   `X_SASAOMSG.BIN` (exchange) + `X_SASAMSG.BIN` (gumi/SASAMSG.BIN/ — інша тека!)
+const PAIRS = [
+  { ofs: /_mes_ofs\.bin$/i, data: '_mes_data.bin', cmd: 'evmsg' },
+  { ofs: /_offset\.bin$/i, data: '_data.bin', cmd: 'evmsg' },
+  { ofs: /ChallengeOfs\.binl$/i, data: 'ChallengeMsg.bin', cmd: 'sysmsg' },
+  { ofs: /SAWEOMSG\.BIN$/i, data: 'SAWEMSG.BIN', cmd: 'sysmsg' },
+  { ofs: /SAWDOMSG\.BIN$/i, data: 'SAWDMSG.BIN', cmd: 'sysmsg' },
+  { ofs: /SASAOMSG\.BIN$/i, data: 'SASAMSG.BIN', cmd: 'sysmsg', dataDirs: ['../gumi/SASAMSG.BIN', '../../remastered/gumi/SASAMSG.BIN'] }
+];
+function pairRuleFor(ofsName) { return PAIRS.find(r => r.ofs.test(ofsName)) || null; }
+function isMesOfsName(filename) { return !!pairRuleFor(filename); }
 function pairedDataName(ofsName) {
-  if (/_mes_ofs\.bin$/i.test(ofsName)) return ofsName.replace(/_mes_ofs\.bin$/i, '_mes_data.bin');
-  return ofsName.replace(/_offset\.bin$/i, '_data.bin');
+  const r = pairRuleFor(ofsName);
+  return r ? ofsName.replace(r.ofs, r.data) : null;
 }
-// Ім'я `_data.bin`-половини пари → ім'я таблиці зсувів (для класифікації).
+// Ім'я data-половини пари → ім'я таблиці зсувів (для класифікації).
 function pairedOfsName(dataName) {
-  if (/_mes_data\.bin$/i.test(dataName)) return dataName.replace(/_mes_data\.bin$/i, '_mes_ofs.bin');
-  if (/_data\.bin$/i.test(dataName)) return dataName.replace(/_data\.bin$/i, '_offset.bin');
+  for (const r of PAIRS) {
+    const suffix = r.data;
+    if (dataName.toLowerCase().endsWith(suffix.toLowerCase())) {
+      // відновлюємо суфікс ofs з regex-джерела: `_mes_ofs.bin`, `SAWEOMSG.BIN`…
+      const ofsSuffix = r.ofs.source.replace(/\\\./g, '.').replace(/\$$/, '');
+      return dataName.slice(0, dataName.length - suffix.length) + ofsSuffix;
+    }
+  }
   return null;
 }
+// Де шукати data-половину відносно теки ofs-файла ('' = та сама тека).
+function pairedDataDirs(ofsName) {
+  const r = pairRuleFor(ofsName);
+  return r ? [''].concat(r.dataDirs || []) : [''];
+}
+function pairDialect(ofsName) {
+  const r = pairRuleFor(ofsName);
+  return r ? r.cmd : 'evmsg';
+}
 
-module.exports = { parsePair, composePair, isMesOfsName, pairedDataName, pairedOfsName, PAD_BYTE };
+module.exports = { parsePair, composePair, isMesOfsName, pairedDataName, pairedOfsName, pairedDataDirs, pairDialect, PAD_BYTE };
