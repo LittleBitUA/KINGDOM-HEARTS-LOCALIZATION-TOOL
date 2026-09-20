@@ -20,16 +20,26 @@ const NATIVE_PATH = path.join(__dirname, '..', 'data', 'kh1_native.json');
 let nativeCache = null;
 let nativeMapPath = null;
 let nativeCacheKey = '';
+let nativeCheckedAt = 0;
+// Як часто перевіряти, чи змінилась користувацька карта на диску. decode/encode
+// викликаються на кожен рядок (десятки тисяч разів за індексацію), а statSync
+// на кожен виклик робив розбір KH1 у 25 разів повільнішим.
+const NATIVE_RECHECK_MS = 2000;
 
 function setNativeMapPath(p) {
   nativeMapPath = p ? String(p) : null;
   nativeCache = null;
+  nativeCheckedAt = 0;
   return nativeMapPath;
 }
 function getNativeMapPath() { return nativeMapPath; }
 
 function loadNative() {
-  // Кеш інвалідовується, коли користувацька карта з'явилась/змінилась.
+  // Кеш інвалідовується, коли користувацька карта з'явилась/змінилась
+  // (перевірка на диску — не частіше NATIVE_RECHECK_MS).
+  const now = Date.now();
+  if (nativeCache && now - nativeCheckedAt < NATIVE_RECHECK_MS) return nativeCache;
+  nativeCheckedAt = now;
   let key = 'static';
   let custom = null;
   if (nativeMapPath) {

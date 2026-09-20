@@ -159,6 +159,8 @@ test('native map: a custom map (generator output with extra letters) overrides t
     const base = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'kh1_native.json'), 'utf8'));
     base.map['Ё'] = [0x19, 0x42];
     fs.writeFileSync(file, JSON.stringify(base));
+    // перевірка диска — не частіше ніж раз на 2 с; setNativeMapPath скидає кеш (так робить install шрифту)
+    codec.setNativeMapPath(file);
     const nat = codec.loadNative();
     assert.equal(nat.source, 'custom');
     assert.deepEqual(nat.encodeMap.get('Ё'), [0x19, 0x42]);
