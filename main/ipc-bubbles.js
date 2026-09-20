@@ -10,7 +10,7 @@
 //   bubbles:glyphs({ text, font })     → { lines: [[glyphIdx…]] } для preview
 //   bubbles:load({ tsvDir }) / bubbles:save({ tsvDir, overrides })
 
-const { ipcMain } = require('electron');
+const { ipcMain, app, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsP = require('fs/promises');
@@ -20,6 +20,8 @@ const codec = require('../tools/lib/recom-ctdl-codec');
 const layout = require('../tools/lib/recom-ctdl-layout');
 const { glossaryLookup } = require('../tools/lib/translate-ops');
 const { parseHeader, locateFont } = require('./ipc-comkern');
+const { loadSettingsRaw } = require('./settings');
+const { findDirNamed } = require('./ipc-uafonts');
 
 const BUBBLES_FILENAME = '_bubbles.json';
 const bubblesPath = (tsvDir) => path.join(tsvDir, BUBBLES_FILENAME);
@@ -135,6 +137,44 @@ ipcMain.handle('bubbles:glyphs', async (_e, payload) => {
     lines[lines.length - 1].push(g);
   }
   return { ok: true, lines, widths: font.widths, line: font.line, count: font.count, space: layout.spaceAdvance(font) };
+});
+
+// bubbles:atlas — спрайти вікон із гри: remastered/FORM/1000/FO1000.RTM/UK_message.imd
+// (IMGD 32bpp 256×256, альфа PS2 0x80 = непрозоро) → PNG data URL. Шматки атласу
+// (9-slice хмаринки, вигук, хвостики) вирізає renderer.
+let atlasCache = null;
+function locateMessageImd() {
+  const cands = [];
+  const build = path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', 'kh-re-com', 'build');
+  for (const top of ['Recom', 'Recom.hed_out']) cands.push(path.join(build, top, 'remastered', 'FORM', '1000', 'FO1000.RTM', 'UK_message.imd'));
+  try {
+    const raw = loadSettingsRaw();
+    const gameDir = raw.gameDirectories && raw.gameDirectories['kh-re-com'];
+    if (gameDir) { const hedOut = findDirNamed(gameDir, 'Recom.hed_out', 4); if (hedOut) cands.push(path.join(hedOut, 'remastered', 'FORM', '1000', 'FO1000.RTM', 'UK_message.imd')); }
+  } catch (_) {}
+  return cands.find(c => fs.existsSync(c)) || null;
+}
+function decodeImgd(buf) {
+  if (buf.toString('ascii', 0, 4) !== 'IMGD') throw new Error('Не IMGD');
+  const bo = buf.readUInt32LE(8), bl = buf.readUInt32LE(12), w = buf.readUInt16LE(0x1C), h = buf.readUInt16LE(0x1E);
+  if (bl !== w * h * 4) throw new Error('IMGD: підтримується лише 32bpp (' + w + '×' + h + ', ' + bl + ' Б)');
+  const bgra = Buffer.alloc(w * h * 4);
+  for (let i = 0; i < w * h; i++) {
+    const o = bo + i * 4;
+    bgra[i * 4] = buf[o + 2]; bgra[i * 4 + 1] = buf[o + 1]; bgra[i * 4 + 2] = buf[o]; bgra[i * 4 + 3] = Math.min(255, buf[o + 3] * 2);
+  }
+  return { w, h, bgra };
+}
+ipcMain.handle('bubbles:atlas', async () => {
+  if (atlasCache) return atlasCache;
+  const p = locateMessageImd();
+  if (!p) return { ok: false, error: 'UK_message.imd не знайдено (remastered/FORM/1000/FO1000.RTM)' };
+  try {
+    const { w, h, bgra } = decodeImgd(await fsP.readFile(p));
+    const png = nativeImage.createFromBitmap(bgra, { width: w, height: h }).toPNG();
+    atlasCache = { ok: true, path: p, width: w, height: h, dataUrl: 'data:image/png;base64,' + png.toString('base64') };
+    return atlasCache;
+  } catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
 });
 
 ipcMain.handle('bubbles:load', async (_e, payload) => {

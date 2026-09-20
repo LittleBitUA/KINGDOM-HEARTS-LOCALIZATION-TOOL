@@ -105,9 +105,15 @@ function rowEl(r) {
     (it.twins && it.twins.length > 1 ? '<span class="bb-twins" title="' + esc(it.twins.map(tw => tw.f.rel).join('\n')) + '">×' + it.twins.length + '</span>' : '') +
     '<span class="bb-geom">' + g.w + '×' + g.h + (need != null ? ' · ' + t('bbNeed') + ' ' + need : '') + '</span>' +
     (fit != null ? '<span class="bb-fit' + (fit < 0 ? ' bad' : (fit < bState.minPad ? ' warn' : '')) + '">' + (fit >= 0 ? '+' : '') + Math.round(fit) + '</span>' : '') + '</div>' +
-    it.pages.map(pg => '<div class="bb-en">' + esc(pg.en) + '</div>' +
-      (pg.uk ? '<div class="bb-uk">' + esc(pg.uk) + '</div>' : '<div class="bb-uk dim">' + t('bbNoUk') + '</div>')).join('<div class="bb-page-sep"></div>');
-  d.addEventListener('click', () => select(r));
+    it.pages.map((pg, pi) => '<div class="bb-page' + (bState.sel && bState.sel.it === it && bState.sel.page === pi ? ' active' : '') + '" data-page="' + pi + '"><div class="bb-en">' + esc(pg.en) + '</div>' +
+      (pg.uk ? '<div class="bb-uk">' + esc(pg.uk) + '</div>' : '<div class="bb-uk dim">' + t('bbNoUk') + '</div>') + '</div>').join('<div class="bb-page-sep"></div>');
+  d.addEventListener('click', (e) => {
+    const pgEl = e.target.closest('.bb-page');
+    const page = pgEl ? parseInt(pgEl.dataset.page, 10) : null;
+    d.querySelectorAll('.bb-page.active').forEach(x => x.classList.remove('active'));
+    if (pgEl) pgEl.classList.add('active');
+    select(Object.assign({}, r, { page: it.pages.length > 1 ? page : null }));
+  });
   return d;
 }
 function appendChunk() {
@@ -142,6 +148,7 @@ function refreshStatus() {
 // ---- вибір + інспектор ----
 function select(r) {
   const prev = ui.list.querySelector('.bb-row.active'); if (prev) prev.classList.remove('active');
+  if (bState.sel && bState.sel.it !== r.it) ui.list.querySelectorAll('.bb-page.active').forEach(x => x.classList.remove('active'));
   bState.sel = r;
   const cur = ui.list.querySelector('[data-key="' + CSS.escape(keyOf(r.f, r.it)) + '"]'); if (cur) cur.classList.add('active');
   fillInspector();
@@ -301,19 +308,102 @@ function drawTail(ctx, it, g, S, fillStyle, strokeStyle) {
   }
   ctx.restore();
 }
-// drawWindow: малює вікно за типом; повертає колір тексту-підказки для fallback-шрифту
+// ---- спрайти вікон із гри (UK_message.imd, 256×256, 1 px = 1 px PS2) ----
+// Шматки атласу (координати з декодованого IMGD):
+//   pill   — капсула хмаринки (9-slice), burst — вигук, tails — хвостики:
+//   curve* — звичайна хмаринка (curve-bottom: смужка зверху + хвіст вниз-вправо),
+//   straight* — вигук, think* — «думка» (кружечки). Ліві варіанти — дзеркало.
+const ATLAS = {
+  pill: { x: 1, y: 0, w: 30, h: 48, corner: 12 },
+  burst: { x: 82, y: 3, w: 47, h: 46 },
+  tails: {
+    tail: { bottom: { x: 193, y: 133, w: 31, h: 41, strip: 8 }, top: { x: 193, y: 174, w: 31, h: 41, strip: 8 } },
+    spike: { bottom: { x: 160, y: 133, w: 29, h: 41, strip: 8 }, top: { x: 160, y: 174, w: 29, h: 41, strip: 8 } },
+    dots: { bottom: { x: 131, y: 133, w: 29, h: 41, strip: 8 }, top: { x: 131, y: 174, w: 29, h: 41, strip: 8 } }
+  }
+};
+let atlasImg = null, atlasTried = false;
+async function ensureAtlas() {
+  if (atlasImg || atlasTried) return atlasImg;
+  atlasTried = true;
+  try {
+    const r = await window.kh1.bubbles.atlas();
+    if (r && r.ok) { const img = new Image(); await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = r.dataUrl; }); atlasImg = img; }
+    else toast(t('toastError', { msg: (r && r.error) || 'atlas' }), 'warn', 6000);
+  } catch (_) {}
+  return atlasImg;
+}
+// Відтінок макета (c0) на спрайт: малюємо у тимчасовий canvas і множимо на колір.
+function tintedSprite(sx, sy, sw, sh, tc, flipX) {
+  const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+  const x = c.getContext('2d');
+  if (flipX) { x.translate(sw, 0); x.scale(-1, 1); }
+  x.drawImage(atlasImg, sx, sy, sw, sh, 0, 0, sw, sh);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  if (tc && (tc[0] !== 255 || tc[1] !== 255 || tc[2] !== 255)) {
+    x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgb(' + tc.join(',') + ')'; x.fillRect(0, 0, sw, sh);
+    x.globalCompositeOperation = 'destination-in'; if (flipX) { x.translate(sw, 0); x.scale(-1, 1); } x.drawImage(atlasImg, sx, sy, sw, sh, 0, 0, sw, sh);
+  }
+  return c;
+}
+// 9-slice капсули: кути без масштабу, краї тягнемо.
+function drawNineSlice(ctx, spr, x, y, w, h, S) {
+  const c = spr.corner;
+  const sw = spr.w, sh = spr.h;
+  const seg = [[0, c], [c, sw - c], [sw - c, sw]], segY = [[0, c], [c, sh - c], [sh - c, sh]];
+  const dx = [[x, x + c], [x + c, x + w - c], [x + w - c, x + w]], dy = [[y, y + c], [y + c, y + h - c], [y + h - c, y + h]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const sx0 = spr.x + seg[i][0], sx1 = spr.x + seg[i][1], sy0 = spr.y + segY[j][0], sy1 = spr.y + segY[j][1];
+    const ddx0 = dx[i][0], ddx1 = dx[i][1], ddy0 = dy[j][0], ddy1 = dy[j][1];
+    if (ddx1 <= ddx0 || ddy1 <= ddy0) continue;
+    ctx.drawImage(spr.img, sx0, sy0, sx1 - sx0, sy1 - sy0, ddx0 * S, ddy0 * S, (ddx1 - ddx0) * S + 0.5, (ddy1 - ddy0) * S + 0.5);
+  }
+}
+function drawTailSprite(ctx, it, g, S, tc) {
+  const ti = tailInfo(it.tail);
+  const set = ATLAS.tails[ti.look] || ATLAS.tails.tail;
+  const spr = set[ti.edge];
+  const half = g.w / 2 - 16;
+  const off = Math.max(-half, Math.min(half, ti.auto ? 0 : it.tailOff));
+  const dir = ti.auto ? 1 : ti.dir;                       // спрайт намальований «вправо»; вліво — дзеркало
+  const img = tintedSprite(spr.x, spr.y, spr.w, spr.h, tc, dir < 0);
+  const cx = g.x + g.w / 2 + off;
+  const x0 = cx - spr.w / 2;
+  // смужка зверху/знизу спрайта заходить під край капсули
+  const y0 = ti.edge === 'bottom' ? g.y + g.h - spr.strip : g.y - spr.h + spr.strip;
+  ctx.save(); if (ti.auto) ctx.globalAlpha = 0.6;
+  ctx.drawImage(img, x0 * S, y0 * S, spr.w * S, spr.h * S);
+  ctx.restore();
+}
+// drawWindow: малює вікно за типом справжніми спрайтами гри (fallback — вектор);
+// повертає колір тексту для fallback-шрифту
 function drawWindow(ctx, it, g, S) {
   const type = wndTypeOf(it.style);
   const tc = tint(it.colors && it.colors[0]);
   if (type === 'none' || type === 'plain') return '#f0f0f0';
   if (type === 'system' || type === 'frame') {
-    // темне напівпрозоре вікно з тонкою світлою рамкою (як підказки/меню у грі)
     roundRect(ctx, g.x * S, g.y * S, g.w * S, g.h * S, 4 * S);
     ctx.fillStyle = 'rgba(8,10,28,0.88)'; ctx.fill();
     ctx.lineWidth = Math.max(1, 1.5 * S); ctx.strokeStyle = mulRgb([190, 200, 230], tc); ctx.stroke();
     return '#f0f0f0';
   }
-  // хмаринка / вигук: жовто-помаранчевий градієнт × відтінок макета, лавандова рамка
+  if (atlasImg) {
+    ctx.imageSmoothingEnabled = true;
+    if (it.tail || type === 'bubble') {
+      // хвостик — під капсулою, щоб смужка не перекривала край
+      const ti = tailInfo(it.tail);
+      if (ti.edge === 'top') drawTailSprite(ctx, it, g, S, tc);
+    }
+    if (type === 'shout') {
+      const img = tintedSprite(ATLAS.burst.x, ATLAS.burst.y, ATLAS.burst.w, ATLAS.burst.h, tc, false);
+      ctx.drawImage(img, (g.x - g.w * 0.08) * S, (g.y - g.h * 0.12) * S, g.w * 1.16 * S, g.h * 1.24 * S);
+    } else {
+      drawNineSlice(ctx, Object.assign({ img: tintedSprite(ATLAS.pill.x, ATLAS.pill.y, ATLAS.pill.w, ATLAS.pill.h, tc, false), x: 0, y: 0 }, { w: ATLAS.pill.w, h: ATLAS.pill.h, corner: ATLAS.pill.corner }), g.x, g.y, g.w, g.h, S);
+    }
+    if (it.tail || type === 'bubble') { const ti = tailInfo(it.tail); if (ti.edge === 'bottom') drawTailSprite(ctx, it, g, S, tc); }
+    return '#3a2a10';
+  }
+  // fallback без атласу
   const grad = ctx.createLinearGradient(0, g.y * S, 0, (g.y + g.h) * S);
   grad.addColorStop(0, mulRgb([255, 236, 176], tc)); grad.addColorStop(1, mulRgb([242, 188, 104], tc));
   const border = mulRgb([186, 160, 216], tc);
@@ -323,6 +413,7 @@ function drawWindow(ctx, it, g, S) {
   if (it.tail || type === 'bubble') drawTail(ctx, it, g, S, grad, border);
   return '#3a2a10';
 }
+
 async function renderPreview() {
   const cv = ui.canvas; if (!cv) return;
   const wrapW = Math.max(200, cv.parentElement.clientWidth - 2);
@@ -342,11 +433,13 @@ async function renderPreview() {
   g.x = effectiveX(it.style, g.x, g.w);
   // оригінальна рамка — пунктир
   if (ovOf(r.f, it)) { ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; roundRect(ctx, effectiveX(it.style, it.x, it.w) * S, it.y * S, it.w * S, it.h * S, 10 * S); ctx.stroke(); ctx.setLineDash([]); }
+  await ensureAtlas();
+  if (bState.sel !== r) return;
   // вікно за типом макета (хмаринка / вигук / системне / без рамки) + хвостик
   const textColor = drawWindow(ctx, it, g, S);
-  // текст: найширша сторінка UK (або EN), блок по центру, рядки — від лівого краю блока
+  // текст: вибрана сторінка (клік по сторінці у списку) або найширша UK, блок по центру
   const u = bState.unitPx;
-  const page = it.pages.reduce((best, pg) => (pg.ukW && (!best.ukW || maxW(pg.ukW) > maxW(best.ukW)) ? pg : best), it.pages[0]);
+  const page = (r.page != null && it.pages[r.page]) || it.pages.reduce((best, pg) => (pg.ukW && (!best.ukW || maxW(pg.ukW) > maxW(best.ukW)) ? pg : best), it.pages[0]);
   const text = page.uk || page.en;
   const name = fontNameFor(it.lh);
   const font = await ensureFont(name);
@@ -364,17 +457,29 @@ async function renderPreview() {
   if (font && font.atlas && lines) {
     const prof = font.profile || PROFILES[name];
     const cellPs2 = prof.cell / 3;                       // 1 px атласу = 1/3 px PS2
-    ctx.imageSmoothingEnabled = true;
+    // гліфи — у тимчасовий canvas, потім множимо на колір тексту: сіра заливка
+    // evtfont стає темною (як у хмаринках гри), контур лишається чорним;
+    // у системних вікнах текст світлий (c1), у хмаринках — темний (c2)
+    const type = wndTypeOf(it.style);
+    const txtTint = type === 'bubble' || type === 'shout' ? (it.colors && it.colors[2] != null ? tint(it.colors[2]).map(v => Math.min(255, v + 0x30)) : [0x38, 0x28, 0x14]) : null;
+    const off = document.createElement('canvas'); off.width = cv.width; off.height = cv.height;
+    const octx = off.getContext('2d'); octx.imageSmoothingEnabled = true;
     lines.forEach((ln, li) => {
       let x = x0;
       const y = y0 + li * lh + (lh - cellPs2) / 2;
       for (const gi of ln) {
         if (gi < 0) { x += adv(gi) * u; continue; }
         const b = boxOf(prof, gi);
-        ctx.drawImage(font.atlas, b.x, b.y, prof.cell, prof.cell, x * S, y * S, cellPs2 * S, cellPs2 * S);
+        octx.drawImage(font.atlas, b.x, b.y, prof.cell, prof.cell, x * S, y * S, cellPs2 * S, cellPs2 * S);
         x += (font.widths[gi] || 0) * u;
       }
     });
+    if (txtTint) {
+      const keep = document.createElement('canvas'); keep.width = off.width; keep.height = off.height; keep.getContext('2d').drawImage(off, 0, 0);
+      octx.globalCompositeOperation = 'multiply'; octx.fillStyle = 'rgb(' + txtTint.join(',') + ')'; octx.fillRect(0, 0, off.width, off.height);
+      octx.globalCompositeOperation = 'destination-in'; octx.drawImage(keep, 0, 0);
+    }
+    ctx.drawImage(off, 0, 0);
   } else {
     ctx.fillStyle = textColor; ctx.font = Math.round(lh * 0.7 * S) + 'px "Segoe UI", system-ui, sans-serif';
     text.split('\n').forEach((ln, li) => ctx.fillText(ln, x0 * S, (y0 + li * lh + lh * 0.75) * S));
