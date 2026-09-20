@@ -3212,3 +3212,157 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 @media (max-width: 1500px) {
   #t-subview-glossary .t-table { --t-cols: 84px minmax(0, 1fr) minmax(0, 1fr) 110px; }
 }
+
+/* =====================================================================
+   Settings modal — premium navy panel: header з іконкою, секції з іконками,
+   segmented-перемикач мови, поля тек з іконкою, info-callout, дві кнопки дій.
+   ID/селектори (.lang-opt[data-lang], [data-pick], #settings-close…) незмінні.
+   ===================================================================== */
+.settings-overlay {
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(211, 173, 82, 0.05), transparent 65%),
+    rgba(4, 9, 18, 0.72);
+  backdrop-filter: blur(6px);
+}
+.settings-overlay::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background-color: rgba(211, 173, 82, 0.035);
+  -webkit-mask-image: url('assets/kh-heart.svg');
+          mask-image: url('assets/kh-heart.svg');
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center 55%; mask-position: center 55%;
+  -webkit-mask-size: 70vh auto; mask-size: 70vh auto;
+}
+.settings-modal {
+  position: relative;
+  width: min(960px, 94vw);
+  padding: 22px 28px 20px;
+  background: linear-gradient(180deg, rgba(11, 21, 37, 0.98), rgba(9, 17, 29, 0.985));
+  border: 1px solid rgba(212, 174, 85, 0.45);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(255, 255, 255, 0.02);
+  color: var(--text-primary);
+}
+.settings-modal .ico { width: 16px; height: 16px; }
+.settings-head { display: flex; align-items: flex-start; gap: 16px; }
+.settings-head-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; flex-shrink: 0;
+  border-radius: 12px;
+  color: var(--gold);
+  background: rgba(211, 173, 82, 0.08);
+  border: 1px solid rgba(211, 173, 82, 0.22);
+}
+.settings-head-icon .ico { width: 24px; height: 24px; }
+.settings-head-text { flex: 1; min-width: 0; }
+.settings-modal h2 {
+  margin: 2px 0 4px;
+  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 26px; font-weight: 700; letter-spacing: 0.3px;
+  color: var(--text-primary);
+}
+.settings-subtitle { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.settings-x { width: 34px; height: 34px; color: var(--text-secondary); }
+.settings-x:hover:not(:disabled) { color: var(--text-primary); }
+.settings-divider {
+  position: relative; height: 1px; margin: 16px 0;
+  background: linear-gradient(90deg, transparent, rgba(212, 174, 85, 0.35) 15%, rgba(212, 174, 85, 0.35) 85%, transparent);
+}
+.settings-divider .ico {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 22px; height: 15px; padding: 0 6px; box-sizing: content-box;
+  color: var(--gold); background: rgb(10, 19, 33);
+}
+.settings-body { display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - var(--khn-tb-height) - 260px); overflow-y: auto; padding-right: 4px; }
+.settings-modal .setting-section { margin: 0; padding: 10px 0 14px; border-bottom: 1px solid var(--line); }
+.settings-modal .setting-section:last-child { border-bottom: 0; }
+.setting-section-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.setting-section-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex-shrink: 0; margin-top: 1px;
+  border-radius: 8px; color: var(--gold);
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line);
+}
+.setting-section-icon .ico { width: 17px; height: 17px; }
+.settings-modal .setting-section-title {
+  margin: 4px 0 2px; padding: 0; border: 0;
+  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 14px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase;
+  color: var(--gold);
+}
+.setting-section-hint { margin: 0; font-size: 12.5px; color: var(--text-secondary); }
+.settings-modal .setting-row { margin: 0 0 12px 42px; }
+.settings-modal .setting-row:last-of-type { margin-bottom: 0; }
+.settings-modal .setting-row > label { margin-bottom: 6px; font-size: 13px; color: var(--text-primary); letter-spacing: 0; }
+
+/* segmented control мови */
+.settings-modal .lang-toggle {
+  display: inline-flex; gap: 0; padding: 3px;
+  background: rgba(3, 8, 18, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.settings-modal .lang-opt {
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 36px; padding: 0 18px;
+  border: 1px solid transparent; border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px; font-weight: 500; letter-spacing: 0;
+  box-shadow: none; text-shadow: none;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.settings-modal .lang-opt:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.04); }
+.settings-modal .lang-opt[aria-checked="true"] {
+  color: var(--text-primary);
+  background: rgba(211, 173, 82, 0.14);
+  border-color: rgba(211, 173, 82, 0.45);
+  box-shadow: none;
+}
+.settings-modal .lang-opt[aria-checked="true"] .lang-code { color: var(--gold); }
+.lang-code { font-weight: 700; letter-spacing: 0.5px; color: var(--text-dim); }
+.settings-modal .lang-flag { width: 18px; height: 12px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
+
+/* поля тек */
+.settings-modal .dir-row { display: flex; gap: 8px; align-items: stretch; }
+.dir-field {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px;
+  background: rgba(3, 8, 18, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.dir-field:hover { border-color: var(--line-strong); }
+.dir-field:focus-within { border-color: rgba(211, 173, 82, 0.55); box-shadow: 0 0 0 3px rgba(211, 173, 82, 0.10); }
+.dir-field .ico { color: var(--gold); opacity: 0.85; flex-shrink: 0; }
+.settings-modal .dir-field input, .settings-modal .modal input[type="text"] {
+  flex: 1; min-width: 0; width: auto;
+  height: 34px; padding: 0;
+  background: transparent; border: 0; outline: 0; box-shadow: none;
+  color: var(--text-primary);
+  font-family: ui-monospace, Consolas, monospace; font-size: 13px;
+}
+.settings-modal .dir-field input::placeholder { color: var(--text-dim); font-style: normal; }
+.settings-modal .dir-row .kh-btn { height: 36px; padding: 0 14px; white-space: nowrap; }
+.kh-select-wide { min-width: 0; width: 100%; max-width: none; }
+
+/* info callout */
+.setting-callout {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin: 14px 0 0 42px;
+  padding: 11px 14px;
+  background: rgba(20, 38, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.setting-callout .ico { flex-shrink: 0; margin-top: 2px; color: var(--gold); opacity: 0.9; }
+.setting-callout .setting-hint { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-secondary); }
+
+/* дії */
+.settings-actions { margin-top: 0; gap: 10px; }
+.settings-actions .kh-btn { height: 38px; padding: 0 18px; }
+@media (max-width: 1000px) { .settings-modal .setting-row, .setting-callout { margin-left: 0; } }

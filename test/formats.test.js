@@ -50,11 +50,17 @@ test('mes-ofs: shorter translation stays cell-preserving; longer falls back to c
   assert.deepEqual([...codec.encode(re.slots[0].english)], [...codec.encode('Дуже довге зілля{eol}')]);
 });
 
-test('mes-ofs: compact overflow beyond original data size throws', () => {
+test('mes-ofs: data may grow beyond the original size (16-byte aligned), only 16-bit pointers are the limit', () => {
   const { ofs, data } = buildMesOfs(['Potion'], [0], { pad: 0 });
   const p = mesOfs.parsePair(ofs, data, codec);
+  // у самій грі FR/GR/IT/SP gumi_mes_data більші за UK при тому самому .ofs
   const long = p.slots.map(s => Object.assign({}, s, { ukText: 'x'.repeat(200) }));
-  assert.throws(() => mesOfs.composePair(long, { ofsLength: ofs.length, dataLength: data.length, cellLengthByOffset: p.cellLengthByOffset }, codec));
+  const c = mesOfs.composePair(long, { ofsLength: ofs.length, dataLength: data.length, cellLengthByOffset: p.cellLengthByOffset }, codec);
+  assert.ok(c.dataBuf.length >= 201 && c.dataBuf.length % 16 === 0, 'grown and aligned: ' + c.dataBuf.length);
+  assert.equal(c.ofsBuf.length, ofs.length);
+  assert.equal(mesOfs.parsePair(c.ofsBuf, c.dataBuf, codec).slots[0].english, 'x'.repeat(200) + '{eol}');
+  const huge = p.slots.map(s => Object.assign({}, s, { ukText: 'x'.repeat(70000) }));
+  assert.throws(() => mesOfs.composePair(huge, { ofsLength: ofs.length, dataLength: data.length, cellLengthByOffset: p.cellLengthByOffset }, codec), /65535/);
 });
 
 test('mes-ofs: name helpers', () => {

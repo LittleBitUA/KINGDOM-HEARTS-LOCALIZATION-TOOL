@@ -202,13 +202,17 @@ function composePair(slots, originalInfo, codec) {
   }
 
   const targetOfsLen = (originalInfo && originalInfo.ofsLength) || ofsBuf.length;
-  const targetDataLen = (originalInfo && originalInfo.dataLength) || dataBuf.length;
+  // .data може рости: у самій грі FR/GR/IT/SP-версії gumi_mes_data більші за UK
+  // (5568–6064 проти 4816 байт) при тому самому .ofs, тож фіксований розмір — не
+  // вимога формату. Тримаємо вирівнювання на 16 байт (усі оригінали кратні 16);
+  // межа — лише uint16-вказівники.
+  const origDataLen = (originalInfo && originalInfo.dataLength) || 0;
+  const targetDataLen = Math.max(origDataLen, Math.ceil(dataBuf.length / 16) * 16);
   if (ofsBuf.length > targetOfsLen) {
     throw new Error('ofs buffer (' + ofsBuf.length + ') > target ofs length (' + targetOfsLen + ')');
   }
-  if (dataBuf.length > targetDataLen) {
-    throw new Error('data buffer (' + dataBuf.length + ') > target data length (' + targetDataLen +
-      '). Переклад не вміщується у файл.' + describeOverflow(overflow));
+  if (dataBuf.length > 0xFFFF) {
+    throw new Error('data buffer (' + dataBuf.length + ') > 65535 — вказівники .ofs 16-бітні. Переклад не вміщується у файл.' + describeOverflow(overflow));
   }
   const ofsPad = Buffer.alloc(targetOfsLen - ofsBuf.length, PAD_BYTE);
   const dataPad = Buffer.alloc(targetDataLen - dataBuf.length, PAD_BYTE);

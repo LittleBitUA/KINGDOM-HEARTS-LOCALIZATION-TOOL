@@ -80,6 +80,8 @@ settingsOverlay.addEventListener('click', (e) => {
   }
 });
 settingsClose.addEventListener('click', hideSettings);
+const settingsX = document.getElementById('settings-x');
+if (settingsX) settingsX.addEventListener('click', hideSettings);
 
 // Схема кирилиці KH1: зберігається per-game; main перемикає кодек одразу.
 const fontSchemeSel = document.getElementById('set-font-scheme');
