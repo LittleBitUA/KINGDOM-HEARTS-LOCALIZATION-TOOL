@@ -37,6 +37,10 @@ PROFILES = {
 
 
 TOP, BOT, SIDE = 10, 10, 16      # запас навколо комірки на час малювання
+# Чорнило не має торкатися країв комірки: гра семплить атлас білінійно, і крайній
+# піксель «просвічує» у сусідню комірку (хвости Д/Ц/Щ/р/у/ф чи крапки Ї/Й з'являлись
+# під/над чужими літерами). Оригінальні гліфи гри тримають запас 1–2 px.
+MARGIN = 1
 
 
 def do_font(name, binl, png, srcfont, report):
@@ -72,12 +76,23 @@ def do_font(name, binl, png, srcfont, report):
                 m = arr[..., 3] >= 110
                 if not m.any():
                     continue
-                ys, xx = np.nonzero(m)
-                # перевіряємо ПІСЛЯ ерозії: чи вміщується у справжню комірку
-                if (xx.max() + 1 + prof['penx'] <= f.cell
-                        and ys.min() >= TOP and ys.max() < TOP + f.cell):
-                    made = (arr, xx.max() + 1)
-                    break
+                _, xx = np.nonzero(m)                 # ширина — по «щільному» чорнилу
+                ys, _ = np.nonzero(arr[..., 3] >= 24)  # запас — по всьому антиаліасу
+                # перевіряємо ПІСЛЯ ерозії: чи вміщується у справжню комірку із запасом MARGIN;
+                # якщо вилазить лише по вертикалі — спершу зсуваємо гліф у межах комірки
+                # (до 3 px, це 1.5 px у масштабі гри), і лише потім зменшуємо кегль
+                lo, hi = TOP + MARGIN, TOP + f.cell - MARGIN     # допустимі ряди [lo, hi)
+                if xx.max() + 1 + prof['penx'] <= f.cell - MARGIN:
+                    shift = 0
+                    if ys.max() >= hi: shift = -(ys.max() - hi + 1)
+                    elif ys.min() < lo: shift = lo - ys.min()
+                    if abs(shift) <= 3 and ys.min() + shift >= lo and ys.max() + shift < hi:
+                        if shift:
+                            arr = np.roll(arr, shift, axis=0)
+                            if shift > 0: arr[:shift] = 0
+                            else: arr[shift:] = 0
+                        made = (arr, xx.max() + 1)
+                        break
             if made:
                 break
         if not made:
