@@ -122,7 +122,7 @@ contextBridge.exposeInMainWorld('kh1', {
   bubbles: {
     scan:   (payload) => ipcRenderer.invoke('bubbles:scan', payload),
     glyphs: (payload) => ipcRenderer.invoke('bubbles:glyphs', payload),
-    atlas:  () => ipcRenderer.invoke('bubbles:atlas'),
+    atlas:  (payload) => ipcRenderer.invoke('bubbles:atlas', payload),
     load:   (payload) => ipcRenderer.invoke('bubbles:load', payload),
     save:   (payload) => ipcRenderer.invoke('bubbles:save', payload)
   },

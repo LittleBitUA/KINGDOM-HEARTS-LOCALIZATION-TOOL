@@ -139,20 +139,31 @@ ipcMain.handle('bubbles:glyphs', async (_e, payload) => {
   return { ok: true, lines, widths: font.widths, line: font.line, count: font.count, space: layout.spaceAdvance(font) };
 });
 
-// bubbles:atlas — спрайти вікон із гри: remastered/FORM/1000/FO1000.RTM/UK_message.imd
-// (IMGD 32bpp 256×256, альфа PS2 0x80 = непрозоро) → PNG data URL. Шматки атласу
+// bubbles:atlas({ world }) — спрайти вікон із гри → PNG data URL. Шматки атласу
 // (9-slice хмаринки, вигук, хвостики) вирізає renderer.
-let atlasCache = null;
-function locateMessageImd() {
-  const cands = [];
-  const build = path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', 'kh-re-com', 'build');
-  for (const top of ['Recom', 'Recom.hed_out']) cands.push(path.join(build, top, 'remastered', 'FORM', '1000', 'FO1000.RTM', 'UK_message.imd'));
+//   HD (те, що бачимо у грі): remastered/WORLD/<код>/WO<код>.RTM/message.imd —
+//     IMGD 32bpp 512×512, 2 px на 1 px PS2, колір капсули ЗАПЕЧЕНИЙ у текстурі
+//     і свій для кожного світу (Traverse Town — помаранчевий 232,183,109 з
+//     жовтим бліком і лавандовою тінню; звірено попіксельно зі скриншотом гри).
+//     Код світу: WORLDnn → 01nn (Сора), 11nn — Ріку; FORM/SYS/WORLD00 → 0100.
+//   Fallback: remastered/FORM/1000/FO1000.RTM/UK_message.imd (256×256, 1:1).
+const atlasCache = new Map();   // path → результат
+function hedOutDir() {
   try {
     const raw = loadSettingsRaw();
     const gameDir = raw.gameDirectories && raw.gameDirectories['kh-re-com'];
-    if (gameDir) { const hedOut = findDirNamed(gameDir, 'Recom.hed_out', 4); if (hedOut) cands.push(path.join(hedOut, 'remastered', 'FORM', '1000', 'FO1000.RTM', 'UK_message.imd')); }
+    if (gameDir) return findDirNamed(gameDir, 'Recom.hed_out', 4);
   } catch (_) {}
-  return cands.find(c => fs.existsSync(c)) || null;
+  return null;
+}
+function locateMessageImd(world) {
+  const cands = [];
+  const hedOut = hedOutDir();
+  if (hedOut && world) cands.push({ p: path.join(hedOut, 'remastered', 'WORLD', world, 'WO' + world + '.RTM', 'message.imd'), hd: true });
+  const build = path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', 'kh-re-com', 'build');
+  for (const top of ['Recom', 'Recom.hed_out']) cands.push({ p: path.join(build, top, 'remastered', 'FORM', '1000', 'FO1000.RTM', 'UK_message.imd'), hd: false });
+  if (hedOut) cands.push({ p: path.join(hedOut, 'remastered', 'FORM', '1000', 'FO1000.RTM', 'UK_message.imd'), hd: false });
+  return cands.find(c => fs.existsSync(c.p)) || null;
 }
 function decodeImgd(buf) {
   if (buf.toString('ascii', 0, 4) !== 'IMGD') throw new Error('Не IMGD');
@@ -165,15 +176,17 @@ function decodeImgd(buf) {
   }
   return { w, h, bgra };
 }
-ipcMain.handle('bubbles:atlas', async () => {
-  if (atlasCache) return atlasCache;
-  const p = locateMessageImd();
-  if (!p) return { ok: false, error: 'UK_message.imd не знайдено (remastered/FORM/1000/FO1000.RTM)' };
+ipcMain.handle('bubbles:atlas', async (_e, payload) => {
+  const world = payload && /^\d{4}$/.test(String(payload.world || '')) ? String(payload.world) : '';
+  const c = locateMessageImd(world);
+  if (!c) return { ok: false, error: 'message.imd не знайдено (remastered/WORLD/<код>/WO<код>.RTM або FORM/1000/FO1000.RTM)' };
+  if (atlasCache.has(c.p)) return atlasCache.get(c.p);
   try {
-    const { w, h, bgra } = decodeImgd(await fsP.readFile(p));
+    const { w, h, bgra } = decodeImgd(await fsP.readFile(c.p));
     const png = nativeImage.createFromBitmap(bgra, { width: w, height: h }).toPNG();
-    atlasCache = { ok: true, path: p, width: w, height: h, dataUrl: 'data:image/png;base64,' + png.toString('base64') };
-    return atlasCache;
+    const r = { ok: true, path: c.p, hd: c.hd, world: c.hd ? world : '', width: w, height: h, dataUrl: 'data:image/png;base64,' + png.toString('base64') };
+    atlasCache.set(c.p, r);
+    return r;
   } catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
 });
 
