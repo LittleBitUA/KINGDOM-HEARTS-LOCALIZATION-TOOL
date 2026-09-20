@@ -3283,3 +3283,6 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .bb-label { font-size: 11px; color: var(--text-dim); padding-top: 2px; }
 .bb-text { margin: 0; font: 13px/1.35 "Segoe UI", system-ui, sans-serif; white-space: pre-wrap; color: var(--text-primary); }
 .bb-hint { font-size: 11.5px; color: var(--text-dim); margin: 0; }
+.t-limit { font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.t-limit:empty { display: none; }
+.t-limit.over { color: #ff6b6b; font-weight: 700; }

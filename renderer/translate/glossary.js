@@ -182,6 +182,23 @@ const CHUNK = 120;
 let _order = [];       // індекси gState.entries у порядку показу (після сортування+фільтра)
 let _rendered = 0;     // скільки з _order уже в DOM
 
+// Байти у кодуванні Re:CoM (ASCII = 1, решта символів і {icon}/{color} = 2) —
+// для рядків із лімітом буфера гри (entry.maxBytes, data/recom/limits.json).
+function approxBytes(text) {
+  let n = 0;
+  const s = String(text || '').replace(/\{[a-z]+ [0-9a-fA-F]+\}/g, '\x01\x01');
+  for (const ch of s) n += ch.charCodeAt(0) < 0x80 ? 1 : 2;
+  return n;
+}
+function updateLimitBadge(el, entry, ukText) {
+  if (!el) return;
+  if (entry.maxBytes == null) { el.textContent = ''; el.className = 't-limit'; return; }
+  const n = approxBytes(ukText || entry.english);
+  el.textContent = n + '/' + entry.maxBytes + ' Б';
+  el.className = 't-limit' + (n > entry.maxBytes ? ' over' : '');
+  el.title = window.i18n.t('limitBadgeTitle', { n: entry.maxBytes });
+}
+
 function buildRow(i) {
   const entry = gState.entries[i];
   const ukText = gState.translations[entry.english] || '';
@@ -211,6 +228,10 @@ function buildRow(i) {
   width.className = 't-width';
   updateWidthBadge(width, entry.english, ukText);
   meta.appendChild(width);
+  // ліміт байтів (буфер гри) — лише для рядків із entry.maxBytes
+  const limit = document.createElement('span');
+  updateLimitBadge(limit, entry, ukText);
+  meta.appendChild(limit);
 
   const en = document.createElement('div');
   en.className = 't-en';
@@ -405,6 +426,7 @@ gRows.addEventListener('input', (e) => {
     row.removeAttribute('title');
   }
   updateWidthBadge(row.querySelector('.t-width'), entry.english, ukText);
+  updateLimitBadge(row.querySelector('.t-limit'), entry, ukText);
   gState.dirty = true;
   refreshGlossaryProgress();
   scheduleGlossaryAutoSave();

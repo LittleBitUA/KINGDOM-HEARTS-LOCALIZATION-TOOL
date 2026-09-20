@@ -1,0 +1,10 @@
+{
+  "_comment": "Re:CoM: рядки, які гра копіює у фіксований стековий буфер (sprintf). Ключ — regex на шлях .ctdl, значення — { індекс повідомлення: макс. байтів у кодуванні гри }. Джерело: Ghidra, KINGDOM HEARTS Re_Chain of Memories.exe, FUN_14011ee60 / FUN_14011e390 / FUN_14011ec90: sprintf(char[32], \"%s%s\", msg, поверх) — переповнення = 0xC0000409 при «Checking save data…».",
+  "limits": [
+    {
+      "path": "FO010[67]\\.CTD/UK_CT0012\\.ctdl$",
+      "max": { "0": 27, "1": 27 },
+      "why": "«system storage» / «MEMORY CARD slot» → sprintf(\"%s%s\", msg, «{sjis 8250}N») у буфер 32 байти (збереження гри)"
+    }
+  ]
+}

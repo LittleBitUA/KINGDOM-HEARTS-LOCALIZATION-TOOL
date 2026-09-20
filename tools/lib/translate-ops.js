@@ -188,7 +188,7 @@ async function indexFileSlots(rel, env) {
   if (env.safeMode !== false && !cls.isTranslatable) return { status: 'unsafe' };
   try {
     const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
-    return { status: 'ok', slots: parsed.slots.map(s => ({ index: s.index, offset: s.offset, byteLen: s.byteLen, key: s.key })) };
+    return { status: 'ok', slots: parsed.slots.map(s => ({ index: s.index, offset: s.offset, byteLen: s.byteLen, key: s.key, maxBytes: s.maxBytes })) };
   } catch (e) {
     return { status: 'error', error: (e && e.message) || String(e) };
   }
@@ -219,6 +219,8 @@ async function buildGlossaryIndex(files, env) {
     else if (here.fileNo < entry.first.fileNo || (here.fileNo === entry.first.fileNo && here.offset < entry.first.offset)) entry.first = here;
     entry.count++;
     entry.files.add(rel);
+    // ліміт байтів (Re:CoM: рядки, що гра sprintf-ить у фіксований буфер) — найменший з усіх входжень
+    if (slot.maxBytes != null && (entry.maxBytes == null || slot.maxBytes < entry.maxBytes)) entry.maxBytes = slot.maxBytes;
     if (withOcc) entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
   }
 
@@ -243,6 +245,7 @@ async function buildGlossaryIndex(files, env) {
     const e = { english, count: info.count, fileCount: info.files.size, file: info.first.rel, index: info.first.index, offset: info.first.offset };
     const legacy = legacyCommandKey(english);
     if (legacy) e.legacyKey = legacy;   // renderer переносить переклад зі старого ключа
+    if (info.maxBytes != null) e.maxBytes = info.maxBytes;
     if (withOcc) e.occurrences = info.occurrences;
     entries.push(e);
   }
