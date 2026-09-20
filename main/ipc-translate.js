@@ -4,7 +4,8 @@
 // глосарій, масові операції. Уся формат-специфіка — у tools/lib/formats
 // і tools/lib/translate-ops; тут лише IPC-обгортки.
 
-const { ipcMain, dialog } = require('electron');
+const { ipcMain, dialog, app } = require('electron');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
@@ -36,8 +37,8 @@ function walkDirSync(root) {
       if (e.isDirectory()) {
         rec(abs, rel);
       } else if (e.isFile()) {
-        let size = 0;
-        try { size = fsSync.statSync(abs).size; } catch (_) {}
+        let size = 0, mtimeMs = 0;
+        try { const st = fsSync.statSync(abs); size = st.size; mtimeMs = st.mtimeMs; } catch (_) {}
         const ext = path.extname(e.name).toLowerCase();
         const cls = classifyFile(abs, ext);
         // Не додаємо до списку *_mes_data.bin — він auxiliary до _mes_ofs.bin
@@ -46,6 +47,7 @@ function walkDirSync(root) {
         out.push({
           rel: rel.split(path.sep).join('/'),
           size,
+          mtimeMs,
           ext,
           kind: cls.kind,
           magic: cls.magic,
@@ -152,15 +154,36 @@ ipcMain.handle('translate:saveGlossary', (_e, payload) => {
   }
 });
 
+// Кеш індексу: індекс не зберігається між запусками, а будується при вході в гру.
+// Щоб вхід був миттєвим, результат кладемо у <userData>/index-cache/<key>.json із
+// сигнатурою списку файлів (rel + size + mtime) — будь-яка зміна ENG перебудовує.
+// INDEX_CACHE_VERSION піднімати, коли змінюються ключі/слоти у format-handler'ах.
+const INDEX_CACHE_VERSION = 2;
+function indexCachePaths(engDir, safeMode, filesMeta) {
+  const dir = path.join(app.getPath('userData'), 'index-cache');
+  const key = crypto.createHash('sha1').update([INDEX_CACHE_VERSION, app.getVersion(), engDir.toLowerCase(), safeMode ? 1 : 0].join('|')).digest('hex');
+  const sigSrc = filesMeta.slice().sort((a, b) => a.rel.localeCompare(b.rel)).map(f => f.rel + ':' + f.size + ':' + Math.round(f.mtimeMs || 0)).join('\n');
+  const sig = crypto.createHash('sha1').update(sigSrc).digest('hex');
+  return { file: path.join(dir, key + '.json'), sig };
+}
 ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   const engDir = payload && payload.engDir;
   const files = (payload && payload.files) || [];
   if (!engDir || !files.length) return { error: 'Не задано теки/файли' };
+  const safeMode = payload.safeMode !== false;
+  const filesMeta = Array.isArray(payload.filesMeta) && payload.filesMeta.length === files.length ? payload.filesMeta : null;
+  const cache = filesMeta && !payload.withOccurrences && payload.useCache !== false ? indexCachePaths(engDir, safeMode, filesMeta) : null;
+  if (cache) {
+    try {
+      const raw = JSON.parse(await fs.readFile(cache.file, 'utf8'));
+      if (raw && raw.sig === cache.sig && Array.isArray(raw.entries)) return Object.assign({ cached: true }, raw.result, { entries: raw.entries });
+    } catch (_) { /* нема кешу або застарілий */ }
+  }
   try {
-    return await ops.buildGlossaryIndex(files, {
+    const r = await ops.buildGlossaryIndex(files, {
       engDir,
       rusDir: (payload && payload.rusDir) || null,
-      safeMode: payload.safeMode !== false,
+      safeMode,
       opts: payload.opts || {},
       runWorker,
       concurrency: POOL_SIZE * 2,
@@ -168,6 +191,13 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
       withOccurrences: !!payload.withOccurrences,
       onProgress: sendProgress
     });
+    if (cache && r && r.ok) {
+      const { entries, ...result } = r;
+      fs.mkdir(path.dirname(cache.file), { recursive: true })
+        .then(() => writeFileAtomic(cache.file, JSON.stringify({ sig: cache.sig, savedAt: new Date().toISOString(), result, entries }), { encoding: 'utf8' }))
+        .catch(() => {});
+    }
+    return r;
   } catch (e) {
     return { error: (e && e.message) || String(e) };
   }

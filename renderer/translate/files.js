@@ -166,11 +166,13 @@ window.kh1.translate.onProgress((p) => {
 // =====================================================================
 tSettingsBtn.addEventListener('click', openSettings);
 
-gBuild.addEventListener('click', buildGlossary);
+gBuild.addEventListener('click', () => buildGlossary(true));
 gImport.addEventListener('click', importTranslations);
+let _searchTimer = null;
 gSearch.addEventListener('input', (e) => {
   gState.filter.search = e.target.value;
-  applyGlossaryFilter();
+  if (_searchTimer) clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => { _searchTimer = null; applyGlossaryFilter(); }, 120);
 });
 gFilterMode.addEventListener('change', (e) => {
   gState.filter.mode = e.target.value;

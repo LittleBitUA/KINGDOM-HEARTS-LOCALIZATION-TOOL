@@ -23,7 +23,8 @@ export async function loadGlossaryFromDisk() {
   } catch (_) {}
 }
 
-export async function buildGlossary() {
+// force — перебудувати, ігноруючи кеш індексу (кнопка «Побудувати / оновити»).
+export async function buildGlossary(force) {
   if (gState.busy) return;
   // Обов'язкова лише ENG-тека; MYFILES (rusDir) для KH1 опційна — є вбудований еталон.
   const requiredDirs = ['engDir'];
@@ -49,6 +50,9 @@ export async function buildGlossary() {
       engDir: tState.settings.engDir,
       rusDir: tState.settings.rusDir,
       files: tState.files.map(f => f.rel),
+      // сигнатура для кешу індексу (rel + розмір + mtime): без змін у ENG — миттєво
+      filesMeta: tState.files.map(f => ({ rel: f.rel, size: f.size, mtimeMs: f.mtimeMs })),
+      useCache: !force,
       safeMode: tState.safeMode
     });
     if (r.error) { toast(window.i18n.t('toastError', {msg: r.error}), 'error', 6000); return; }
@@ -59,7 +63,7 @@ export async function buildGlossary() {
     refreshGlossaryProgress();
     const parts = [window.i18n.t('gBuiltSummary', { n: gState.entries.length })];
     if (migrated) parts.push(window.i18n.t('gMigratedKeys', { n: migrated }));
-    parts.push(window.i18n.t('gProcessed', { n: r.processed }));
+    parts.push(r.cached ? window.i18n.t('gFromCache') : window.i18n.t('gProcessed', { n: r.processed }));
     if (r.skipped) parts.push(window.i18n.t('gSkipped', { n: r.skipped }));
     if (r.skippedUnsafe) parts.push(window.i18n.t('gSkippedUnsafe', { n: r.skippedUnsafe }));
     toast(parts.join(' · '), 'success', 5000);
@@ -166,8 +170,110 @@ export function getGlossaryRenderOrder() {
   return idxs;
 }
 
+// =====================================================================
+// Рендер списку — порціями. 16k рядків × textarea = ~115k DOM-вузлів і
+// пів секунди на кожен перерендер; натомість тримаємо відсортований і
+// відфільтрований порядок індексів (_order) і домальовуємо по CHUNK рядків,
+// коли прокрутка наближається до кінця. Фільтр — по заздалегідь
+// нормалізованому тексту (entry._norm), тож пошук по 16k рядків — мілісекунди.
+// =====================================================================
+const CHUNK = 120;
+let _order = [];       // індекси gState.entries у порядку показу (після сортування+фільтра)
+let _rendered = 0;     // скільки з _order уже в DOM
+
+function buildRow(i) {
+  const entry = gState.entries[i];
+  const ukText = gState.translations[entry.english] || '';
+
+  const row = document.createElement('div');
+  let cls = 't-row' + (ukText ? ' translated' : '');
+  if (ukText) {
+    const issue = tokenIssueText(entry.english, ukText);
+    if (issue) { cls += ' token-warn'; row.title = issue; }
+  }
+  row.className = cls;
+  row.dataset.gidx = String(i);
+
+  const meta = document.createElement('div');
+  meta.className = 't-meta';
+  // крапка статусу (колір через CSS за класами рядка) + бейдж входжень
+  const dot = document.createElement('i');
+  dot.className = 't-dot';
+  const cnt = document.createElement('span');
+  cnt.className = 't-count';
+  cnt.textContent = '× ' + entry.count;
+  cnt.title = window.i18n.t('gInFiles', { n: entry.fileCount });
+  meta.appendChild(dot);
+  meta.appendChild(cnt);
+
+  const en = document.createElement('div');
+  en.className = 't-en';
+  en.textContent = entry.english;
+
+  const uk = document.createElement('textarea');
+  uk.className = 't-uk g-uk';
+  uk.placeholder = 'Український переклад…';
+  uk.value = ukText;
+  uk.spellcheck = false;
+  uk.rows = Math.min(4, Math.max(1, Math.ceil(entry.english.length / 70)));
+
+  // файл першого входження (+N інших) — колонка «Файл»
+  const file = document.createElement('div');
+  file.className = 't-file';
+  const rel = entry.file || (entry.occurrences && entry.occurrences[0] && entry.occurrences[0].rel) || '';
+  const base = rel ? String(rel).split(/[\\/]/).pop() : '';
+  file.textContent = base + (entry.fileCount > 1 ? ' +' + (entry.fileCount - 1) : '');
+  file.title = rel;
+
+  row.appendChild(meta);
+  row.appendChild(en);
+  row.appendChild(uk);
+  row.appendChild(file);
+  return row;
+}
+
+function entryVisible(entry, search, mode) {
+  if (search) {
+    if (entry._norm === undefined) entry._norm = normalizeLookalikes(entry.english);
+    if (entry._norm.indexOf(search) === -1) return false;
+  }
+  if (mode === 'all') return true;
+  const uk = gState.translations[entry.english] || '';
+  if (mode === 'untranslated') return !uk;
+  if (mode === 'translated') return !!uk;
+  if (mode === 'same-as-en') return uk === entry.english;
+  if (mode === 'token-issues') return !!uk && !validateTokens(entry.english, uk).ok;
+  return true;
+}
+
+function appendChunk() {
+  if (_rendered >= _order.length) return;
+  const frag = document.createDocumentFragment();
+  const end = Math.min(_order.length, _rendered + CHUNK);
+  for (let k = _rendered; k < end; k++) frag.appendChild(buildRow(_order[k]));
+  _rendered = end;
+  const sentinel = gRows.querySelector('.t-more');
+  if (sentinel) sentinel.remove();
+  gRows.appendChild(frag);
+  if (_rendered < _order.length) {
+    const more = document.createElement('div');
+    more.className = 't-more';
+    more.textContent = window.i18n.t('gMoreRows', { n: _order.length - _rendered });
+    gRows.appendChild(more);
+  }
+}
+
+function maybeAppendOnScroll() {
+  if (_rendered >= _order.length) return;
+  if (gRows.scrollTop + gRows.clientHeight >= gRows.scrollHeight - 900) appendChunk();
+}
+gRows.addEventListener('scroll', maybeAppendOnScroll);
+
+// Повний перерендер: порядок (сортування) → фільтр → перша порція.
 export function renderGlossaryRows() {
   while (gRows.firstChild) gRows.removeChild(gRows.firstChild);
+  _order = [];
+  _rendered = 0;
   if (!gState.entries.length) {
     const div = document.createElement('div');
     div.className = 't-empty';
@@ -177,67 +283,29 @@ export function renderGlossaryRows() {
     gRows.appendChild(div);
     return;
   }
-
-  const frag = document.createDocumentFragment();
+  const search = normalizeLookalikes(gState.filter.search || '');
+  const mode = gState.filter.mode || 'all';
   const order = getGlossaryRenderOrder();
-  for (const i of order) {
-    const entry = gState.entries[i];
-    const ukText = gState.translations[entry.english] || '';
-
-    const row = document.createElement('div');
-    let cls = 't-row' + (ukText ? ' translated' : '');
-    if (ukText) {
-      const issue = tokenIssueText(entry.english, ukText);
-      if (issue) { cls += ' token-warn'; row.title = issue; }
-    }
-    row.className = cls;
-    row.dataset.gidx = String(i);
-
-    const meta = document.createElement('div');
-    meta.className = 't-meta';
-    // крапка статусу (колір через CSS за класами рядка) + бейдж входжень
-    const dot = document.createElement('i');
-    dot.className = 't-dot';
-    const cnt = document.createElement('span');
-    cnt.className = 't-count';
-    cnt.textContent = '× ' + entry.count;
-    cnt.title = window.i18n.t('gInFiles', { n: entry.fileCount });
-    meta.appendChild(dot);
-    meta.appendChild(cnt);
-
-    const en = document.createElement('div');
-    en.className = 't-en';
-    en.textContent = entry.english;
-
-    const uk = document.createElement('textarea');
-    uk.className = 't-uk g-uk';
-    uk.placeholder = 'Український переклад…';
-    uk.value = ukText;
-    uk.spellcheck = false;
-    uk.rows = Math.min(4, Math.max(1, Math.ceil(entry.english.length / 70)));
-
-    // файл першого входження (+N інших) — колонка «Файл»
-    const file = document.createElement('div');
-    file.className = 't-file';
-    const rel = entry.file || (entry.occurrences && entry.occurrences[0] && entry.occurrences[0].rel) || '';
-    const base = rel ? String(rel).split(/[\\/]/).pop() : '';
-    file.textContent = base + (entry.fileCount > 1 ? ' +' + (entry.fileCount - 1) : '');
-    file.title = rel;
-
-    row.appendChild(meta);
-    row.appendChild(en);
-    row.appendChild(uk);
-    row.appendChild(file);
-    frag.appendChild(row);
+  for (const i of order) if (entryVisible(gState.entries[i], search, mode)) _order.push(i);
+  if (!_order.length) {
+    const div = document.createElement('div');
+    div.className = 't-empty';
+    const p = document.createElement('p');
+    p.textContent = window.i18n.t('gNoMatches');
+    div.appendChild(p);
+    gRows.appendChild(div);
+    return;
   }
-  gRows.appendChild(frag);
-  applyGlossaryFilter();
+  gRows.scrollTop = 0;
+  appendChunk();
+  // якщо перша порція не заповнила видиму область — домалювати ще
+  maybeAppendOnScroll();
 }
 
 // Кирилично-латинські look-alike — у KH1 один і той самий гліф у шрифті
-// має той самий бай т, тому розпарсений ENG-файл з overlay дає Cyrillic-look
-// замість Latin (P→Р, o→о, p→р тощо). Нормалізуємо обидва напрямки до
-// Latin для пошуку, щоб «Press» матчив і «Рress».
+// має той самий байт, тому старі експорти дають Cyrillic-look замість Latin
+// (P→Р, o→о, p→р тощо). Нормалізуємо обидва напрямки до Latin для пошуку,
+// щоб «Press» матчив і «Рress».
 export const LOOKALIKE_TO_LATIN = {
   'А': 'a', 'В': 'b', 'С': 'c', 'Е': 'e', 'Н': 'h', 'К': 'k', 'М': 'm',
   'О': 'o', 'Р': 'p', 'Т': 't', 'Х': 'x', 'У': 'y', 'З': 'z',
@@ -250,26 +318,9 @@ export function normalizeLookalikes(s) {
   return out.toLowerCase();
 }
 
+// Фільтр/пошук — той самий перерендер (порядок + фільтр + перша порція).
 export function applyGlossaryFilter() {
-  const searchRaw = (gState.filter.search || '');
-  const search = normalizeLookalikes(searchRaw);
-  const mode = gState.filter.mode || 'all';
-  const rowEls = gRows.querySelectorAll('.t-row');
-  for (const rowEl of rowEls) {
-    const idx = parseInt(rowEl.dataset.gidx, 10);
-    const entry = gState.entries[idx];
-    if (!entry) continue;
-    const uk = gState.translations[entry.english] || '';
-    let hide = false;
-    if (search && normalizeLookalikes(entry.english).indexOf(search) === -1) hide = true;
-    if (mode === 'untranslated' && uk) hide = true;
-    if (mode === 'translated' && !uk) hide = true;
-    if (mode === 'same-as-en' && uk !== entry.english) hide = true;
-    if (mode === 'token-issues') {
-      if (!uk || validateTokens(entry.english, uk).ok) hide = true;
-    }
-    rowEl.classList.toggle('hidden', hide);
-  }
+  renderGlossaryRows();
 }
 
 export function refreshGlossaryProgress() {
