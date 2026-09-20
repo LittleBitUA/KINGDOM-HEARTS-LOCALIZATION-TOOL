@@ -202,8 +202,7 @@ function updateLimitBadge(el, entry, ukText) {
 // Висота поля перекладу: щоб було видно увесь текст — за кількістю рядків EN/UK
 // (переноси + довгі рядки по ~70 символів), без прокрутки всередині textarea.
 function ukRows(en, uk) {
-  const lines = (txt) => String(txt || '').split('
-').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 70)), 0);
+  const lines = (txt) => String(txt || '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 70)), 0);
   return Math.min(12, Math.max(1, lines(en), lines(uk)));
 }
 
