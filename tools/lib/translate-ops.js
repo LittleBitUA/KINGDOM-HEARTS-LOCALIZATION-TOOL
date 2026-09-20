@@ -254,7 +254,7 @@ async function buildGlossaryIndex(files, env) {
 }
 
 // composeOneFile(rel, env) → { status: 'ok'|'missing'|'unsafe'|'no-translations'|'error', applied, errors: [{offset,message}], error? }
-//   env: { engDir, rusDir?, outDir, tsvDir?, glossary, safeMode, opts?, runWorker?, outLayout?, gameId?, strictTokens? }
+//   env: { engDir, rusDir?, outDir, tsvDir?, glossary, safeMode, opts?, runWorker?, outLayout?, gameId?, strictTokens?, layouts? }
 // Джерело перекладу — глосарій (за key). Per-file TSV (PROGRESS) — лише за
 // env.useTsvOverrides (старий режим; UI його більше не вмикає — глосарій єдине джерело).
 // Пише вихідні файли сам (виконується у воркері формату або в процесі).
@@ -298,11 +298,15 @@ async function composeOneFile(rel, env) {
       }
       ukByOffset.set(s.offset, uk);
     }
-    if (ukByOffset.size === 0 && guardErrors.length === 0) return { status: 'no-translations', applied: 0, errors: [] };
-    const result = ukByOffset.size ? await parsed.compose(ukByOffset) : { outputs: [], applied: 0, skipped: 0, errors: [] };
+    // Хмаринки Re:CoM (PROGRESS/_bubbles.json): макети правляться навіть там,
+    // де перекладів нема.
+    const layouts = (env.layouts && env.layouts[rel]) || null;
+    const hasWork = ukByOffset.size > 0 || !!layouts;
+    if (!hasWork && guardErrors.length === 0) return { status: 'no-translations', applied: 0, errors: [] };
+    const result = hasWork ? await parsed.compose(ukByOffset, layouts ? { layouts } : undefined) : { outputs: [], applied: 0, skipped: 0, errors: [] };
     const errors = guardErrors.concat(result.errors || []);
-    if (ukByOffset.size) await writeOutputs(outPath, result, resolveSrc);
-    return { status: ukByOffset.size ? 'ok' : 'no-translations', applied: result.applied || 0, errors };
+    if (hasWork) await writeOutputs(outPath, result, resolveSrc);
+    return { status: hasWork ? 'ok' : 'no-translations', applied: result.applied || 0, errors };
   } catch (e) {
     return { status: 'error', applied: 0, errors: [], error: (e && e.message) || String(e) };
   }
@@ -320,7 +324,7 @@ async function composeAll(files, env) {
   async function processOne(rel) {
     const r = env.runFormat
       ? unwrap(await env.runFormat({ op: 'compose', rel, env: wenv }))
-      : await composeOneFile(rel, Object.assign({}, wenv, { glossary: env.glossary || {}, runWorker: env.runWorker }));
+      : await composeOneFile(rel, Object.assign({}, wenv, { glossary: env.glossary || {}, runWorker: env.runWorker, layouts: env.layouts || null }));
     if (r.status === 'ok') written++;
     else if (r.status === 'unsafe') skippedUnsafe++;
     else if (r.status === 'no-translations') skippedNoTranslations++;

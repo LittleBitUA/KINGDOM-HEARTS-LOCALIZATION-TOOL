@@ -3250,3 +3250,36 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .settings-actions { margin-top: 0; gap: 10px; }
 .settings-actions .kh-btn { height: 38px; padding: 0 18px; }
 @media (max-width: 1000px) { .settings-modal .setting-row, .setting-callout { margin-left: 0; } }
+
+/* ===== Хмаринки Re:CoM ===== */
+.bb-body { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(420px, 46%); gap: 12px; min-height: 0; flex: 1 1 auto; }
+.bb-list { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 8px; overflow-y: auto; min-height: 0; outline: none; }
+.bb-row { padding: 7px 10px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; margin-bottom: 4px; background: rgba(255,255,255,0.02); }
+.bb-row:hover { background: var(--bg-hover); }
+.bb-row.active { border-color: var(--khn-gold); background: rgba(211,173,82,0.10); }
+.bb-row.over { border-left: 3px solid rgba(255,90,90,0.8); }
+.bb-row.changed .bb-geom { color: var(--khn-gold); }
+.bb-row-head { display: flex; gap: 10px; align-items: baseline; font-size: 11.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.bb-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }
+.bb-id { color: var(--text-muted); }
+.bb-geom { margin-left: auto; }
+.bb-fit { min-width: 38px; text-align: right; font-weight: 600; color: #7fd18a; }
+.bb-fit.warn { color: #f0c04a; }
+.bb-fit.bad { color: #ff6b6b; }
+.bb-en { font-size: 12.5px; color: var(--text-muted); white-space: pre-wrap; margin-top: 3px; }
+.bb-uk { font-size: 13px; color: var(--text-primary); white-space: pre-wrap; margin-top: 2px; }
+.bb-uk.dim { color: var(--text-dim); font-style: italic; }
+.bb-page-sep { border-top: 1px dashed rgba(255,255,255,0.14); margin: 5px 0 3px; }
+.bb-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
+.bb-preview-wrap { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 6px; }
+.bb-canvas { display: block; width: 100%; height: auto; border-radius: 8px; cursor: crosshair; }
+.bb-preview-toolbar { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
+.bb-inspector { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.bb-sel-info { font-size: 11.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.bb-fields { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bb-fields label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.bb-num { width: 72px; min-width: 0; }
+.bb-texts { display: grid; grid-template-columns: 28px 1fr; gap: 4px 8px; align-items: start; }
+.bb-label { font-size: 11px; color: var(--text-dim); padding-top: 2px; }
+.bb-text { margin: 0; font: 13px/1.35 "Segoe UI", system-ui, sans-serif; white-space: pre-wrap; color: var(--text-primary); }
+.bb-hint { font-size: 11.5px; color: var(--text-dim); margin: 0; }

@@ -19,6 +19,7 @@ const { nativeMapPathFor } = require('./native-map');
 const { readGlossary, saveGlossaryAsync } = require('../tools/lib/glossary');
 const { importFile: importTranslationsFile } = require('../tools/lib/import-translations');
 const { dl } = require('./menu');
+const { readBubbleOverrides } = require('./ipc-bubbles');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
@@ -227,8 +228,11 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
   if (!engDir || !outDir || !files.length) return { error: 'Не задано теки/файли' };
   try {
     // Глосарій — у кожен воркер формату один раз; далі лише rel + env на файл.
-    await broadcastFormat({ op: 'setGlossary', glossary: payload.glossary || {} });
+    // Хмаринки Re:CoM: PROGRESS/_bubbles.json → у воркери разом із глосарієм.
+    const layouts = payload.gameId === 'kh-re-com' ? readBubbleOverrides(payload.tsvDir || null) : null;
+    await broadcastFormat({ op: 'setGlossary', glossary: payload.glossary || {}, layouts });
     return await ops.composeAll(files, {
+      layouts,
       engDir,
       rusDir: (payload && payload.rusDir) || null,
       outDir,

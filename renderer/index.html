@@ -301,6 +301,7 @@
         <button id="mode-translate" class="mode-btn active" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
         <button id="mode-com-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeComKerning">Кернінг CoM</button>
+        <button id="mode-bubbles" class="mode-btn" type="button" role="tab" data-i18n="modeBubbles">Хмаринки</button>
         <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
         <button id="mode-ua-fonts" class="mode-btn" type="button" role="tab" data-i18n="modeUaFonts">Шрифти UA</button>
       </div>
@@ -693,6 +694,61 @@
       <footer class="statusbar">
         <span id="ck-status" data-i18n="ckNotLoaded">Шрифт не завантажено</span>
         <span id="ck-info" class="brand"></span>
+      </footer>
+    </div>
+
+    <!-- ============ RE:COM BUBBLES VIEW ============ -->
+    <div id="view-bubbles" class="view hidden">
+      <section class="toolbar">
+        <button id="bb-scan" class="kh-btn kh-btn-primary" type="button" data-i18n-title="bbScanTitle" title="Перечитати всі UK_*.ctdl з робочої теки і глосарій">
+          <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="bbScan">Сканувати</span>
+        </button>
+        <select id="bb-filter" class="kh-select kh-select-narrow" aria-label="Filter">
+          <option value="over" data-i18n="bbFilterOver">Не влазить</option>
+          <option value="translated" data-i18n="bbFilterTranslated">Перекладені</option>
+          <option value="changed" data-i18n="bbFilterChanged">Змінені</option>
+          <option value="all" data-i18n="bbFilterAll">Усі</option>
+        </select>
+        <input id="bb-search" class="kh-input" type="search" data-i18n-placeholder="bbSearchPlaceholder" placeholder="Пошук: файл, EN або UK…">
+        <span class="spacer"></span>
+        <button id="bb-fit-all" class="kh-btn" type="button" disabled data-i18n="bbFitAll" data-i18n-title="bbFitAllTitle" title="Розширити всі хмаринки, де текст не влазить: запас як в оригіналі, центр на місці, в межах екрана">✨ Підібрати всі</button>
+        <button id="bb-reset-all" class="kh-btn" type="button" disabled data-i18n="bbResetAll">↺ Скинути всі</button>
+        <button id="bb-save" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="bbSaveTitle" title="PROGRESS/_bubbles.json — застосовується при «Зібрати ВСІ» і в патчі">
+          <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="bbSave">Зберегти</span>
+        </button>
+      </section>
+
+      <section class="bb-body">
+        <div id="bb-list" class="bb-list" tabindex="0">
+          <div class="t-empty"><p data-i18n="bbEmpty">Натисни «Сканувати» — знайду всі репліки Re:CoM, для яких український текст ширший за хмаринку.</p></div>
+        </div>
+        <div class="bb-side">
+          <div class="bb-preview-wrap"><canvas id="bb-canvas" class="bb-canvas" width="640" height="520"></canvas></div>
+          <div class="bb-preview-toolbar">
+            <span id="bb-preview-info" class="t-progress">—</span>
+          </div>
+          <div class="bb-inspector">
+            <div id="bb-sel-info" class="bb-sel-info" data-i18n="bbSelectHint">Вибери репліку у списку</div>
+            <div class="bb-fields">
+              <label>X <input id="bb-x" class="kh-input bb-num" type="number" min="0" max="512" disabled></label>
+              <label>Y <input id="bb-y" class="kh-input bb-num" type="number" min="0" max="416" disabled></label>
+              <label>W <input id="bb-w" class="kh-input bb-num" type="number" min="16" max="512" disabled></label>
+              <label>H <input id="bb-h" class="kh-input bb-num" type="number" min="16" max="416" disabled></label>
+              <button id="bb-fit-one" class="kh-btn" type="button" disabled data-i18n="bbFitOne">Підібрати</button>
+              <button id="bb-reset-one" class="kh-btn" type="button" disabled data-i18n="bbResetOne">Оригінал</button>
+            </div>
+            <div class="bb-texts">
+              <div class="bb-label">EN</div><pre id="bb-en" class="bb-text"></pre>
+              <div class="bb-label">UK</div><pre id="bb-uk" class="bb-text"></pre>
+            </div>
+            <p class="bb-hint" data-i18n="bbHint">Тягни хмаринку у preview, щоб перемістити; тягни правий нижній кут — щоб змінити розмір. Координати — px PS2 (екран 512×416).</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="statusbar">
+        <span id="bb-status" data-i18n="bbNotScanned">Ще не скановано</span>
+        <span id="bb-info" class="brand"></span>
       </footer>
     </div>
 

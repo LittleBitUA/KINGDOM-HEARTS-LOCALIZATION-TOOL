@@ -51,8 +51,7 @@ function pngFor(binlPath) {
 }
 
 // Де взяти шрифт: збірка шрифтів UA (FONTS/kh-re-com/build) → розпакована гра.
-ipcMain.handle('comkern:locate', async (_e, payload) => {
-  const name = (payload && payload.name) || 'sysfont';
+function locateFont(name) {
   const cands = [];
   const build = path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', 'kh-re-com', 'build');
   for (const top of ['Recom', 'Recom.hed_out']) cands.push({ p: path.join(build, top, 'remastered', 'SYS', '0001', 'SY0001.BIN', 'UK_' + name + '.binl'), source: 'build' });
@@ -68,7 +67,8 @@ ipcMain.handle('comkern:locate', async (_e, payload) => {
     if (fs.existsSync(c.p) && pngFor(c.p)) return { ok: true, binlPath: c.p, pngPath: pngFor(c.p), source: c.source };
   }
   return { ok: false, error: 'UK_' + name + '.binl не знайдено ні у збірці шрифтів UA, ні у розпакованій грі' };
-});
+}
+ipcMain.handle('comkern:locate', async (_e, payload) => locateFont((payload && payload.name) || 'sysfont'));
 
 ipcMain.handle('comkern:open', async () => {
   const r = await dialog.showOpenDialog(win.get(), {
@@ -132,4 +132,4 @@ ipcMain.handle('comkern:cyrTable', async () => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
-module.exports = { PROFILES, parseHeader };
+module.exports = { PROFILES, parseHeader, locateFont, pngFor };

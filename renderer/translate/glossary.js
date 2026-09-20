@@ -463,6 +463,7 @@ export async function composeAllFiles() {
       engDir: tState.settings.engDir,
       rusDir: tState.settings.rusDir,
       outDir: tState.settings.outDir,
+      tsvDir: tState.settings.tsvDir,            // Re:CoM: PROGRESS/_bubbles.json (хмаринки)
       files: tState.files.map(f => f.rel),
       glossary: gState.translations,
       safeMode: tState.safeMode,

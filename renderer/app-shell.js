@@ -6,6 +6,7 @@ import { gamesConfig, hideHome, showHome } from './screens/home.js';
 import { cancelAutoSaveTimers, initTranslateMode } from './translate/files.js';
 import { refreshInstallDoneVisibility } from './translate/glossary.js';
 import { enterComKerning } from './kerning/comkern.js';
+import { enterBubbles } from './bubbles/bubbles.js';
 import { clearBulkHistory } from './translate/history.js';
 import { initUaFonts } from './uafonts/uafonts.js';
 
@@ -34,12 +35,14 @@ export function enterEditor(gameId) {
   const hasUaFonts = ['kh1-final-mix', 'kh-bbs-final-mix', 'kh-re-com', 'kh-ddd'].includes(_currentGameId);
   // Mode tabs які доступні цій грі.
   // Усі:   Translate (глосарій — єдиний робочий список) + Шрифти UA.
-  // KH1:   + Kerning (.knj); Re:CoM: + Кернінг CoM (FFMW .binl); BBS: + Шрифт BBS (FontEn.arc).
+  // KH1:   + Kerning (.knj); Re:CoM: + Кернінг CoM (FFMW .binl) + Хмаринки (.ctdl макети); BBS: + Шрифт BBS (FontEn.arc).
   const kerningTab = document.getElementById('mode-kerning');
   const comKerningTab = document.getElementById('mode-com-kerning');
+  const bubblesTab = document.getElementById('mode-bubbles');
   const bbsFontTab = document.getElementById('mode-bbs-font');
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
   if (comKerningTab) comKerningTab.style.display = isCom ? '' : 'none';
+  if (bubblesTab) bubblesTab.style.display = isCom ? '' : 'none';
   if (bbsFontTab) bbsFontTab.style.display = isBbs ? '' : 'none';
   const uaFontsTab = document.getElementById('mode-ua-fonts');
   if (uaFontsTab) uaFontsTab.style.display = hasUaFonts ? '' : 'none';
@@ -101,6 +104,10 @@ export function setMode(mode, opts) {
   if (viewComKerning) viewComKerning.classList.toggle('hidden', mode !== 'com-kerning');
   const modeComKerningBtn = document.getElementById('mode-com-kerning');
   if (modeComKerningBtn) modeComKerningBtn.classList.toggle('active', mode === 'com-kerning');
+  const viewBubbles = document.getElementById('view-bubbles');
+  if (viewBubbles) viewBubbles.classList.toggle('hidden', mode !== 'bubbles');
+  const modeBubblesBtn = document.getElementById('mode-bubbles');
+  if (modeBubblesBtn) modeBubblesBtn.classList.toggle('active', mode === 'bubbles');
   if (viewBbsFont) viewBbsFont.classList.toggle('hidden', mode !== 'bbs-font');
   const viewUaFonts = document.getElementById('view-ua-fonts');
   if (viewUaFonts) viewUaFonts.classList.toggle('hidden', mode !== 'ua-fonts');
@@ -112,9 +119,12 @@ export function setMode(mode, opts) {
   if (mode === 'translate') { initTranslateMode(); refreshInstallDoneVisibility(); }
   if (mode === 'ua-fonts') initUaFonts();
   if (mode === 'com-kerning') enterComKerning();
+  if (mode === 'bubbles') enterBubbles();
 }
 const _modeComKerningBtn = document.getElementById('mode-com-kerning');
 if (_modeComKerningBtn) _modeComKerningBtn.addEventListener('click', () => setMode('com-kerning'));
+const _modeBubblesBtn = document.getElementById('mode-bubbles');
+if (_modeBubblesBtn) _modeBubblesBtn.addEventListener('click', () => setMode('bubbles'));
 const _modeUaFontsBtn = document.getElementById('mode-ua-fonts');
 if (_modeUaFontsBtn) _modeUaFontsBtn.addEventListener('click', () => setMode('ua-fonts'));
 

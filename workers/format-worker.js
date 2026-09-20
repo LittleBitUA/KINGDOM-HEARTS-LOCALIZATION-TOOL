@@ -4,7 +4,7 @@
 // вбудований кодек у цьому ж потоці, ev/mesofs/ctd/ctdl/kmb — напряму) і обхід
 // теки для списку файлів. Main лише оркеструє (mapLimited) і шле прогрес, тому
 // вікно не «висне» на 35 МБ .ev під час «Зібрати ВСІ» та індексації.
-//   { op: 'setGlossary', glossary }         — глосарій для compose (раз на прогін, у кожен воркер)
+//   { op: 'setGlossary', glossary, layouts? } — глосарій (+ хмаринки Re:CoM) для compose (раз на прогін, у кожен воркер)
 //   { op: 'index', rel, env }               → indexFileSlots
 //   { op: 'compose', rel, env }             → composeOneFile (пише файли сам)
 //   { op: 'listFiles', dir }                → [{ rel, size, mtimeMs, ext, kind, magic, isTranslatable }]
@@ -18,6 +18,7 @@ const { classifyFile } = require('../tools/lib/formats');
 
 if (workerData && workerData.nativeMapPath) setNativeMapPath(workerData.nativeMapPath);
 let glossary = {};
+let layouts = null;   // хмаринки Re:CoM: { rel: { msgId: {x,y,w,h} } }
 
 function walkDir(root) {
   const out = [];
@@ -48,13 +49,14 @@ parentPort.on('message', async (msg) => {
     switch (msg && msg.op) {
       case 'setGlossary':
         glossary = msg.glossary || {};
+        layouts = msg.layouts || null;
         parentPort.postMessage({ id, ok: true });
         return;
       case 'index':
         parentPort.postMessage({ id, ok: true, result: await ops.indexFileSlots(msg.rel, msg.env || {}) });
         return;
       case 'compose':
-        parentPort.postMessage({ id, ok: true, result: await ops.composeOneFile(msg.rel, Object.assign({}, msg.env || {}, { glossary })) });
+        parentPort.postMessage({ id, ok: true, result: await ops.composeOneFile(msg.rel, Object.assign({}, msg.env || {}, { glossary, layouts })) });
         return;
       case 'listFiles':
         parentPort.postMessage({ id, ok: true, result: walkDir(msg.dir) });

@@ -119,6 +119,12 @@ contextBridge.exposeInMainWorld('kh1', {
     save:   (payload) => ipcRenderer.invoke('comkern:save', payload),
     cyrTable: () => ipcRenderer.invoke('comkern:cyrTable')
   },
+  bubbles: {
+    scan:   (payload) => ipcRenderer.invoke('bubbles:scan', payload),
+    glyphs: (payload) => ipcRenderer.invoke('bubbles:glyphs', payload),
+    load:   (payload) => ipcRenderer.invoke('bubbles:load', payload),
+    save:   (payload) => ipcRenderer.invoke('bubbles:save', payload)
+  },
   patch: {
     status: (payload) => ipcRenderer.invoke('patch:status', payload),
     build:  (payload) => ipcRenderer.invoke('patch:build', payload),
