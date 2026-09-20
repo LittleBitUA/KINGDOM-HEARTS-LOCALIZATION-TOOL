@@ -10,14 +10,13 @@ const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 const win = require('./window');
-const { runWorker, POOL_SIZE } = require('./worker-pool');
+const { runWorker, runFormat, broadcastFormat, POOL_SIZE } = require('./worker-pool');
 const { loadSettings, saveSettings } = require('./settings');
 const { writeFileAtomic } = require('../shared/safe-fs');
-const { classifyFile } = require('../tools/lib/formats');
 const ops = require('../tools/lib/translate-ops');
 const codec = require('../shared/codec');
 const { nativeMapPathFor } = require('./native-map');
-const { readGlossary, saveGlossary } = require('../tools/lib/glossary');
+const { readGlossary, saveGlossaryAsync } = require('../tools/lib/glossary');
 const { importFile: importTranslationsFile } = require('../tools/lib/import-translations');
 const { dl } = require('./menu');
 
@@ -25,45 +24,8 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 
 function sendProgress(payload) { win.send('translate:progress', payload); }
 
-function walkDirSync(root) {
-  const out = [];
-  function rec(dir, base) {
-    let entries;
-    try { entries = fsSync.readdirSync(dir, { withFileTypes: true }); }
-    catch (_) { return; }
-    for (const e of entries) {
-      const rel = base ? path.join(base, e.name) : e.name;
-      const abs = path.join(dir, e.name);
-      if (e.isDirectory()) {
-        rec(abs, rel);
-      } else if (e.isFile()) {
-        let size = 0, mtimeMs = 0;
-        try { const st = fsSync.statSync(abs); size = st.size; mtimeMs = st.mtimeMs; } catch (_) {}
-        const ext = path.extname(e.name).toLowerCase();
-        const cls = classifyFile(abs, ext);
-        // Не додаємо до списку *_mes_data.bin — він auxiliary до _mes_ofs.bin
-        // і записується разом з ним. Інакше у Safe-mode tovaste «1 заблоковано».
-        if (cls.kind === 'mesdata') continue;
-        out.push({
-          rel: rel.split(path.sep).join('/'),
-          size,
-          mtimeMs,
-          ext,
-          kind: cls.kind,
-          magic: cls.magic,
-          isTranslatable: cls.isTranslatable
-        });
-      }
-    }
-  }
-  rec(root, '');
-  return out;
-}
-
-// translate:getSettings(gameId?) — повертає merged settings (global + game-scoped).
-
 // Карта нативних гліфів KH1, яку записав генератор шрифту (додаткові символи):
-// кодек у main і worker'и беруть її замість data/kh1_native.json, якщо існує.
+// кодек у main і воркери беруть її замість data/kh1_native.json, якщо існує.
 codec.setNativeMapPath(nativeMapPathFor());
 
 ipcMain.handle('translate:getSettings', (_e, gameId) => loadSettings(gameId || null));
@@ -77,10 +39,12 @@ ipcMain.handle('translate:pickDirectory', async (_e, title) => {
   return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
 });
 
-ipcMain.handle('translate:listFiles', (_e, rusDir) => {
+ipcMain.handle('translate:listFiles', async (_e, rusDir) => {
   if (!rusDir) return { files: [] };
   try {
-    return { files: walkDirSync(rusDir) };
+    // Обхід + класифікація 2000+ файлів — у воркері формату, щоб не блокувати main.
+    const r = await runFormat({ op: 'listFiles', dir: rusDir });
+    return { files: r.result || [] };
   } catch (e) {
     return { files: [], error: (e && e.message) || String(e) };
   }
@@ -142,12 +106,12 @@ ipcMain.handle('translate:readGlossary', (_e, tsvDir) => {
   }
 });
 
-ipcMain.handle('translate:saveGlossary', (_e, payload) => {
+ipcMain.handle('translate:saveGlossary', async (_e, payload) => {
   const tsvDir = payload && payload.tsvDir;
   const entries = (payload && payload.entries) || {};
   if (!tsvDir) return { error: 'Не задано TSV-теку' };
   try {
-    saveGlossary(tsvDir, entries);
+    await saveGlossaryAsync(tsvDir, entries);
     return { ok: true, count: Object.keys(entries).length };
   } catch (e) {
     return { error: (e && e.message) || String(e) };
@@ -185,7 +149,7 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
       rusDir: (payload && payload.rusDir) || null,
       safeMode,
       opts: payload.opts || {},
-      runWorker,
+      runFormat,
       concurrency: POOL_SIZE * 2,
       // UI використовує лише count/fileCount — occurrences лише роздувають IPC.
       withOccurrences: !!payload.withOccurrences,
@@ -262,6 +226,8 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
   const files = (payload && payload.files) || [];
   if (!engDir || !outDir || !files.length) return { error: 'Не задано теки/файли' };
   try {
+    // Глосарій — у кожен воркер формату один раз; далі лише rel + env на файл.
+    await broadcastFormat({ op: 'setGlossary', glossary: payload.glossary || {} });
     return await ops.composeAll(files, {
       engDir,
       rusDir: (payload && payload.rusDir) || null,
@@ -270,7 +236,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
       glossary: payload.glossary || {},
       safeMode: payload.safeMode !== false,
       opts: payload.opts || {},
-      runWorker,
+      runFormat,
       concurrency: POOL_SIZE * 2,
       onProgress: sendProgress,
       outLayout: payload.outLayout || null,

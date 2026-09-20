@@ -167,6 +167,33 @@ function classifyRel(engDir, rel) {
   return { engPath, cls: classifyFile(engPath, path.extname(rel).toLowerCase()) };
 }
 
+// Відповідь воркера формату — { id, ok, result }; в процесі — сам result.
+function unwrap(msg) { return msg && msg.result !== undefined ? msg.result : msg; }
+
+// Серіалізована частина env для воркера формату (без функцій).
+function envForWorker(env) {
+  return {
+    engDir: env.engDir, rusDir: env.rusDir || null, outDir: env.outDir || null, tsvDir: env.tsvDir || null,
+    safeMode: env.safeMode !== false, opts: env.opts || {}, outLayout: env.outLayout || null, gameId: env.gameId || null,
+    strictTokens: env.strictTokens !== false
+  };
+}
+
+// indexFileSlots(rel, env) → { status: 'ok'|'missing'|'unsafe'|'error', slots?: [{index, offset, byteLen, key}], error? }
+// Один файл для індексу глосарію; виконується у воркері формату або в процесі.
+async function indexFileSlots(rel, env) {
+  const { engPath, cls } = classifyRel(env.engDir, rel);
+  const rusPath = rusPathFor(env.rusDir || null, rel);
+  if (!fs.existsSync(engPath)) return { status: 'missing' };
+  if (env.safeMode !== false && !cls.isTranslatable) return { status: 'unsafe' };
+  try {
+    const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
+    return { status: 'ok', slots: parsed.slots.map(s => ({ index: s.index, offset: s.offset, byteLen: s.byteLen, key: s.key })) };
+  } catch (e) {
+    return { status: 'error', error: (e && e.message) || String(e) };
+  }
+}
+
 // buildGlossaryIndex(files, env) → { entries, processed, skipped, skippedUnsafe, total }
 //   env: { engDir, rusDir?, safeMode, opts?, runWorker?, concurrency?, onProgress?(p) }
 //   entries: [{ english, count, fileCount, file, index, offset, legacyKey?, occurrences?: [...] }] (у порядку гри: файл → позиція)
@@ -195,19 +222,14 @@ async function buildGlossaryIndex(files, env) {
     if (withOcc) entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
   }
 
+  // env.runFormat(payload) — виконати у воркері формату (main); інакше — в процесі.
+  const wenv = envForWorker({ engDir, rusDir, safeMode, opts: env.opts });
   async function processOne(rel) {
-    const { engPath, cls } = classifyRel(engDir, rel);
-    const rusPath = rusPathFor(rusDir, rel);
-    if (!fs.existsSync(engPath)) { skipped++; return { rel, status: 'missing' }; }
-    if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
-    try {
-      const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
-      for (const s of parsed.slots) addSlot(rel, s);
-      return { rel, status: 'ok' };
-    } catch (e) {
-      skipped++;
-      return { rel, status: 'error', error: e && e.message };
-    }
+    const r = env.runFormat ? unwrap(await env.runFormat({ op: 'index', rel, env: wenv })) : await indexFileSlots(rel, Object.assign({}, wenv, { runWorker: env.runWorker }));
+    if (r.status === 'ok') for (const s of r.slots) addSlot(rel, s);
+    else if (r.status === 'unsafe') skippedUnsafe++;
+    else skipped++;
+    return { rel, status: r.status, error: r.error };
   }
 
   await mapLimited(files, env.concurrency || 4, processOne, (r) => {
@@ -231,74 +253,80 @@ async function buildGlossaryIndex(files, env) {
   return { ok: true, entries, processed, skipped, skippedUnsafe, total: files.length };
 }
 
-// composeAll(files, env) → { processed, written, skippedNoTranslations, skippedUnsafe, totalReplacements, errors }
-//   env: { engDir, rusDir?, outDir, tsvDir?, glossary, safeMode, opts?, runWorker?, concurrency?, onProgress? }
+// composeOneFile(rel, env) → { status: 'ok'|'missing'|'unsafe'|'no-translations'|'error', applied, errors: [{offset,message}], error? }
+//   env: { engDir, rusDir?, outDir, tsvDir?, glossary, safeMode, opts?, runWorker?, outLayout?, gameId?, strictTokens? }
 // Пріоритет перекладу: per-file TSV override (за offset) → глосарій (за key).
-async function composeAll(files, env) {
+// Пише вихідні файли сам (виконується у воркері формату або в процесі).
+async function composeOneFile(rel, env) {
   const engDir = env.engDir;
-  const rusDir = env.rusDir || null;   // без MYFILES — лише вбудований еталон (ENG як власний reference = усе «неперекладне»)
   const outDir = env.outDir;
-  const tsvDir = env.tsvDir || null;
   const glossary = env.glossary || {};
-  const safeMode = env.safeMode !== false;
+  const { engPath, cls } = classifyRel(engDir, rel);
+  const rusPath = rusPathFor(env.rusDir || null, rel);
+  // env.outLayout === 'patch' — тека, готова для KHPCPatchManager: <archive>/(original|remastered)/…
+  // (env.gameId визначає правило); 'kh1-hedout' — старий синонім для KH1.
+  const layoutRel = (r) => env.outLayout === 'patch' ? patchOutRel(env.gameId, r) : (env.outLayout === 'kh1-hedout' ? kh1OutRel(r) : r);
+  const outPath = path.join(outDir, layoutRel(rel));
+  // парний файл з іншої теки джерела → та сама розкладка від його власного rel
+  const resolveSrc = (srcAbs) => {
+    const r = path.relative(engDir, srcAbs).split(path.sep).join('/');
+    return r.startsWith('..') ? null : path.join(outDir, layoutRel(r));
+  };
+  if (!fs.existsSync(engPath)) return { status: 'missing', applied: 0, errors: [] };
+  if (env.safeMode !== false && !cls.isTranslatable) return { status: 'unsafe', applied: 0, errors: [] };
+  try {
+    let overrides = null;
+    if (env.tsvDir) {
+      try { overrides = tsv.overridesByOffset(await fsP.readFile(path.join(env.tsvDir, rel) + '.tsv', 'utf8')); } catch (_) { overrides = null; }
+    }
+    // RUS-оракул потрібен лише binl/rawbin; для інших форматів (і коли файла
+    // нема) parse працює без нього.
+    const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
+    const h = parsed.handler;
+    const ukByOffset = new Map();
+    const guardErrors = [];
+    for (const s of parsed.slots) {
+      let uk = upgradeUkForSlot(s, (overrides && overrides.get(s.offset)) || '');
+      if (!uk) uk = glossaryLookup(glossary, s.key);
+      if (!uk || !uk.trim() || uk === s.english) continue;
+      if (h.prepareUk) uk = h.prepareUk(s, uk);
+      if (h.preserveWhitespace) uk = preserveStructure(s.english, uk);
+      if (h.structuralGuard && env.strictTokens !== false) {
+        const issue = structuralIssue(s.english, uk);
+        if (issue) { guardErrors.push({ offset: s.offset, message: issue + ' — лишено оригінал' }); continue; }
+      }
+      ukByOffset.set(s.offset, uk);
+    }
+    if (ukByOffset.size === 0 && guardErrors.length === 0) return { status: 'no-translations', applied: 0, errors: [] };
+    const result = ukByOffset.size ? await parsed.compose(ukByOffset) : { outputs: [], applied: 0, skipped: 0, errors: [] };
+    const errors = guardErrors.concat(result.errors || []);
+    if (ukByOffset.size) await writeOutputs(outPath, result, resolveSrc);
+    return { status: ukByOffset.size ? 'ok' : 'no-translations', applied: result.applied || 0, errors };
+  } catch (e) {
+    return { status: 'error', applied: 0, errors: [], error: (e && e.message) || String(e) };
+  }
+}
+
+// composeAll(files, env) → { processed, written, skippedNoTranslations, skippedUnsafe, totalReplacements, errors }
+//   env: { engDir, rusDir?, outDir, tsvDir?, glossary, safeMode, opts?, runWorker?, runFormat?, concurrency?, onProgress? }
+//   env.runFormat(payload) — воркер формату (main); глосарій туди має бути надісланий
+//   заздалегідь (op: 'setGlossary'), у payload він не входить.
+async function composeAll(files, env) {
   let processed = 0, written = 0, skippedNoTranslations = 0, skippedUnsafe = 0, totalReplacements = 0;
   const errors = [];
-
-  async function readOverrides(rel) {
-    if (!tsvDir) return null;
-    const p = path.join(tsvDir, rel) + '.tsv';
-    try { return tsv.overridesByOffset(await fsP.readFile(p, 'utf8')); }
-    catch (_) { return null; }
-  }
+  const wenv = envForWorker(env);
 
   async function processOne(rel) {
-    const { engPath, cls } = classifyRel(engDir, rel);
-    const rusPath = rusPathFor(rusDir, rel);
-    // env.outLayout === 'patch' — тека, готова для KHPCPatchManager: <archive>/(original|remastered)/…
-    // (env.gameId визначає правило); 'kh1-hedout' — старий синонім для KH1.
-    const layoutRel = (r) => env.outLayout === 'patch' ? patchOutRel(env.gameId, r) : (env.outLayout === 'kh1-hedout' ? kh1OutRel(r) : r);
-    const outPath = path.join(outDir, layoutRel(rel));
-    // парний файл з іншої теки джерела → та сама розкладка від його власного rel
-    const resolveSrc = (srcAbs) => {
-      const r = path.relative(engDir, srcAbs).split(path.sep).join('/');
-      return r.startsWith('..') ? null : path.join(outDir, layoutRel(r));
-    };
-    if (!fs.existsSync(engPath)) return { rel, status: 'missing' };
-    if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
-    try {
-      // RUS-оракул потрібен лише binl/rawbin; для інших форматів (і коли файла
-      // нема) parse працює без нього.
-      const parsed = await parseFile(engPath, { cls, rusPath, opts: env.opts, runWorker: env.runWorker });
-      const h = parsed.handler;
-      const overrides = await readOverrides(rel);
-      const ukByOffset = new Map();
-      const guardErrors = [];
-      for (const s of parsed.slots) {
-        let uk = upgradeUkForSlot(s, (overrides && overrides.get(s.offset)) || '');
-        if (!uk) uk = glossaryLookup(glossary, s.key);
-        if (!uk || !uk.trim() || uk === s.english) continue;
-        if (h.prepareUk) uk = h.prepareUk(s, uk);
-        if (h.preserveWhitespace) uk = preserveStructure(s.english, uk);
-        if (h.structuralGuard && env.strictTokens !== false) {
-          const issue = structuralIssue(s.english, uk);
-          if (issue) { guardErrors.push({ offset: s.offset, message: issue + ' — лишено оригінал' }); continue; }
-        }
-        ukByOffset.set(s.offset, uk);
-      }
-      if (ukByOffset.size === 0 && guardErrors.length === 0) { skippedNoTranslations++; return { rel, status: 'no-translations' }; }
-      const result = ukByOffset.size ? await parsed.compose(ukByOffset) : { outputs: [], applied: 0, skipped: 0, errors: [] };
-      if (guardErrors.length) result.errors = guardErrors.concat(result.errors || []);
-      if (ukByOffset.size) { await writeOutputs(outPath, result, resolveSrc); written++; }
-      else { skippedNoTranslations++; }
-      totalReplacements += result.applied || 0;
-      if (result.errors && result.errors.length) {
-        errors.push({ rel, count: result.errors.length, samples: result.errors.slice(0, 3) });
-      }
-      return { rel, status: 'ok' };
-    } catch (e) {
-      errors.push({ rel, error: (e && e.message) || String(e) });
-      return { rel, status: 'error' };
-    }
+    const r = env.runFormat
+      ? unwrap(await env.runFormat({ op: 'compose', rel, env: wenv }))
+      : await composeOneFile(rel, Object.assign({}, wenv, { glossary: env.glossary || {}, runWorker: env.runWorker }));
+    if (r.status === 'ok') written++;
+    else if (r.status === 'unsafe') skippedUnsafe++;
+    else if (r.status === 'no-translations') skippedNoTranslations++;
+    else if (r.status === 'error') errors.push({ rel, error: r.error });
+    totalReplacements += r.applied || 0;
+    if (r.errors && r.errors.length) errors.push({ rel, count: r.errors.length, samples: r.errors.slice(0, 3) });
+    return { rel, status: r.status };
   }
 
   await mapLimited(files, env.concurrency || 4, processOne, (r) => {
@@ -310,7 +338,7 @@ async function composeAll(files, env) {
 }
 
 module.exports = {
-  rusPathFor, extractFile, composeFile, buildGlossaryIndex, composeAll, glossaryLookup, mapLimited, structuralIssue };
+  rusPathFor, extractFile, composeFile, indexFileSlots, composeOneFile, buildGlossaryIndex, composeAll, glossaryLookup, mapLimited, structuralIssue };
 
 // =====================================================================
 // text_all.txt — формат обміну Python-наборів (### шлях / #N / текст).

@@ -35,7 +35,7 @@ export const gamesConfig = [
     theme: 'final-mix',
     enabled: true,
     status: 'ready',
-    formats: ['binl', 'binl-v361', 'rawbin', 'ev', 'mesofs'],
+    formats: ['binl', 'binl-v361', 'rawbin', 'ev', 'mesofs', 'kmb'],
     // KH1: список файлів — з ENG (розпакована гра); RUS — опційний оракул
     // (російський переклад): рядки, ідентичні в RUS, вважаються неперекладними.
     dirs: ['engDir', 'rusDir', 'tsvDir', 'outDir'],

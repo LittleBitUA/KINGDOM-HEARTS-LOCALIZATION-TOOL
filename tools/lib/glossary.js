@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { writeFileAtomicSync } = require('../../shared/safe-fs');
+const { writeFileAtomicSync, writeFileAtomic } = require('../../shared/safe-fs');
 
 const GLOSSARY_FILENAME = '_glossary.json';
 // Скільки попередніх версій глосарію тримати поряд (_glossary.json.bak.1..N).
@@ -37,4 +37,12 @@ function saveGlossary(tsvDir, entries) {
   );
 }
 
-module.exports = { readGlossary, saveGlossary, glossaryPath, GLOSSARY_FILENAME, GLOSSARY_BACKUPS };
+// Асинхронна версія для main (автозбереження кожні 1.5 с після правки — 0.5 МБ + 5 бекапів
+// не мають блокувати IPC).
+function saveGlossaryAsync(tsvDir, entries) {
+  if (!tsvDir) return Promise.reject(new Error('Не задано TSV-теку'));
+  const payload = { version: 1, savedAt: new Date().toISOString(), entries: entries || {} };
+  return writeFileAtomic(glossaryPath(tsvDir), JSON.stringify(payload, null, 2), { encoding: 'utf8', backups: GLOSSARY_BACKUPS });
+}
+
+module.exports = { readGlossary, saveGlossary, saveGlossaryAsync, glossaryPath, GLOSSARY_FILENAME, GLOSSARY_BACKUPS };
