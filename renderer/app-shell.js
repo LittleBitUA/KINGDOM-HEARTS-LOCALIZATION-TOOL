@@ -5,6 +5,7 @@ import { maybeFirstRunSettings } from './main.js';
 import { gamesConfig, hideHome, showHome } from './screens/home.js';
 import { cancelAutoSaveTimers, initTranslateMode } from './translate/files.js';
 import { refreshInstallDoneVisibility } from './translate/glossary.js';
+import { enterComKerning } from './kerning/comkern.js';
 import { clearBulkHistory } from './translate/history.js';
 import { initUaFonts } from './uafonts/uafonts.js';
 
@@ -27,15 +28,18 @@ export function enterEditor(gameId) {
 
   const isKh1 = _currentGameId === 'kh1-final-mix';
   const isBbs = _currentGameId === 'kh-bbs-final-mix';
+  const isCom = _currentGameId === 'kh-re-com';
   const moduleGame = document.getElementById('t-module-game');
   if (moduleGame) { const g = getCurrentGame(); moduleGame.textContent = g ? g.name : ''; }
   const hasUaFonts = ['kh1-final-mix', 'kh-bbs-final-mix', 'kh-re-com', 'kh-ddd'].includes(_currentGameId);
   // Mode tabs які доступні цій грі.
   // Усі:   Translate (глосарій — єдиний робочий список) + Шрифти UA.
-  // KH1:   + Kerning (.knj); BBS: + Шрифт BBS (FontEn.arc).
+  // KH1:   + Kerning (.knj); Re:CoM: + Кернінг CoM (FFMW .binl); BBS: + Шрифт BBS (FontEn.arc).
   const kerningTab = document.getElementById('mode-kerning');
+  const comKerningTab = document.getElementById('mode-com-kerning');
   const bbsFontTab = document.getElementById('mode-bbs-font');
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
+  if (comKerningTab) comKerningTab.style.display = isCom ? '' : 'none';
   if (bbsFontTab) bbsFontTab.style.display = isBbs ? '' : 'none';
   const uaFontsTab = document.getElementById('mode-ua-fonts');
   if (uaFontsTab) uaFontsTab.style.display = hasUaFonts ? '' : 'none';
@@ -93,6 +97,10 @@ export function setMode(mode, opts) {
   state.mode = mode;
   viewTranslate.classList.toggle('hidden', mode !== 'translate');
   viewKerning.classList.toggle('hidden', mode !== 'kerning');
+  const viewComKerning = document.getElementById('view-com-kerning');
+  if (viewComKerning) viewComKerning.classList.toggle('hidden', mode !== 'com-kerning');
+  const modeComKerningBtn = document.getElementById('mode-com-kerning');
+  if (modeComKerningBtn) modeComKerningBtn.classList.toggle('active', mode === 'com-kerning');
   if (viewBbsFont) viewBbsFont.classList.toggle('hidden', mode !== 'bbs-font');
   const viewUaFonts = document.getElementById('view-ua-fonts');
   if (viewUaFonts) viewUaFonts.classList.toggle('hidden', mode !== 'ua-fonts');
@@ -103,7 +111,10 @@ export function setMode(mode, opts) {
   if (modeBbsFontBtn) modeBbsFontBtn.classList.toggle('active', mode === 'bbs-font');
   if (mode === 'translate') { initTranslateMode(); refreshInstallDoneVisibility(); }
   if (mode === 'ua-fonts') initUaFonts();
+  if (mode === 'com-kerning') enterComKerning();
 }
+const _modeComKerningBtn = document.getElementById('mode-com-kerning');
+if (_modeComKerningBtn) _modeComKerningBtn.addEventListener('click', () => setMode('com-kerning'));
 const _modeUaFontsBtn = document.getElementById('mode-ua-fonts');
 if (_modeUaFontsBtn) _modeUaFontsBtn.addEventListener('click', () => setMode('ua-fonts'));
 

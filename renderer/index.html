@@ -300,6 +300,7 @@
       <div class="mode-toggle" role="tablist">
         <button id="mode-translate" class="mode-btn active" type="button" role="tab" data-i18n="modeTranslate">Переклад</button>
         <button id="mode-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeKerning">Кернінг</button>
+        <button id="mode-com-kerning" class="mode-btn" type="button" role="tab" data-i18n="modeComKerning">Кернінг CoM</button>
         <button id="mode-bbs-font" class="mode-btn" type="button" role="tab" data-i18n="modeBbsFont">Шрифт BBS</button>
         <button id="mode-ua-fonts" class="mode-btn" type="button" role="tab" data-i18n="modeUaFonts">Шрифти UA</button>
       </div>
@@ -639,6 +640,59 @@
       <footer class="statusbar">
         <span id="k-status" data-i18n="fileNotLoaded">Файл не завантажено</span>
         <span id="k-info" class="brand"></span>
+      </footer>
+    </div>
+
+
+    <!-- ============ RE:COM KERNING VIEW ============ -->
+    <div id="view-com-kerning" class="view hidden">
+      <section class="toolbar">
+        <select id="ck-font" class="kh-select kh-select-narrow" aria-label="Font">
+          <option value="sysfont">sysfont (меню, 20 px)</option>
+          <option value="evtfont">evtfont (діалоги, 26 px)</option>
+        </select>
+        <button id="ck-load-auto" class="kh-btn kh-btn-primary" type="button" data-i18n-title="ckLoadAutoTitle" title="Взяти шрифт зі збірки «Шрифти UA» (FONTS/kh-re-com/build), а якщо її нема — з розпакованої гри">
+          <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="ckLoadAuto">Зі збірки шрифтів UA</span>
+        </button>
+        <button id="ck-open" class="kh-btn" type="button">
+          <svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg><span data-i18n="ckOpen">Відкрити .binl…</span>
+        </button>
+        <input id="ck-filter" class="kh-input" type="search" data-i18n-placeholder="ckFilterPlaceholder" placeholder="№ гліфа або символ (0-50, 100, Q а)">
+        <span class="spacer"></span>
+        <label class="checkbox compact" data-i18n-title="knjThresholdTitle" title="Поріг прозорості: піксель вважається непрозорим якщо alpha ≥ цього значення (1-255).">
+          <span data-i18n="knjThreshold">α-поріг</span>
+          <input id="ck-threshold" type="number" min="1" max="255" value="96" class="k-threshold-input">
+        </label>
+        <button id="ck-autofit" class="kh-btn" type="button" disabled data-i18n="knjAutoFit" data-i18n-title="ckAutoFitTitle" title="Підібрати ширину всіх гліфів за непрозорим краєм у PNG (+1 px)">✨ Auto-fit</button>
+        <button id="ck-reset" class="kh-btn" type="button" disabled data-i18n="knjReset" data-i18n-title="knjResetTitle" title="Скинути всі зміни до завантажених значень">↺ Скинути</button>
+        <button id="ck-save" class="kh-btn kh-btn-primary" type="button" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-save"/></svg><span data-i18n="ckSave">Зберегти .binl</span>
+        </button>
+      </section>
+
+      <section class="k-preview-wrap">
+        <div class="k-preview-toolbar">
+          <input id="ck-preview-text" class="kh-input" type="text" data-i18n-placeholder="previewPlaceholder" placeholder="Live-preview: введіть текст українською/англійською..." disabled>
+          <label class="checkbox compact" title="Прозорий фон vs ігровий темно-синій">
+            <input id="ck-preview-bg" type="checkbox" checked>
+            <span data-i18n="previewBgLabel">Темне тло</span>
+          </label>
+          <span class="spacer"></span>
+          <span id="ck-preview-info" class="t-progress">—</span>
+        </div>
+        <canvas id="ck-preview-canvas" class="k-preview-canvas" width="1100" height="120"></canvas>
+      </section>
+
+      <section id="ck-grid-wrap" class="k-grid-wrap" tabindex="0">
+        <div class="t-empty">
+          <p data-i18n="ckEmpty">Завантажте шрифт Re:CoM (UK_sysfont.binl / UK_evtfont.binl) — атлас _fo240.png підтягнеться сам.</p>
+          <p style="margin-top:10px; opacity:0.75;" data-i18n="ckHint">Тягни червону лінію в комірці, щоб задати ширину літери (крок каретки). 1 одиниця = 2 px атласу; максимум — ширина комірки.</p>
+        </div>
+      </section>
+
+      <footer class="statusbar">
+        <span id="ck-status" data-i18n="ckNotLoaded">Шрифт не завантажено</span>
+        <span id="ck-info" class="brand"></span>
       </footer>
     </div>
 

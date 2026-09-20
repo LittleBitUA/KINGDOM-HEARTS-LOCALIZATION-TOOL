@@ -14,6 +14,7 @@ import './translate/textall-ui.js';
 import { initDropdowns } from './ui/dropdown.js';
 import { initInspector } from './translate/inspector.js';
 import { initPatch } from './translate/patch.js';
+import { initComKerning } from './kerning/comkern.js';
 
 // =====================================================================
 // Custom title bar handlers (Stage 1 редизайну).
@@ -258,3 +259,4 @@ export async function maybeFirstRunSettings() {
 initDropdowns();
 initInspector();
 initPatch();
+initComKerning();

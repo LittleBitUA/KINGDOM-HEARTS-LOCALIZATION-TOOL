@@ -10,6 +10,7 @@
 //   ipc-fonts.js     — BBS font editor + KH1 kerning
 //   ipc-uafonts.js   — генерація UA-шрифтів (Python-інструменти) + встановлення у гру
 //   ipc-patch.js     — патч в один клік (KHPCPatchManager: .pcpatch + застосування до .pkg)
+//   ipc-comkern.js   — кернінг Re:CoM (шрифт FFMW .binl + атлас PNG)
 //   autowrap.js      — auto-wrap за метриками .knj
 //   ipc-app.js       — updater, мова, about, openExternal
 
@@ -24,6 +25,7 @@ require('./main/ipc-setup');
 require('./main/ipc-fonts');
 require('./main/ipc-uafonts');
 require('./main/ipc-patch');
+require('./main/ipc-comkern');
 require('./main/autowrap');
 require('./main/ipc-app');
 

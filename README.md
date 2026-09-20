@@ -40,6 +40,7 @@
 | **Auto-wrap** | Адаптивне розставляння `{lf}` за EN-структурою з кернінг-метриками з `.knj` |
 | **Патч в один клік** | «Зібрати патч» — DONE (+ збірка шрифтів UA) → `.kh1pcpatch/.compcpatch/.bbspcpatch/.dddpcpatch` через KHPCPatchManager (файл для поширення); «Застосувати до гри» — партійний патч `.pkg` архів за архівом з бекапом у `Image/dt/backup` |
 | **Ширина рядка** | У кожному рядку глосарію KH1 — `UK/EN px` за метриками шрифту діалогів `.knj` (з нативними літерами); червоне — переклад ширший за оригінал |
+| **Кернінг Re:CoM** | Вкладка «Кернінг CoM»: шрифт FFMW (`UK_sysfont.binl` / `UK_evtfont.binl`) + HD-атлас `_fo240.png` зі збірки «Шрифти UA» або з гри; сітка гліфів з drag-лінією ширини, auto-fit за α-каналом, live-preview кирилицею, збереження `.binl` |
 | **Кернінг (KH1)** | Візуальний редактор `.knj` з DDS-атласом (drag для зміни ширини, auto-fit за α-каналом) |
 | **Auto-layout** | Авто-створення тек на запуск (KH1: `MYFILES/PROGRESS/DONE`; BBS: `ENG/PROGRESS/DONE`) |
 | **Auto-update** | Через GitHub Releases (electron-updater) |
@@ -161,6 +162,7 @@ Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: 
 | **Auto-wrap** | Adaptive `{lf}` placement by EN structure using kerning metrics from `.knj` |
 | **One-click patch** | “Build patch” — DONE (+ UA fonts build) → `.kh1pcpatch/.compcpatch/.bbspcpatch/.dddpcpatch` via KHPCPatchManager (shareable file); “Apply to game” — partial `.pkg` patch archive by archive with backups in `Image/dt/backup` |
 | **Line width** | Every KH1 glossary row shows `UK/EN px` from the dialog font `.knj` metrics (native letters included); red = translation wider than the original |
+| **Re:CoM kerning** | “CoM kerning” tab: FFMW font (`UK_sysfont.binl` / `UK_evtfont.binl`) + HD atlas `_fo240.png` from the UA fonts build or the game; glyph grid with a draggable advance line, alpha-based auto-fit, live Cyrillic preview, `.binl` save |
 | **Kerning (KH1)** | Visual `.knj` editor with DDS atlas (drag-to-resize widths, auto-fit by α-channel) |
 | **Auto-layout** | Auto-creates folder layout on launch (KH1: `MYFILES/PROGRESS/DONE`; BBS: `ENG/PROGRESS/DONE`) |
 | **Auto-update** | Via GitHub Releases (electron-updater) |

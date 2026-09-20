@@ -119,6 +119,11 @@ async function runSmoke(win) {
     check('uafonts.locate kh1 reports missing hed_out', loc1 && /kh1_first\.hed_out/.test(loc1.error || ''), loc1);
     const dfl = await call('window.kh1.uafonts.defaults("kh-ddd")');
     check('uafonts.defaults', dfl && /FONTS/.test(dfl.buildDir), dfl);
+    // Кернінг Re:CoM: таблиця кирилиці і пошук шрифту відповідають
+    const ct = await call('window.kh1.comkern.cyrTable()');
+    check('comkern.cyrTable', ct && ct.ok && ct.cyr['А'] === 0x829F && Object.keys(ct.cyr).length === 66, ct);
+    const cl = await call('window.kh1.comkern.locate({ name: "sysfont" })');
+    check('comkern.locate answers', cl && (cl.ok ? /UK_sysfont\.binl$/.test(cl.binlPath) && /_fo240\.png$/.test(cl.pngPath) : /sysfont/.test(cl.error)), cl);
     // Патч: статус і план застосування (без запису)
     const ps = await call('window.kh1.patch.status({ gameId: "kh-ddd" })');
     check('patch.status', ps && ps.ok && /DDD-UA\.dddpcpatch$/.test(ps.patchPath) && typeof ps.staging.exists === 'boolean', ps);

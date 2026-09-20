@@ -112,6 +112,13 @@ contextBridge.exposeInMainWorld('kh1', {
       return () => ipcRenderer.removeListener('setup:progress', listener);
     }
   },
+  comkern: {
+    locate: (payload) => ipcRenderer.invoke('comkern:locate', payload),
+    open:   () => ipcRenderer.invoke('comkern:open'),
+    load:   (payload) => ipcRenderer.invoke('comkern:load', payload),
+    save:   (payload) => ipcRenderer.invoke('comkern:save', payload),
+    cyrTable: () => ipcRenderer.invoke('comkern:cyrTable')
+  },
   patch: {
     status: (payload) => ipcRenderer.invoke('patch:status', payload),
     build:  (payload) => ipcRenderer.invoke('patch:build', payload),
