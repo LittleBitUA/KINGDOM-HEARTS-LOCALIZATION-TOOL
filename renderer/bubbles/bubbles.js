@@ -370,7 +370,7 @@ function drawTailSprite(ctx, it, g, S, tc) {
   const cx = g.x + g.w / 2 + off;
   const x0 = cx - spr.w / 2;
   // смужка зверху/знизу спрайта заходить під край капсули
-  const y0 = ti.edge === 'bottom' ? g.y + g.h - spr.strip : g.y - spr.h + spr.strip;
+  const y0 = ti.edge === 'bottom' ? g.y + g.h - spr.strip - 2 : g.y - spr.h + spr.strip + 2;
   ctx.save(); if (ti.auto) ctx.globalAlpha = 0.6;
   ctx.drawImage(img, x0 * S, y0 * S, spr.w * S, spr.h * S);
   ctx.restore();
@@ -389,18 +389,14 @@ function drawWindow(ctx, it, g, S) {
   }
   if (atlasImg) {
     ctx.imageSmoothingEnabled = true;
-    if (it.tail || type === 'bubble') {
-      // хвостик — під капсулою, щоб смужка не перекривала край
-      const ti = tailInfo(it.tail);
-      if (ti.edge === 'top') drawTailSprite(ctx, it, g, S, tc);
-    }
+    // хвостик — під капсулою (смужка спрайта ховається під край, як у грі)
+    if (it.tail || type === 'bubble') drawTailSprite(ctx, it, g, S, tc);
     if (type === 'shout') {
       const img = tintedSprite(ATLAS.burst.x, ATLAS.burst.y, ATLAS.burst.w, ATLAS.burst.h, tc, false);
       ctx.drawImage(img, (g.x - g.w * 0.08) * S, (g.y - g.h * 0.12) * S, g.w * 1.16 * S, g.h * 1.24 * S);
     } else {
       drawNineSlice(ctx, Object.assign({ img: tintedSprite(ATLAS.pill.x, ATLAS.pill.y, ATLAS.pill.w, ATLAS.pill.h, tc, false), x: 0, y: 0 }, { w: ATLAS.pill.w, h: ATLAS.pill.h, corner: ATLAS.pill.corner }), g.x, g.y, g.w, g.h, S);
     }
-    if (it.tail || type === 'bubble') { const ti = tailInfo(it.tail); if (ti.edge === 'bottom') drawTailSprite(ctx, it, g, S, tc); }
     return '#3a2a10';
   }
   // fallback без атласу
@@ -457,11 +453,11 @@ async function renderPreview() {
   if (font && font.atlas && lines) {
     const prof = font.profile || PROFILES[name];
     const cellPs2 = prof.cell / 3;                       // 1 px атласу = 1/3 px PS2
-    // гліфи — у тимчасовий canvas, потім множимо на колір тексту: сіра заливка
-    // evtfont стає темною (як у хмаринках гри), контур лишається чорним;
-    // у системних вікнах текст світлий (c1), у хмаринках — темний (c2)
+    // гліфи — у тимчасовий canvas; у хмаринках гра малює гліф як маску одним
+    // темним кольором (контур і заливка разом, без чорного обведення — див.
+    // скриншоти), у системних вікнах — світлим із контуром (як є в атласі)
     const type = wndTypeOf(it.style);
-    const txtTint = type === 'bubble' || type === 'shout' ? (it.colors && it.colors[2] != null ? tint(it.colors[2]).map(v => Math.min(255, v + 0x30)) : [0x38, 0x28, 0x14]) : null;
+    const txtTint = type === 'bubble' || type === 'shout' ? [0x3a, 0x26, 0x12] : null;
     const off = document.createElement('canvas'); off.width = cv.width; off.height = cv.height;
     const octx = off.getContext('2d'); octx.imageSmoothingEnabled = true;
     lines.forEach((ln, li) => {
@@ -475,9 +471,8 @@ async function renderPreview() {
       }
     });
     if (txtTint) {
-      const keep = document.createElement('canvas'); keep.width = off.width; keep.height = off.height; keep.getContext('2d').drawImage(off, 0, 0);
-      octx.globalCompositeOperation = 'multiply'; octx.fillStyle = 'rgb(' + txtTint.join(',') + ')'; octx.fillRect(0, 0, off.width, off.height);
-      octx.globalCompositeOperation = 'destination-in'; octx.drawImage(keep, 0, 0);
+      octx.globalCompositeOperation = 'source-atop'; octx.fillStyle = 'rgb(' + txtTint.join(',') + ')'; octx.fillRect(0, 0, off.width, off.height);
+      octx.globalCompositeOperation = 'source-over';
     }
     ctx.drawImage(off, 0, 0);
   } else {
