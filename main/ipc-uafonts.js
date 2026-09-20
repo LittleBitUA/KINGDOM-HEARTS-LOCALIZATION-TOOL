@@ -128,8 +128,8 @@ const PROFILES = {
       arc: path.join(hedOut, 'original', 'arc_en', 'system', 'FontEn.arc'),
       rem: path.join(hedOut, 'remastered', 'arc_en', 'system', 'FontEn.arc')
     }),
-    args: (inp, out) => ['--arc', inp.arc, '--rem', inp.rem, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'bbs_first.hed_out')],
-    outputs: 'bbs_first.hed_out/{original,remastered}/arc_en/system/FontEn.arc'
+    args: (inp, out) => ['--arc', inp.arc, '--rem', inp.rem, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'bbs_first')],
+    outputs: 'bbs_first/{original,remastered}/arc_en/system/FontEn.arc'
   },
   'kh-re-com': {
     hedOut: 'Recom.hed_out',
@@ -138,8 +138,8 @@ const PROFILES = {
       bin: path.join(hedOut, 'remastered', 'SYS', '0001', 'SY0001.BIN'),
       vtm: path.join(hedOut, 'remastered', 'SYS', '0001', 'SY0001.VTM')
     }),
-    args: (inp, out) => ['--bin', inp.bin, '--vtm', inp.vtm, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'Recom.hed_out', 'remastered', 'SYS', '0001')],
-    outputs: 'Recom.hed_out/remastered/SYS/0001/{SY0001.BIN,SY0001.VTM}/UK_{sys,evt}font*'
+    args: (inp, out) => ['--bin', inp.bin, '--vtm', inp.vtm, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'Recom', 'remastered', 'SYS', '0001')],
+    outputs: 'Recom/remastered/SYS/0001/{SY0001.BIN,SY0001.VTM}/UK_{sys,evt}font*'
   },
   'kh1-final-mix': {
     hedOut: 'kh1_first.hed_out',
@@ -151,10 +151,10 @@ const PROFILES = {
     // opts.extraLetters — довільні символи (інші мови) у вільні комірки після
     // української абетки; генератор перевіряє, що вони є у TTF.
     args: (inp, out, opts) => ['--knj', inp.knj, '--dds', inp.dds, '--font', FONT_COMIC, '--layout', 'game',
-      '--out', path.join(out, 'kh1_first.hed_out'), '--preview', path.join(out, 'kh1_first.hed_out', 'preview.png')]
+      '--out', path.join(out, 'kh1_first'), '--preview', path.join(out, '_reports', 'preview.png')]
       .concat(opts && opts.extraLetters ? ['--extra', opts.extraLetters] : [])
       .concat(opts && opts.fallbackFont ? ['--fallback-font', opts.fallbackFont] : []),
-    outputs: 'kh1_first.hed_out/original/exchange/UK_kanji.knj + remastered/exchange/UK_kanji.knj/UK_kanji_knj0.dds (нативна кирилиця, коди 19 NN)',
+    outputs: 'kh1_first/original/exchange/UK_kanji.knj + remastered/exchange/UK_kanji.knj/UK_kanji_knj0.dds (нативна кирилиця, коди 19 NN)',
     // після генерації карта літера→код стає активною для кодека
     nativeMap: 'kh1-native-map.json'
   },
@@ -165,8 +165,8 @@ const PROFILES = {
       orig: path.join(hedOut, 'original', 'font', 'en', 'bin'),
       rem: path.join(hedOut, 'remastered', 'font', 'en', 'bin')
     }),
-    args: (inp, out) => ['--orig', inp.orig, '--rem', inp.rem, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'kh3d_first.hed_out')],
-    outputs: 'kh3d_first.hed_out/{original,remastered}/font/en/bin/*.bcfnt'
+    args: (inp, out) => ['--orig', inp.orig, '--rem', inp.rem, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'kh3d_first')],
+    outputs: 'kh3d_first/{original,remastered}/font/en/bin/*.bcfnt'
   }
 };
 
@@ -197,6 +197,9 @@ ipcMain.handle('uafonts:generate', async (_e, payload) => {
   const script = path.join(PY_DIR, prof.script);
   if (!fs.existsSync(script)) return { ok: false, error: 'Скрипт не знайдено: ' + script };
   await fsP.mkdir(buildDir, { recursive: true });
+  await fsP.mkdir(path.join(buildDir, '_reports'), { recursive: true });
+  // Стара розкладка build/<archive>.hed_out/… → build/<archive>/… (патч-готова)
+  await renameLegacyHedOut(buildDir);
   const extraLetters = String((payload && payload.extraLetters) || '').replace(/\s+/g, '');
   // Запасний шрифт для символів, яких нема у ComicHearts (лише коли є додаткові символи).
   let fallbackFont = String((payload && payload.fallbackFont) || '').trim() || defaultFallbackFont();
@@ -204,9 +207,12 @@ ipcMain.handle('uafonts:generate', async (_e, payload) => {
   const args = py.pre.concat([script]).concat(prof.args(loc.inputs, buildDir, { extraLetters, fallbackFont: extraLetters ? fallbackFont : '' }));
   sendProgress({ phase: 'generate', line: '> ' + [py.cmd].concat(args).map(a => (/\s/.test(a) ? '"' + a + '"' : a)).join(' ') + '\n' });
   const r = await run(py.cmd, args, { cwd: path.dirname(script), onLine: (l) => sendProgress({ phase: 'generate', line: l }) });
+  // Звіти/карти/превʼю — у build/_reports: тека build має лишатися чистою для патча
+  // (перетягується на KHPCPatchManager цілком).
+  await moveReportsToReportsDir(buildDir);
   let report = null;
   try {
-    const rp = findFileNamed(buildDir, 'ua_glyphs.json');
+    const rp = findFileNamed(path.join(buildDir, '_reports'), 'ua_glyphs.json') || findFileNamed(buildDir, 'ua_glyphs.json');
     if (rp) report = JSON.parse(await fsP.readFile(rp, 'utf8'));
   } catch (_) {}
   if (r.code !== 0) return { ok: false, error: 'Генератор завершився з кодом ' + r.code, log: r.out + r.err };
@@ -215,7 +221,7 @@ ipcMain.handle('uafonts:generate', async (_e, payload) => {
   let nativeMap = null;
   if (prof.nativeMap) {
     try {
-      const src = findFileNamed(buildDir, prof.nativeMap);
+      const src = findFileNamed(path.join(buildDir, '_reports'), prof.nativeMap) || findFileNamed(buildDir, prof.nativeMap);
       if (src) {
         const dst = nativeMapPathFor();
         await fsP.copyFile(src, dst);
@@ -249,6 +255,38 @@ ipcMain.handle('uafonts:pickFont', async () => {
   return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
 });
 
+// Службові файли генераторів, яким не місце у патчі.
+const REPORT_FILES = /^(ua_glyphs\.json|kh1-native-map\.json|preview\.png|ua_preview\.png)$/i;
+async function moveReportsToReportsDir(buildDir) {
+  const reports = path.join(buildDir, '_reports');
+  await fsP.mkdir(reports, { recursive: true });
+  const stack = [buildDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    if (dir === reports) continue;
+    let entries;
+    try { entries = await fsP.readdir(dir, { withFileTypes: true }); } catch (_) { continue; }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) { if (full !== reports) stack.push(full); continue; }
+      if (REPORT_FILES.test(e.name)) {
+        try { await fsP.rename(full, path.join(reports, e.name)); } catch (_) {}
+      }
+    }
+  }
+}
+// build/<archive>.hed_out → build/<archive> (старі збірки)
+async function renameLegacyHedOut(buildDir) {
+  let entries;
+  try { entries = await fsP.readdir(buildDir, { withFileTypes: true }); } catch (_) { return; }
+  for (const e of entries) {
+    if (!e.isDirectory() || !/\.hed_out$/i.test(e.name)) continue;
+    const dst = path.join(buildDir, e.name.replace(/\.hed_out$/i, ''));
+    if (fs.existsSync(dst)) continue;
+    try { await fsP.rename(path.join(buildDir, e.name), dst); } catch (_) {}
+  }
+}
+
 function findFileNamed(rootDir, name) {
   const stack = [rootDir];
   while (stack.length) {
@@ -274,13 +312,15 @@ ipcMain.handle('uafonts:install', async (_e, payload) => {
   if (!buildDir || !gameDir || !backupDir) return { ok: false, error: 'Не вказано теки' };
   if (!fs.existsSync(buildDir)) return { ok: false, error: 'Теки build нема: ' + buildDir };
   let tops;
-  try { tops = (await fsP.readdir(buildDir, { withFileTypes: true })).filter(d => d.isDirectory() && /\.hed_out$/i.test(d.name)); }
+  try { tops = (await fsP.readdir(buildDir, { withFileTypes: true })).filter(d => d.isDirectory() && !/^_/.test(d.name)); }
   catch (e) { return { ok: false, error: e.message }; }
-  if (!tops.length) return { ok: false, error: 'У build нема тек *.hed_out' };
+  if (!tops.length) return { ok: false, error: 'У build нема тек архівів (<archive>/…)' };
   const stats = { copied: 0, backedUp: 0, errors: [], targets: [] };
   for (const top of tops) {
-    const target = findDirNamed(gameDir, top.name, 4);
-    if (!target) { stats.errors.push('У грі не знайдено ' + top.name); continue; }
+    // build/<archive> (патч-розкладка) або старе build/<archive>.hed_out → <archive>.hed_out у грі
+    const hedOutName = /\.hed_out$/i.test(top.name) ? top.name : top.name + '.hed_out';
+    const target = findDirNamed(gameDir, hedOutName, 4);
+    if (!target) { stats.errors.push('У грі не знайдено ' + hedOutName); continue; }
     stats.targets.push(target);
     const srcRoot = path.join(buildDir, top.name);
     const stack = [''];

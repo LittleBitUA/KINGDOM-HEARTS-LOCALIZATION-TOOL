@@ -10,7 +10,7 @@ const fsP = require('fs/promises');
 const path = require('path');
 const { classifyFile, parseFile } = require('./formats');
 const { legacyCommandKey } = require('../../shared/codec');
-const { preserveStructure, validateTokens, upgradeLegacyUk, lookupEolVariant, kh1OutRel, kh1SplitRel } = require('../../shared/text-structure');
+const { preserveStructure, validateTokens, upgradeLegacyUk, lookupEolVariant, kh1OutRel, kh1SplitRel, patchOutRel } = require('../../shared/text-structure');
 
 // Структурний guard (ідея з OpenKh PR #1275 ValidateBody): переклад не має
 // губити керівні токени оригіналу і не може додавати «структурні» команди
@@ -167,22 +167,27 @@ function classifyRel(engDir, rel) {
 
 // buildGlossaryIndex(files, env) → { entries, processed, skipped, skippedUnsafe, total }
 //   env: { engDir, rusDir?, safeMode, opts?, runWorker?, concurrency?, onProgress?(p) }
-//   entries: [{ english, count, fileCount, legacyKey?, occurrences?: [...] }] (most-frequent first)
+//   entries: [{ english, count, fileCount, file, index, offset, legacyKey?, occurrences?: [...] }] (у порядку гри: файл → позиція)
 //   legacyKey — ключ у старій формі (2-байтові 05/06/07-токени), якщо відрізняється
 //   env.withOccurrences=false — не збирати occurrences (економія IPC для UI).
 async function buildGlossaryIndex(files, env) {
   const engDir = env.engDir;
-  const rusDir = env.rusDir || engDir;
+  const rusDir = env.rusDir || null;   // без MYFILES — лише вбудований еталон (ENG як власний reference = усе «неперекладне»)
   const safeMode = env.safeMode !== false;
   const withOcc = env.withOccurrences !== false;
   const map = new Map();
   let processed = 0, skipped = 0, skippedUnsafe = 0;
 
+  const fileNo = new Map(files.map((rel, i) => [rel, i]));
   function addSlot(rel, slot) {
     // Порожні/пробільні ключі (порожні повідомлення .ctd) — не переклад, у глосарій не потрапляють.
     if (!slot.key || !String(slot.key).trim()) return;
     let entry = map.get(slot.key);
-    if (!entry) { entry = { count: 0, files: new Set(), occurrences: [], first: { rel, index: slot.index, offset: slot.offset } }; map.set(slot.key, entry); }
+    // first — найраніше входження у порядку гри (файл за списком, далі позиція у файлі);
+    // файли обробляються паралельно, тому порівнюємо, а не беремо перше-побачене.
+    const here = { rel, index: slot.index, offset: slot.offset, fileNo: fileNo.get(rel) || 0 };
+    if (!entry) { entry = { count: 0, files: new Set(), occurrences: [], first: here }; map.set(slot.key, entry); }
+    else if (here.fileNo < entry.first.fileNo || (here.fileNo === entry.first.fileNo && here.offset < entry.first.offset)) entry.first = here;
     entry.count++;
     entry.files.add(rel);
     if (withOcc) entry.occurrences.push({ rel, offset: slot.offset, byteLen: slot.byteLen, index: slot.index });
@@ -217,7 +222,10 @@ async function buildGlossaryIndex(files, env) {
     if (withOcc) e.occurrences = info.occurrences;
     entries.push(e);
   }
-  entries.sort((a, b) => b.count - a.count || a.english.localeCompare(b.english));
+  // Порядок «як у грі»: за файлом (порядок списку) і позицією першого входження —
+  // репліки однієї сцени йдуть поспіль, дублікати згорнуті у перше входження (count).
+  const firstOf = (e) => map.get(e.english).first;
+  entries.sort((a, b) => firstOf(a).fileNo - firstOf(b).fileNo || firstOf(a).offset - firstOf(b).offset || a.english.localeCompare(b.english));
   return { ok: true, entries, processed, skipped, skippedUnsafe, total: files.length };
 }
 
@@ -226,7 +234,7 @@ async function buildGlossaryIndex(files, env) {
 // Пріоритет перекладу: per-file TSV override (за offset) → глосарій (за key).
 async function composeAll(files, env) {
   const engDir = env.engDir;
-  const rusDir = env.rusDir || engDir;
+  const rusDir = env.rusDir || null;   // без MYFILES — лише вбудований еталон (ENG як власний reference = усе «неперекладне»)
   const outDir = env.outDir;
   const tsvDir = env.tsvDir || null;
   const glossary = env.glossary || {};
@@ -244,8 +252,10 @@ async function composeAll(files, env) {
   async function processOne(rel) {
     const { engPath, cls } = classifyRel(engDir, rel);
     const rusPath = rusPathFor(rusDir, rel);
-    // env.outLayout === 'kh1-hedout' — розкладка як у kh1_first.hed_out (remastered/, original/exchange/).
-    const outPath = path.join(outDir, env.outLayout === 'kh1-hedout' ? kh1OutRel(rel) : rel);
+    // env.outLayout === 'patch' — тека, готова для KHPCPatchManager: <archive>/(original|remastered)/…
+    // (env.gameId визначає правило); 'kh1-hedout' — старий синонім для KH1.
+    const outRel = env.outLayout === 'patch' ? patchOutRel(env.gameId, rel) : (env.outLayout === 'kh1-hedout' ? kh1OutRel(rel) : rel);
+    const outPath = path.join(outDir, outRel);
     if (!fs.existsSync(engPath)) return { rel, status: 'missing' };
     if (safeMode && !cls.isTranslatable) { skippedUnsafe++; return { rel, status: 'unsafe' }; }
     try {
@@ -306,7 +316,7 @@ const textall = require('./textall');
 //   Без env.all пропускаються неперекладні (порожні/лише вставки), як у .py.
 async function exportTextAll(files, env) {
   const engDir = env.engDir;
-  const rusDir = env.rusDir || engDir;
+  const rusDir = env.rusDir || null;   // без MYFILES — лише вбудований еталон (ENG як власний reference = усе «неперекладне»)
   const glossary = env.glossary || {};
   const sections = [];
   let lines = 0, skipped = 0, done = 0;
@@ -343,7 +353,7 @@ async function exportTextAll(files, env) {
 //   TSV (offset слота) і, якщо toGlossary, у glossaryOut[key].
 async function importTextAll(content, files, env) {
   const engDir = env.engDir;
-  const rusDir = env.rusDir || engDir;
+  const rusDir = env.rusDir || null;   // без MYFILES — лише вбудований еталон (ENG як власний reference = усе «неперекладне»)
   const sections = textall.parse(content);
   const glossaryOut = Object.create(null);
   const stats = { ok: true, sections: sections.length, matchedFiles: 0, unmatchedFiles: [], applied: 0, sameAsEn: 0, missingIds: 0, errors: [], tsvWritten: 0 };

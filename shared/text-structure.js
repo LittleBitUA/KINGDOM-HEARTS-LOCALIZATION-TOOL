@@ -233,9 +233,23 @@
     return archive + '/' + (/^exchange\//i.test(rest) ? 'original/' : 'remastered/') + rest;
   }
 
+  // Розкладка «як для патча» KHPCPatchManager: тека, яку перетягують на exe,
+  // містить <archive>/(original|remastered)/… БЕЗ суфікса .hed_out (інакше гра
+  // не читає). KH1 — kh1OutRel; BBS/DDD (ENG лежить як <archive>.hed_out/…) —
+  // прибираємо суфікс; Re:CoM (ENG/FILES/… без префікса) — додаємо Recom/.
+  function patchOutRel(gameId, rel) {
+    const r = String(rel || '').replace(/\\/g, '/');
+    if (gameId === 'kh1-final-mix') return kh1OutRel(r);
+    const m = /^([^/]+)\.hed_out\/(.*)$/i.exec(r);
+    if (m) return m[1] + '/' + m[2];
+    if (gameId === 'kh-re-com') return /^Recom\//i.test(r) ? r : 'Recom/' + r;
+    return r;
+  }
+
   return {
     LETTER_RE,
     KH1_ARCHIVES,
+    patchOutRel,
     kh1SplitRel,
     kh1StripArchive,
     kh1OutRel,

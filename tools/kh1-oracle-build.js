@@ -8,19 +8,37 @@
 // файлів, тут один раз обчислюємо ці рядки й зберігаємо їх у data/ — це
 // оригінальні англійські/токенні байти з гри, жодного тексту з RUS.
 //
-//   node tools/kh1-oracle-build.js --eng <ENG dir> --rus <RUS dir> [--out data/kh1_oracle.json]
+//   node tools/kh1-oracle-build.js --eng <ENG dir> --rus <RUS dir> [--rus <ще одна>] [--out data/kh1_oracle.json]
 //
-// Ключ — basename файла (у KH1 усі текстові файли мають унікальні імена,
-// тому розкладка ENG (плоска чи remastered/…) не має значення).
+// ENG — робоча розкладка (<archive>/<шлях> або плоска kh1_first). Reference для
+// кожного файла шукається у кожній --rus теці як: <rel>, <kh1OutRel(rel)>
+// (розкладка гри: kh1_second/remastered/al01.ard/…), <rel без префікса архіву>.
+// Ключ — basename файла; якщо однакові імена є у кількох архівах (US_allarea.nam),
+// множини сегментів об'єднуються.
 
 const fs = require('fs');
 const path = require('path');
 const { classifyFile } = require('./lib/formats');
 const { splitStrings, segmentSet } = require('./lib/extract');
+const { kh1OutRel, kh1StripArchive } = require('../shared/text-structure');
 
 function arg(name, def) {
   const i = process.argv.indexOf(name);
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : def;
+}
+function args(name) {
+  const out = [];
+  for (let i = 0; i < process.argv.length; i++) if (process.argv[i] === name && process.argv[i + 1]) out.push(process.argv[i + 1]);
+  return out;
+}
+function findReference(rusDirs, rel) {
+  for (const d of rusDirs) {
+    for (const cand of [rel, kh1OutRel(rel), kh1StripArchive(rel)]) {
+      const p = path.join(d, cand);
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return null;
 }
 function walk(dir, base, out) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -38,24 +56,21 @@ function hasTextContent(bytes) {
 }
 
 async function main() {
-  const eng = arg('--eng'), rus = arg('--rus');
+  const eng = arg('--eng'), rusDirs = args('--rus');
   const out = arg('--out', path.join(__dirname, '..', 'data', 'kh1_oracle.json'));
-  if (!eng || !rus) {
-    console.error('usage: node tools/kh1-oracle-build.js --eng <dir> --rus <dir> [--out file]');
+  if (!eng || !rusDirs.length) {
+    console.error('usage: node tools/kh1-oracle-build.js --eng <dir> --rus <dir> [--rus <dir>] [--out file]');
     process.exit(2);
   }
   const files = {};
-  const seen = new Map();
-  let nFiles = 0, nSegs = 0;
+  let nFiles = 0, nSegs = 0, noRef = 0;
   for (const rel of walk(eng, eng, [])) {
     const engPath = path.join(eng, rel);
     const cls = await classifyFile(engPath);
     if (!cls || (cls.kind !== 'binl' && cls.kind !== 'rawbin')) continue;
-    const rusPath = path.join(rus, rel);
-    if (!fs.existsSync(rusPath)) { console.warn('no reference for', rel); continue; }
+    const rusPath = findReference(rusDirs, rel);
+    if (!rusPath) { noRef++; continue; }
     const base = path.basename(rel).toLowerCase();
-    if (seen.has(base)) throw new Error('duplicate basename ' + base + ': ' + seen.get(base) + ' and ' + rel);
-    seen.set(base, rel);
     const o = cls.extractOpts || {};
     const segs = splitStrings(fs.readFileSync(engPath),
       o.header != null ? o.header : 11, o.footer != null ? o.footer : 5);
@@ -67,9 +82,15 @@ async function main() {
       const str = s.bytes.toString('latin1');
       if (refSegs.has(str)) preserved.add(str);
     }
-    if (preserved.size) { files[base] = [...preserved]; nSegs += preserved.size; }
+    if (preserved.size) {
+      const merged = new Set(files[base] || []);
+      for (const x of preserved) merged.add(x);
+      nSegs += merged.size - (files[base] ? files[base].length : 0);
+      files[base] = [...merged];
+    }
     nFiles++;
   }
+  if (noRef) console.warn('files without reference:', noRef);
   const doc = {
     format: 'kh1-preserved-segments',
     version: 1,

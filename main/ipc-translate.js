@@ -172,7 +172,7 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   try {
     return await ops.buildGlossaryIndex(files, {
       engDir,
-      rusDir: (payload && payload.rusDir) || engDir,
+      rusDir: (payload && payload.rusDir) || null,
       safeMode: payload.safeMode !== false,
       opts: payload.opts || {},
       runWorker,
@@ -192,7 +192,7 @@ ipcMain.handle('translate:exportTextAll', async (_e, payload) => {
   if (!p.engDir || !Array.isArray(p.files)) return { error: 'Не задано теки/файли' };
   try {
     return await ops.exportTextAll(p.files, {
-      engDir: p.engDir, rusDir: p.rusDir || p.engDir, tsvDir: p.tsvDir || null,
+      engDir: p.engDir, rusDir: p.rusDir || null, tsvDir: p.tsvDir || null,
       glossary: p.glossary || {}, safeMode: p.safeMode !== false, all: !!p.all, runWorker, onProgress: sendProgress
     });
   } catch (e) { return { error: (e && e.message) || String(e) }; }
@@ -203,7 +203,7 @@ ipcMain.handle('translate:importTextAll', async (_e, payload) => {
   if (!p.engDir || !Array.isArray(p.files) || typeof p.content !== 'string') return { error: 'Не задано теки/файли/вміст' };
   try {
     return await ops.importTextAll(p.content, p.files, {
-      engDir: p.engDir, rusDir: p.rusDir || p.engDir, tsvDir: p.tsvDir || null,
+      engDir: p.engDir, rusDir: p.rusDir || null, tsvDir: p.tsvDir || null,
       safeMode: p.safeMode !== false, toGlossary: p.toGlossary !== false, runWorker, onProgress: sendProgress
     });
   } catch (e) { return { error: (e && e.message) || String(e) }; }
@@ -247,7 +247,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
   try {
     return await ops.composeAll(files, {
       engDir,
-      rusDir: (payload && payload.rusDir) || engDir,
+      rusDir: (payload && payload.rusDir) || null,
       outDir,
       tsvDir: payload.tsvDir || null,
       glossary: payload.glossary || {},
@@ -256,7 +256,8 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
       runWorker,
       concurrency: POOL_SIZE * 2,
       onProgress: sendProgress,
-      outLayout: payload.outLayout || null
+      outLayout: payload.outLayout || null,
+      gameId: payload.gameId || null
     });
   } catch (e) {
     return { error: (e && e.message) || String(e) };

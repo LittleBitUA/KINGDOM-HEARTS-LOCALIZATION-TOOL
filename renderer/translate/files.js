@@ -1,7 +1,7 @@
 import { getCurrentGame, getCurrentGameFormats, getCurrentGameId } from '../app-shell.js';
 import { gBuild, gComposeAll, gFilterMode, gImport, gSave, gSearch, gSortMode, subviewFiles, subviewGlossary, tAutoWrapBtn, tCompose, tExportTxt, tFileSel, tFilterMode, tImportTxt, tMaxWidthInput, tProgress, tReload, tRows, tSafeMode, tSaveTsv, tSearchInput, tSettingsBtn, tStatus, tabFiles, tabGlossary } from '../core/dom.js';
 import { toast } from '../core/log.js';
-import { kh1OutRel, preserveStructure, tokenIssueText, tsvFormat } from '../core/shared.js';
+import { patchOutRel, preserveStructure, tokenIssueText, tsvFormat } from '../core/shared.js';
 import { gState, tState } from '../core/state.js';
 import { kState } from '../kerning/kerning.js';
 import { openSettings } from '../settings-modal.js';
@@ -599,8 +599,8 @@ export async function composeBinl() {
   await flushTsvAutoSave();
 
   const engPath = joinPath(tState.settings.engDir, tState.currentRel);
-  // KH1: DONE у розкладці гри (remastered/ … , original/exchange/ …)
-  const outPath = joinPath(tState.settings.outDir, getCurrentGameId() === 'kh1-final-mix' ? kh1OutRel(tState.currentRel) : tState.currentRel);
+  // DONE у патч-розкладці (<archive>/original|remastered/…) — тека готова для KHPCPatchManager
+  const outPath = joinPath(tState.settings.outDir, patchOutRel(getCurrentGameId(), tState.currentRel));
 
   // clear previous error highlights
   for (const row of tRows.querySelectorAll('.t-row.error')) {
