@@ -43,11 +43,28 @@ function fitOf(f, it) {
 const isOver = (f, it) => { const v = fitOf(f, it); return v != null && v < bState.minPad; };
 const isDirty = () => JSON.stringify(bState.overrides) !== bState.saved;
 
-function setOverride(f, it, g) {
+function setOverrideOne(f, it, g) {
   if (!bState.overrides[f.rel]) bState.overrides[f.rel] = {};
   if (g) bState.overrides[f.rel][it.id] = { x: g.x | 0, y: g.y | 0, w: g.w | 0, h: g.h | 0 };
   else delete bState.overrides[f.rel][it.id];
   if (!Object.keys(bState.overrides[f.rel]).length) delete bState.overrides[f.rel];
+}
+// Той самий діалог лежить копіями у кількох кімнатах (WORLD02/2000…2007/UK_CTag00.ctdl):
+// у списку — один рядок, правка йде в усі копії.
+function setOverride(f, it, g) {
+  for (const tw of it.twins || [{ f, it }]) setOverrideOne(tw.f, tw.it, g);
+}
+function twinKey(f, it) {
+  return f.rel.split('/').pop() + '\u0002' + it.id + '\u0002' + it.x + ',' + it.y + ',' + it.w + ',' + it.h + ',' + it.style + ',' + it.tail + '\u0002' + it.pages.map(pg => pg.en).join('\u0003');
+}
+function groupTwins() {
+  const groups = new Map();
+  for (const f of bState.files) for (const it of f.items) {
+    const k = twinKey(f, it);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push({ f, it });
+  }
+  for (const tw of groups.values()) for (const { it } of tw) { it.twins = tw; it.primary = tw[0].it === it; }
 }
 
 // ---- список ----
@@ -57,6 +74,7 @@ function rebuildRows() {
   for (const f of bState.files) {
     const relL = f.rel.toLowerCase();
     for (const it of f.items) {
+      if (it.primary === false) continue;                       // копії — в одному рядку
       if (bState.filter === 'over' && !isOver(f, it)) continue;
       if (bState.filter === 'translated' && !it.pages.some(pg => pg.uk)) continue;
       if (bState.filter === 'changed' && !ovOf(f, it)) continue;
@@ -79,8 +97,10 @@ function rowEl(r) {
   const g = geomOf(f, it);
   const fit = fitOf(f, it);
   const need = it.ukW ? Math.ceil(maxW(it.ukW) * bState.unitPx) : null;
+  const typeIcon = { bubble: '💬', shout: '💥', system: '▭', frame: '▭', plain: '¶', none: '¶' }[wndTypeOf(it.style)] || '';
   d.innerHTML =
-    '<div class="bb-row-head"><span class="bb-file" title="' + esc(f.rel) + '">' + esc(shortRel(f.rel)) + '</span><span class="bb-id">#' + it.id + '</span>' +
+    '<div class="bb-row-head"><span class="bb-type" title="' + esc(t('bbType_' + wndTypeOf(it.style))) + '">' + typeIcon + '</span><span class="bb-file" title="' + esc(f.rel) + '">' + esc(shortRel(f.rel)) + '</span><span class="bb-id">#' + it.id + '</span>' +
+    (it.twins && it.twins.length > 1 ? '<span class="bb-twins" title="' + esc(it.twins.map(tw => tw.f.rel).join('\n')) + '">×' + it.twins.length + '</span>' : '') +
     '<span class="bb-geom">' + g.w + '×' + g.h + (need != null ? ' · ' + t('bbNeed') + ' ' + need : '') + '</span>' +
     (fit != null ? '<span class="bb-fit' + (fit < 0 ? ' bad' : (fit < bState.minPad ? ' warn' : '')) + '">' + (fit >= 0 ? '+' : '') + Math.round(fit) + '</span>' : '') + '</div>' +
     it.pages.map(pg => '<div class="bb-en">' + esc(pg.en) + '</div>' +
@@ -109,7 +129,7 @@ function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').repla
 
 function refreshStatus() {
   let total = 0, over = 0, changed = 0, translated = 0;
-  for (const f of bState.files) for (const it of f.items) { total++; if (it.uk) translated++; if (isOver(f, it)) over++; if (ovOf(f, it)) changed++; }
+  for (const f of bState.files) for (const it of f.items) { if (it.primary === false) continue; total++; if (it.uk) translated++; if (isOver(f, it)) over++; if (ovOf(f, it)) changed++; }
   ui.status.textContent = bState.files.length ? t('bbStatus', { files: bState.files.length, total, translated, over, changed }) + (isDirty() ? ' *' : '') : t('bbNotScanned');
   ui.info.textContent = bState.rows.length ? t('bbShown', { n: bState.rows.length }) : '';
   ui.save.disabled = !isDirty();
@@ -135,12 +155,18 @@ function fillInspector() {
   const g = geomOf(r.f, r.it);
   for (const k of ['x', 'y', 'w', 'h']) ui[k].value = g[k];
   const it = r.it;
-  ui.selInfo.textContent = shortRel(r.f.rel) + ' #' + it.id + (it.count > 1 ? '–' + (it.id + it.count - 1) : '') + ' · ' + t('bbOrig') + ' ' + it.x + ',' + it.y + ' ' + it.w + '×' + it.h +
-    ' · ' + t('bbLine') + ' ' + it.lh + (it.sug ? ' · ' + t('bbSuggest') + ' ' + it.sug.w + '×' + it.sug.h : '') + ' · ' + t('bbStyle') + ' 0x' + it.style.toString(16) +
-    ((it.style & 0xFF) ? ' (' + t('bbAlign' + (it.style & 0xFF)) + ')' : '');
+  ui.selInfo.textContent = shortRel(r.f.rel) + ' #' + it.id + (it.count > 1 ? '–' + (it.id + it.count - 1) : '') + (it.twins && it.twins.length > 1 ? ' · ' + t('bbTwins', { n: it.twins.length }) : '') + ' · ' + t('bbOrig') + ' ' + it.x + ',' + it.y + ' ' + it.w + '×' + it.h +
+    ' · ' + t('bbLine') + ' ' + it.lh + (it.sug ? ' · ' + t('bbSuggest') + ' ' + it.sug.w + '×' + it.sug.h : '') +
+    ' · ' + t('bbType_' + wndTypeOf(it.style)) + ((it.style & 0xFF) ? ' (' + t('bbAlign' + (it.style & 0xFF)) + ')' : '') +
+    ' · ' + t('bbTail') + ' ' + tailText(it);
   ui.x.disabled = !!(it.style & 0xFF);
   ui.enText.textContent = it.pages.map(pg => pg.en).join('\n⸻\n');
   ui.ukText.textContent = it.pages.map(pg => pg.uk || t('bbNoUk')).join('\n⸻\n');
+}
+function tailText(it) {
+  if (!it.tail) return t('bbTailAuto');
+  const ti = tailInfo(it.tail);
+  return t(ti.edge === 'bottom' ? 'bbTailBottom' : 'bbTailTop') + (ti.dir < 0 ? '←' : '→') + (ti.look === 'dots' ? ' ○○' : (ti.look === 'spike' ? ' ⚡' : '')) + (it.tailOff ? ' ' + (it.tailOff > 0 ? '+' : '') + it.tailOff : '');
 }
 function applyInputs() {
   const r = bState.sel; if (!r) return;
@@ -164,7 +190,7 @@ function resetOne() {
 function fitAll() {
   let n = 0;
   for (const f of bState.files) for (const it of f.items) {
-    if (!it.sug || !isOver(f, it)) continue;
+    if (it.primary === false || !it.sug || !isOver(f, it)) continue;
     setOverride(f, it, it.sug); n++;
   }
   rebuildRows(); fillInspector(); schedulePreview();
@@ -210,13 +236,89 @@ function boxOf(prof, i) {
   const blk = Math.floor(i / per), j = i % per;
   return { x: blk * 1024 + (j % prof.cols) * prof.cell, y: Math.floor(j / prof.cols) * prof.cell };
 }
-const rgba = (u32, mul) => { const r = u32 & 0xFF, g = (u32 >> 8) & 0xFF, b = (u32 >> 16) & 0xFF, a = (u32 >>> 24) & 0xFF; return 'rgba(' + r + ',' + g + ',' + b + ',' + Math.min(1, (a / 128) * (mul == null ? 1 : mul)).toFixed(2) + ')'; };
 
 let previewTimer = null;
 function schedulePreview() { if (previewTimer) clearTimeout(previewTimer); previewTimer = setTimeout(() => { renderPreview().catch(() => {}); }, 60); }
 function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath(); ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr); ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath();
+}
+
+// ---- види вікон (з exe: CWnd бере спрайт "CFIOL"[тип], тип = (style >> 8) & 0xf) ----
+//   0 'C' — хмаринка репліки; 2 'I' — вигук (зубчаста); 3 'O' — системне вікно
+//   (підказки/меню); 5+ — без рамки (лише текст). Хвостик (@0x2C): 0 — гра сама
+//   веде його до мовця; 1/2 — знизу вліво/вправо, 3/4 — зверху вліво/вправо,
+//   5–8 — те саме для «думки» (кружечки), 9–12 — для вигуку; @0x2E — зсув від центру.
+export const WND_TYPES = { 0: 'bubble', 1: 'frame', 2: 'shout', 3: 'system', 4: 'plain' };
+export function wndTypeOf(style) { const t = (style >> 8) & 0xF; return WND_TYPES[t] || 'none'; }
+export function tailInfo(kind) {
+  if (!kind) return { auto: true, edge: 'bottom', dir: 0, look: 'tail' };
+  const k = (kind - 1) & 3;
+  return { auto: false, edge: k < 2 ? 'bottom' : 'top', dir: (k & 1) ? 1 : -1, look: kind >= 9 ? 'spike' : (kind >= 5 ? 'dots' : 'tail') };
+}
+const tint = (u32) => (u32 == null ? [255, 255, 255] : [u32 & 0xFF, (u32 >> 8) & 0xFF, (u32 >> 16) & 0xFF]);
+const mulRgb = (rgb, tc) => 'rgb(' + rgb.map((v, i) => Math.round(v * tc[i] / 255)).join(',') + ')';
+function spikyPath(ctx, x, y, w, h, S) {
+  const n = Math.max(8, Math.round((w + h) / 18));
+  const cx = x + w / 2, cy = y + h / 2;
+  ctx.beginPath();
+  for (let i = 0; i < n * 2; i++) {
+    const a = (i / (n * 2)) * Math.PI * 2;
+    const r = i % 2 ? 1 : 0.82;
+    const px = cx + Math.cos(a) * (w / 2) * r * 1.08, py = cy + Math.sin(a) * (h / 2) * r * 1.15;
+    if (i === 0) ctx.moveTo(px * S, py * S); else ctx.lineTo(px * S, py * S);
+  }
+  ctx.closePath();
+}
+function drawTail(ctx, it, g, S, fillStyle, strokeStyle) {
+  const ti = tailInfo(it.tail);
+  const half = g.w / 2 - 14;
+  const off = Math.max(-half, Math.min(half, ti.auto ? 0 : it.tailOff));
+  const bx = g.x + g.w / 2 + off;
+  const dir = ti.auto ? -1 : ti.dir;
+  const edgeY = ti.edge === 'bottom' ? g.y + g.h : g.y;
+  const dy = ti.edge === 'bottom' ? 1 : -1;
+  ctx.save();
+  if (ti.auto) ctx.setLineDash([3, 2]);
+  ctx.fillStyle = fillStyle; ctx.strokeStyle = strokeStyle; ctx.lineWidth = Math.max(1, 1.5 * S);
+  if (ti.look === 'dots') {
+    for (let i = 0; i < 3; i++) {
+      const rr = (5 - i * 1.3), cx = bx + dir * (6 + i * 9), cy = edgeY + dy * (6 + i * 8);
+      ctx.beginPath(); ctx.arc(cx * S, cy * S, rr * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  } else {
+    const len = ti.look === 'spike' ? 30 : 22, base = ti.look === 'spike' ? 10 : 18;
+    ctx.beginPath();
+    ctx.moveTo((bx - base / 2) * S, (edgeY - dy) * S);
+    ctx.lineTo((bx + base / 2) * S, (edgeY - dy) * S);
+    ctx.lineTo((bx + dir * len * 0.7) * S, (edgeY + dy * len) * S);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // прибираємо шов між хвостиком і рамкою
+    ctx.beginPath(); ctx.moveTo((bx - base / 2 + 1) * S, (edgeY - dy) * S); ctx.lineTo((bx + base / 2 - 1) * S, (edgeY - dy) * S); ctx.strokeStyle = fillStyle; ctx.stroke();
+  }
+  ctx.restore();
+}
+// drawWindow: малює вікно за типом; повертає колір тексту-підказки для fallback-шрифту
+function drawWindow(ctx, it, g, S) {
+  const type = wndTypeOf(it.style);
+  const tc = tint(it.colors && it.colors[0]);
+  if (type === 'none' || type === 'plain') return '#f0f0f0';
+  if (type === 'system' || type === 'frame') {
+    // темне напівпрозоре вікно з тонкою світлою рамкою (як підказки/меню у грі)
+    roundRect(ctx, g.x * S, g.y * S, g.w * S, g.h * S, 4 * S);
+    ctx.fillStyle = 'rgba(8,10,28,0.88)'; ctx.fill();
+    ctx.lineWidth = Math.max(1, 1.5 * S); ctx.strokeStyle = mulRgb([190, 200, 230], tc); ctx.stroke();
+    return '#f0f0f0';
+  }
+  // хмаринка / вигук: жовто-помаранчевий градієнт × відтінок макета, лавандова рамка
+  const grad = ctx.createLinearGradient(0, g.y * S, 0, (g.y + g.h) * S);
+  grad.addColorStop(0, mulRgb([255, 236, 176], tc)); grad.addColorStop(1, mulRgb([242, 188, 104], tc));
+  const border = mulRgb([186, 160, 216], tc);
+  if (type === 'shout') spikyPath(ctx, g.x, g.y, g.w, g.h, S); else roundRect(ctx, g.x * S, g.y * S, g.w * S, g.h * S, 12 * S);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.lineWidth = Math.max(1, 2 * S); ctx.strokeStyle = border; ctx.stroke();
+  if (it.tail || type === 'bubble') drawTail(ctx, it, g, S, grad, border);
+  return '#3a2a10';
 }
 async function renderPreview() {
   const cv = ui.canvas; if (!cv) return;
@@ -237,12 +339,8 @@ async function renderPreview() {
   g.x = effectiveX(it.style, g.x, g.w);
   // оригінальна рамка — пунктир
   if (ovOf(r.f, it)) { ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; roundRect(ctx, effectiveX(it.style, it.x, it.w) * S, it.y * S, it.w * S, it.h * S, 10 * S); ctx.stroke(); ctx.setLineDash([]); }
-  // хмаринка
-  const fill = it.colors && it.colors[0] ? rgba(it.colors[0]) : 'rgba(255,240,224,0.9)';
-  const border = it.colors && it.colors[1] ? rgba(it.colors[1]) : 'rgba(4,4,4,0.9)';
-  roundRect(ctx, g.x * S, g.y * S, g.w * S, g.h * S, 10 * S);
-  ctx.fillStyle = fill; ctx.fill();
-  ctx.lineWidth = Math.max(1, 2 * S); ctx.strokeStyle = border; ctx.stroke();
+  // вікно за типом макета (хмаринка / вигук / системне / без рамки) + хвостик
+  const textColor = drawWindow(ctx, it, g, S);
   // текст: найширша сторінка UK (або EN), блок по центру, рядки — від лівого краю блока
   const u = bState.unitPx;
   const page = it.pages.reduce((best, pg) => (pg.ukW && (!best.ukW || maxW(pg.ukW) > maxW(best.ukW)) ? pg : best), it.pages[0]);
@@ -275,7 +373,7 @@ async function renderPreview() {
       }
     });
   } else {
-    ctx.fillStyle = '#3a2a10'; ctx.font = Math.round(lh * 0.7 * S) + 'px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = textColor; ctx.font = Math.round(lh * 0.7 * S) + 'px "Segoe UI", system-ui, sans-serif';
     text.split('\n').forEach((ln, li) => ctx.fillText(ln, x0 * S, (y0 + li * lh + lh * 0.75) * S));
   }
   // межі тексту, якщо не влазить
@@ -324,6 +422,7 @@ export async function scanBubbles() {
     ]);
     if (!r || !r.ok) { toast(t('toastError', { msg: (r && r.error) || '?' }), 'error', 7000); return; }
     bState.files = r.files; bState.unitPx = r.unitPx; bState.minPad = r.minPad; bState.screen = r.screen;
+    groupTwins();
     bState.fonts = {};
     for (const [name, f] of Object.entries(r.fonts || {})) bState.fonts[name] = Object.assign({}, f);
     bState.glyphCache.clear();

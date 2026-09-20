@@ -3262,6 +3262,8 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .bb-row-head { display: flex; gap: 10px; align-items: baseline; font-size: 11.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .bb-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }
 .bb-id { color: var(--text-muted); }
+.bb-type { width: 16px; text-align: center; opacity: 0.8; }
+.bb-twins { color: var(--khn-gold); font-weight: 600; }
 .bb-geom { margin-left: auto; }
 .bb-fit { min-width: 38px; text-align: right; font-weight: 600; color: #7fd18a; }
 .bb-fit.warn { color: #f0c04a; }
