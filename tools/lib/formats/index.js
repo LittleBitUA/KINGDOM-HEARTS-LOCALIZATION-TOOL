@@ -38,7 +38,8 @@ const handlers = {
   ctd:    require('./ctd'),
   ctdl:   require('./ctdl'),
   'ctd-ddd': require('./ddd'),
-  kmb:    require('./kmb')
+  kmb:    require('./kmb'),
+  'bbs-arc': require('./bbs-arc')
 };
 
 function getHandler(kind) {

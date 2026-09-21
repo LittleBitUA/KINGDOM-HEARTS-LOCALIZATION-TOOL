@@ -44,7 +44,8 @@ const HED_PATHS = {
       { rel: 'Image/dt/bbs_first.hed', namePattern: /^bbs_first\.hed$/i },
       { rel: 'Image/dt/bbs_fourth.hed', namePattern: /^bbs_fourth\.hed$/i }
     ],
-    copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) }
+    // + original/arc_en/*.arc: розкладки .l2d із зашитим текстом меню (пауза, camp, вибір режиму…)
+    copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) || /^original\/arc_en\/[^/]+\/[^/]+\.arc$/i.test(rel) }
   },
   'kh-ddd': {
     heds: [{ rel: 'Image/dt/kh3d_first.hed', namePattern: /^kh3d_first\.hed$/i }],

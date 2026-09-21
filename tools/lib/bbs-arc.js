@@ -43,4 +43,31 @@ function unpackArc(arcPath, outDir) {
   return written;
 }
 
-module.exports = { parseArc, unpackArc };
+// Зібрати .arc заново з підміною вмісту записів (replace: Map<name, Buffer>) — як
+// bbsfont.build_arc: заголовок, таблиця, дані з вирівнюванням 16; link-записи без даних.
+function buildArc(buf, replace) {
+  const arc = parseArc(buf);
+  const base = 0x10 + 0x20 * arc.count;
+  const head = Buffer.alloc(base);
+  head.writeUInt32LE(0x435241, 0); head.writeInt16LE(arc.version, 4); head.writeInt16LE(arc.count, 6);
+  head.writeInt32LE(buf.readInt32LE(8), 8); head.writeInt32LE(buf.readInt32LE(12), 12);
+  const body = [];
+  let size = 0;
+  for (const e of arc.entries) {
+    const o = 0x10 + e.i * 0x20;
+    const unused = buf.readUInt32LE(o + 0x0c);
+    if (e.link) { head.writeUInt32LE(e.dirhash, o); head.writeInt32LE(0, o + 4); head.writeInt32LE(0, o + 8); }
+    else {
+      const data = replace.has(e.name) ? replace.get(e.name) : e.data;
+      const pad = (16 - (base + size) % 16) % 16; if (pad) { body.push(Buffer.alloc(pad)); size += pad; }
+      head.writeUInt32LE(0, o); head.writeInt32LE(base + size, o + 4); head.writeInt32LE(data.length, o + 8);
+      body.push(data); size += data.length;
+    }
+    head.writeUInt32LE(unused, o + 0x0c);
+    Buffer.from(e.name, 'utf8').copy(head, o + 0x10, 0, Math.min(16, Buffer.byteLength(e.name)));
+  }
+  const pad = (16 - (base + size) % 16) % 16; if (pad) body.push(Buffer.alloc(pad));
+  return Buffer.concat([head, ...body]);
+}
+
+module.exports = { parseArc, unpackArc, buildArc };

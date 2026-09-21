@@ -12,6 +12,7 @@
 //  - 'ctd'     — BBS dialogue/menu container ('@CTD' версія 1)
 //  - 'ctd-ddd' — KH3D Dream Drop Distance ('@CTD' версія 0x1F7, UTF-16LE)
 //  - 'ctdl'    — Re:CoM CTDL (той самий magic '@CTD', інший layout; за розширенням)
+//  - 'bbs-arc' — BBS .arc з розкладками .l2d, у яких зашитий текст меню (пауза, camp…)
 //  - 'unknown' — байткод/контейнер/інше — не чіпати
 //
 // Результат кешується за (path, size, mtimeMs): walkDir → extract → compose →
@@ -94,6 +95,10 @@ function classifyUncached(absPath, ext) {
 
   const buf = readHead(absPath, 256);
   const n = buf.length;
+  // BBS .arc-контейнери (original/arc_en/…) — розкладки .l2d із зашитим текстом меню.
+  if (ext === '.arc' && n >= 4 && (buf.readUInt32LE(0) & 0xFFFFFF) === 0x435241) {
+    return { kind: 'bbs-arc', magic: 'ARC', extractOpts: null, isTranslatable: true };
+  }
   // BBS .ctd і Re:CoM .ctdl ділять magic '@CTD'. Розрізняємо за розширенням;
   // .ctdl перевіряємо першим, щоб BBS-парсер його не зачепив.
   if (n >= 4 && ext === '.ctdl' && buf.readUInt32LE(0) === CTDL_MAGIC) {
