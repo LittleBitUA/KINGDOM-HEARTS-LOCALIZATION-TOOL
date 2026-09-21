@@ -79,3 +79,20 @@ test('lookupEolVariant: ev keys with trailing {eol} reuse binl translations and 
   assert.equal(ts.lookupEolVariant(g, 'Empty{eol}'), '');                   // порожній переклад не рахується
   assert.equal(ts.lookupEolVariant(g, 'Unknown{eol}'), '');
 });
+
+test('bbs import: OpenKh-теги нормалізуються, lossy {0xF5} відновлюються за формою ключа гри', () => {
+  assert.strictEqual(ts.bbsNormalizeTags('{:color yellow}a{:color default} {:icon button-dpad} {:icon unk} {0xF0}f “{0x83}{0xD4}-blade”'),
+    '{color yellow}a{color default} {icon dpad} {icon3 unk} {b f0}f “χ-blade”');
+  const keys = ['■ Lock on to your foe and\n　　press  {icon3 66}  just before it\n　　attacks.', 'Darkness rules your heart―∥\nit gives me control.', 'plain'];
+  const r = ts.bbsShapeMatch([
+    { en: '■ Lock on to your foe and\n  press  {b f5}  just before it\n  attacks.', uk: '■ Зафіксуйся на ворогу і\n  натисни  {b f5}  перед його\n  атакою.' },
+    { en: 'Darkness rules your heart--\nit gives me control.', uk: 'Темрява панує в твоєму серці —\nвона дає мені владу.' },
+    { en: 'plain', uk: 'просто' },                       // точний ключ — не наша справа
+    { en: 'unknown {b f5}', uk: 'невідомо {b f5}' }
+  ], keys);
+  assert.deepStrictEqual(r.pairs.map(p => p.en), [keys[0], keys[1]]);
+  assert.strictEqual(r.pairs[0].uk, '■ Зафіксуйся на ворогу і\n  натисни  {icon3 66}  перед його\n  атакою.');
+  assert.strictEqual(r.ambiguous, 0);
+  const r2 = ts.bbsShapeMatch([{ en: 'x {b f5} y {b f5}', uk: 'х {b f5} у' }], ['x {icon3 66} y {icon3 67}']);
+  assert.deepStrictEqual([r2.pairs.length, r2.ambiguous], [0, 1]);
+});

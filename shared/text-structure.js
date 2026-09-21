@@ -61,6 +61,55 @@
     return { missing, extra, ok: missing.length === 0 };
   }
 
+  // ---- BBS: імпорт таблиць, зроблених через OpenKh CTD Editor ----
+  // Його теги інші й місцями lossy: {:color yellow} → наш {color yellow},
+  // {:icon button-l} → {icon l}, {:icon unk} → {icon3 unk}, {0xF0} → {b f0},
+  // а {0xF1}/{0xF5} — це лише перший байт двобайтової іконки ({icon ba}, {icon3 66}…),
+  // тож їх можна відновити тільки з самого ключа гри (bbsShapeMatch нижче).
+  function bbsNormalizeTags(s) {
+    return String(s || '')
+      .replace(/\{:color\s+([^}]+)\}/g, '{color $1}')
+      .replace(/\{:icon\s+button-([^}]+)\}/g, '{icon $1}')
+      .replace(/\{:icon\s+unk\}/g, '{icon3 unk}')
+      .replace(/\{0x83\}\{0xD4\}/gi, 'χ')   // χ-blade: OpenKh лишає сирі байти cp932
+      .replace(/\{0x([0-9A-Fa-f]{2})\}/g, (_, h) => '{b ' + h.toLowerCase() + '}');
+  }
+  // «Форма» рядка: теги → \u0001, повноширинні пробіли U+3000 → звичайні, серії
+  // пробілів/табів → один пробіл, переноси лишаються. Так порівнюємо текст, коли
+  // теги в таблиці lossy, а вирівнювання (U+3000) експорт замінив на пробіли.
+  // «Форма» рядка: теги → \u0001, тире гри «―∥» ≡ «--» ≡ «—», будь-які пробіли/
+  // переноси/повноширинні пробіли (U+3000) → один пробіл. Так порівнюємо текст, коли
+  // теги в таблиці lossy, а вирівнювання й переноси експорт/перекладач змінив.
+  function bbsShape(s) {
+    return String(s || '').replace(/\{[^}]*\}/g, '\u0001').replace(/―∥|--|—/g, '—').replace(/[\u3000\s]+/g, ' ').trim();
+  }
+  // bbsShapeMatch(pairs, keys) → нові пари { en: ключ гри, uk: переклад з тегами ключа }.
+  // Для пари, чий en не є ключем, шукаємо всі ключі з тією ж формою (різні переноси —
+  // різні ключі, усі отримують переклад); якщо кількість тегів у ключі, en і uk
+  // однакова — підставляємо в uk теги ключа по порядку.
+  function bbsShapeMatch(pairs, keys) {
+    const byShape = new Map();
+    const keySet = new Set(keys);
+    for (const k of keySet) { const sh = bbsShape(k); if (!sh) continue; if (!byShape.has(sh)) byShape.set(sh, []); byShape.get(sh).push(k); }
+    const out = [];
+    let ambiguous = 0;
+    for (const p of pairs) {
+      if (!p || !p.en || !p.uk || keySet.has(p.en)) continue;
+      const cands = byShape.get(bbsShape(p.en));
+      if (!cands) continue;
+      const et = p.en.match(/\{[^}]*\}/g) || [];
+      const ut = p.uk.match(/\{[^}]*\}/g) || [];
+      for (const key of cands) {
+        const kt = key.match(/\{[^}]*\}/g) || [];
+        if (kt.length !== et.length || ut.length !== kt.length) { ambiguous++; continue; }
+        let i = 0;
+        const uk = p.uk.replace(/\{[^}]*\}/g, () => kt[i++]);
+        out.push({ en: key, uk, shaped: true });
+      }
+    }
+    return { pairs: out, ambiguous };
+  }
+
   function tokenIssueText(en, uk) {
     const v = validateTokens(en, uk);
     if (v.ok && v.extra.length === 0) return '';
@@ -262,6 +311,5 @@
     tokenIssueText,
     segmentByTokens,
     autoFixStructure,
-    syncPaddingFromEn
-  };
+    syncPaddingFromEn, bbsNormalizeTags, bbsShape, bbsShapeMatch };
 }));

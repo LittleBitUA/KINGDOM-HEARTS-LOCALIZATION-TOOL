@@ -2,7 +2,7 @@ import { getCurrentGame } from '../app-shell.js';
 import { importApplyBtn, importCancelBtn, importConflicts, importOverlay, importOverwriteBtn, importSummary } from '../core/dom.js';
 
 import { toast } from '../core/log.js';
-import { validateTokens } from '../core/shared.js';
+import { bbsNormalizeTags, bbsShapeMatch, validateTokens } from '../core/shared.js';
 import { gState } from '../core/state.js';
 import { refreshGlossaryProgress, renderGlossaryRows, saveGlossary } from './glossary.js';
 import { snapshotGlossary } from './history.js';
@@ -140,10 +140,12 @@ export async function importTranslations() {
     '[VarNum2]':           '{VarNum2}',
     '[VarNum3]':           '{VarNum3}'
   };
+  const isBbs = !!(game && game.id === 'kh-bbs-final-mix');
   function normalizeTokens(s) {
     if (!s) return s;
     let out = s;
     for (const k in TOKEN_ALIAS_MAP) out = out.split(k).join(TOKEN_ALIAS_MAP[k]);
+    if (isBbs) out = bbsNormalizeTags(out);   // OpenKh CTD Editor: {:color x}, {:icon button-x}, {0xHH}
     return out;
   }
 
@@ -260,6 +262,16 @@ export async function importTranslations() {
   }
   const pairs = [...enToUk.entries()].map(([en, uk]) => ({ en, uk }));
 
+  // BBS: рядки з lossy-тегами OpenKh ({0xF1}, {0xF5}) і повноширинними пробілами
+  // не збігаються з ключами дослівно — підбираємо ключ за «формою» тексту
+  // і переносимо в переклад точні теги ключа.
+  let shaped = 0, shapedAmbiguous = 0;
+  if (isBbs) {
+    const r2 = bbsShapeMatch(pairs, gState.entries.map(e => e.english));
+    for (const p of r2.pairs) { if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; } pairs.push({ en: p.en, uk: p.uk }); shaped++; }
+    shapedAmbiguous = r2.ambiguous;
+  }
+
   if (!pairs.length) {
     toast(window.i18n.t('toastNoValidPairs'), 'error');
     return;
@@ -271,6 +283,8 @@ export async function importTranslations() {
   if (normalized) parts.push('нормалізовано токенів: ' + normalized);
   if (tokensBroken) parts.push('⚠ пропущено через втрату токенів: ' + tokensBroken);
   if (duplicates) parts.push('дублікати: ' + duplicates);
+  if (shaped) parts.push('відновлено теги за ключем гри: ' + shaped);
+  if (shapedAmbiguous) parts.push('⚠ не вдалося відновити теги: ' + shapedAmbiguous);
   toast(parts.join(' · '), 'info', 5500);
 
   const matched = [];      // { english, computedUk, sources }
