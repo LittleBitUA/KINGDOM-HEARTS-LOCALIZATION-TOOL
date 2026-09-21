@@ -93,6 +93,7 @@ test('bbs import: OpenKh-теги нормалізуються, lossy {0xF5} в�
   assert.deepStrictEqual(r.pairs.map(p => p.en), [keys[0], keys[1]]);
   assert.strictEqual(r.pairs[0].uk, '■ Зафіксуйся на ворогу і\n  натисни  {icon3 66}  перед його\n  атакою.');
   assert.strictEqual(r.ambiguous, 0);
+  assert.deepStrictEqual([...r.used].sort(), ['Darkness rules your heart--\nit gives me control.', '■ Lock on to your foe and\n  press  {b f5}  just before it\n  attacks.']);
   const r2 = ts.bbsShapeMatch([{ en: 'x {b f5} y {b f5}', uk: 'х {b f5} у' }], ['x {icon3 66} y {icon3 67}']);
   assert.deepStrictEqual([r2.pairs.length, r2.ambiguous], [0, 1]);
 });

@@ -92,6 +92,7 @@
     const keySet = new Set(keys);
     for (const k of keySet) { const sh = bbsShape(k); if (!sh) continue; if (!byShape.has(sh)) byShape.set(sh, []); byShape.get(sh).push(k); }
     const out = [];
+    const used = new Set();   // en вхідних пар, для яких знайдено ключ (їх самих у списку більше не треба)
     let ambiguous = 0;
     for (const p of pairs) {
       if (!p || !p.en || !p.uk || keySet.has(p.en)) continue;
@@ -105,9 +106,10 @@
         let i = 0;
         const uk = p.uk.replace(/\{[^}]*\}/g, () => kt[i++]);
         out.push({ en: key, uk, shaped: true });
+        used.add(p.en);
       }
     }
-    return { pairs: out, ambiguous };
+    return { pairs: out, ambiguous, used };
   }
 
   function tokenIssueText(en, uk) {

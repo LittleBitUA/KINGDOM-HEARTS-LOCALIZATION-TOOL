@@ -268,6 +268,9 @@ export async function importTranslations() {
   let shaped = 0, shapedAmbiguous = 0;
   if (isBbs) {
     const r2 = bbsShapeMatch(pairs, gState.entries.map(e => e.english));
+    // оригінальні (lossy) пари, для яких знайшовся ключ, прибираємо — інакше вони
+    // рахуються як «не знайдено», хоч переклад застосовано через відновлену пару
+    for (let i = pairs.length - 1; i >= 0; i--) if (r2.used.has(pairs[i].en)) pairs.splice(i, 1);
     for (const p of r2.pairs) { if (!validateTokens(p.en, p.uk).ok) { tokensBroken++; continue; } pairs.push({ en: p.en, uk: p.uk }); shaped++; }
     shapedAmbiguous = r2.ambiguous;
   }
@@ -299,10 +302,13 @@ export async function importTranslations() {
     for (const s of result.sources) usedPhrases.add(s);
 
     const cur = gState.translations[enKey];
+    // Однаковий текст, що відрізняється лише пробілами/переносами (інше перенесення
+    // того самого рядка в іншому файлі) — не конфлікт, лишаємо поточний.
+    const sameLoose = (a, b) => a === b || String(a).replace(/[\u3000\s]+/g, ' ').trim() === String(b).replace(/[\u3000\s]+/g, ' ').trim();
     if (!cur || cur === enKey) {
       matched.push({ english: enKey, computedUk: result.uk, sources: result.sources });
-    } else if (cur === result.uk) {
-      sameAlready.push({ english: enKey, uk: result.uk });
+    } else if (sameLoose(cur, result.uk)) {
+      sameAlready.push({ english: enKey, uk: cur });
     } else {
       conflicts.push({ english: enKey, oldUk: cur, newUk: result.uk, sources: result.sources });
     }
