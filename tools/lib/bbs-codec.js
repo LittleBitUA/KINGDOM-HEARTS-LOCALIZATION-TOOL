@@ -41,6 +41,11 @@ const CYR = new Map(Object.entries(T.cyr).map(([ch, hex]) => [ch, parseInt(hex, 
 const CYR_REV = new Map([...CYR].map(([ch, code]) => [code, ch]));
 const INV0 = new Map(M0.map((ch, i) => [ch, 0x20 + i]));
 const INV99 = new Map(M99.map((ch, i) => [ch, 0x80 + i]));
+// «М'які» заміни (як у Re:CoM) для символів, яких cp932/шрифт не має, але є однозначний
+// відповідник: український апостроф U+02BC → ’ (є у FontEn), тире/мінус → «-», NBSP → пробіл.
+// (“ ” … « » кодуються напряму через cp932 і мають гліфи.)
+const SOFT = new Map([['\u02BC', '\u2019'], ['\u2032', '\u2019'], ['\u2013', '-'], ['\u2012', '-'], ['\u2212', '-'],
+  ['\u201C', '\u00AB'], ['\u201D', '\u00BB'], ['\u2026', '...'], ['\u00A0', ' ']]);
 
 const hex2 = (n) => n.toString(16).padStart(2, '0');
 const hex4 = (n) => n.toString(16).padStart(4, '0');
@@ -178,6 +183,10 @@ function encodeDetailed(text, opts) {
     const pair = sjisEncode(full);
     if (pair) { out.push(pair[0], pair[1]); continue; }
     if (INV99.has(full)) { out.push(0x99, INV99.get(full)); continue; }
+    if (SOFT.has(full)) {
+      const r = encodeDetailed(SOFT.get(full), opts);
+      if (!r.unmapped.length) { out.push(...r.bytes); continue; }
+    }
     fail(full, i - full.length);
   }
   return { bytes: Buffer.from(out), unmapped };
@@ -217,7 +226,7 @@ function missingGlyphs(bytes) {
 // Ключ глосарія: decode вже канонічний (усі параметри команд видимі).
 function glossaryKey(text) { return text == null ? '' : String(text).replace(/\r\n/g, '\n'); }
 
-module.exports = {
+module.exports = { SOFT,
   decode, encode, encodeDetailed, missingGlyphs, glossaryKey,
   TABLES: { M0, M99, CMD, ICON, CYR, LEAD }
 };

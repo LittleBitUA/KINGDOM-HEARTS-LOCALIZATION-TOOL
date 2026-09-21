@@ -90,3 +90,10 @@ test('ddd-ctd container matches khctd.write() incl. >64K page bits', () => {
   assert.equal(g.length % 16, 0);
   assert.deepEqual(ddd.missingGlyphs('Гей Hey', 'mesfont'), []);
 });
+
+test('bbs-codec: м’які заміни — апостроф U+02BC → ’, тире/мінус → -, NBSP → пробіл', () => {
+  const same = (a, b) => assert.deepStrictEqual([...bbs.encode(a)], [...bbs.encode(b)]);
+  same('обовʼязково', 'обов’язково');
+  same('a – b − c d', 'a - b - c d');
+  assert.throws(() => bbs.encode('☃'), /не вміє показати/);
+});
