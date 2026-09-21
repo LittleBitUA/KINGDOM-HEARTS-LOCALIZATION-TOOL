@@ -41,7 +41,7 @@ export function enterEditor(gameId) {
   const comKerningTab = document.getElementById('mode-com-kerning');
   const bubblesTab = document.getElementById('mode-bubbles');
   const texturesTab = document.getElementById('mode-textures');
-  if (texturesTab) texturesTab.style.display = isCom ? '' : 'none';
+  if (texturesTab) texturesTab.style.display = (isCom || isBbs) ? '' : 'none';
   const bbsFontTab = document.getElementById('mode-bbs-font');
   if (kerningTab) kerningTab.style.display = isKh1 ? '' : 'none';
   if (comKerningTab) comKerningTab.style.display = isCom ? '' : 'none';

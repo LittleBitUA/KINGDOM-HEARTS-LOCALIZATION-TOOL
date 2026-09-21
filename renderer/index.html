@@ -845,7 +845,7 @@
     <!-- ============ RE:COM TEXTURES VIEW ============ -->
     <div id="view-textures" class="view hidden">
       <section class="toolbar tx-toolbar">
-        <button id="tx-scan" class="kh-btn" type="button" data-i18n-title="txScanTitle" title="Перечитати UK_*.imz / UK_*.png із розпакованої гри">
+        <button id="tx-scan" class="kh-btn" type="button" data-i18n-title="txScanTitle" title="Перечитати текстури з розпакованої гри">
           <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="txScan">Сканувати</span>
         </button>
         <select id="tx-filter" class="kh-select kh-select-narrow" aria-label="Filter">
@@ -861,10 +861,10 @@
           <option value="" data-i18n="txAllFolders">Усі теки</option>
         </select>
         <span class="toolbar-spacer"></span>
-        <button id="tx-import-dir" class="kh-btn" type="button" disabled data-i18n-title="txImportDirTitle" title="Тека з відредагованими PNG (<назва>.imz.<n>.png) — зареєструвати як заміни; незмінені PNG пропускаються">
+        <button id="tx-import-dir" class="kh-btn" type="button" disabled data-i18n-title="txImportDirTitle" title="Тека з відредагованими PNG у розкладці експорту — зареєструвати як заміни; незмінені PNG пропускаються">
           <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="txImportDir">Імпортувати теку PNG</span>
         </button>
-        <button id="tx-export-all" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="txExportAllTitle" title="Розпакувати всі текстури у PNG (розкладка Recom/remastered/…)">
+        <button id="tx-export-all" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="txExportAllTitle" title="Розпакувати всі текстури у PNG (розкладка <архів>/remastered/…)">
           <svg class="ico" aria-hidden="true"><use href="#i-export"/></svg><span data-i18n="txExportAll">Експортувати всі у PNG</span>
         </button>
       </section>
@@ -885,7 +885,7 @@
             </label>
           </header>
           <div id="tx-grid" class="tx-grid" tabindex="0">
-            <div class="t-empty"><p data-i18n="txEmpty">Натисни «Сканувати» — покажу всі текстури інтерфейсу Re:CoM (UK_*.imz) з написами: FRIENDS, CARDS, LEVEL UP!, підказки меню…</p></div>
+            <div class="t-empty"><p data-i18n="txEmpty">Натисни «Сканувати» — покажу всі текстури інтерфейсу з написами (Re:CoM: FRIENDS, CARDS, LEVEL UP!…; BBS: меню, підказки, заставки з arc_en).</p></div>
           </div>
         </div>
 
@@ -916,7 +916,7 @@
               <span id="tx-sel-name" class="bb-pane-note"></span>
             </header>
             <div class="bb-fields tx-actions">
-              <button id="tx-replace" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="txReplaceTitle" title="Вибрати PNG того самого розміру — одразу перезбирається у DONE/Recom/… і потрапляє в патч">
+              <button id="tx-replace" class="kh-btn kh-btn-primary" type="button" disabled data-i18n-title="txReplaceTitle" title="Вибрати PNG того самого розміру — одразу перезбирається у DONE/<архів>/… і потрапляє в патч">
                 <svg class="ico" aria-hidden="true"><use href="#i-import"/></svg><span data-i18n="txReplace">Замінити PNG…</span>
               </button>
               <button id="tx-reset" class="kh-btn" type="button" disabled data-i18n-title="txResetTitle" title="Прибрати заміну — у патч піде оригінал">
@@ -929,7 +929,7 @@
             </div>
             <div id="tx-sel-info" class="bb-sel-info"></div>
           </div>
-          <p class="bb-hint" data-i18n="txHint">PNG має бути того самого розміру, що й оригінал; альфа 255 = непрозоро. Замінені текстури лежать у PROGRESS/textures, перезібрані .imz — у DONE/Recom/… (їх підхоплює «Зібрати патч»).</p>
+          <p class="bb-hint" data-i18n="txHint">PNG має бути того самого розміру, що й оригінал; альфа 255 = непрозоро. Замінені PNG лежать у PROGRESS/textures, перезібрані файли (.imz / .dds / .png) — у DONE/<архів>/… (їх підхоплює «Зібрати патч»).</p>
         </div>
       </section>
 

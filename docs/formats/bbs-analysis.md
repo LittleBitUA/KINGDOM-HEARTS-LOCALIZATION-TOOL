@@ -319,3 +319,19 @@ png_y = COD.Y * 2
 
 Перевірено: `@CTD` — 5/5 файлів побайтово; `MTX`/`CLU` — гліфи збігаються
 з HD-текстурою.
+
+## HD-текстури інтерфейсу (remastered/arc_en)
+
+У PC-версії HD-заміни текстур із SD-архівів лежать готовими файлами поруч:
+`bbs_first.hed_out/remastered/arc_en/<група>/<name>.arc/US_<name>_arcN.dds|png`
+(93 файли: `menu/camp.arc`, `menu/help*.arc`, `menu/title_txt.arc`, `menu/Select_2D.arc`,
+`pc/p0*menu.arc`, `system/commonGame.arc`, `system/common_ex.arc`, `system/common_wm.arc`,
+`system/FontEn.arc`). Усі `.dds` — нестиснені 32-bit з масками (A8R8G8B8, pf_flags 0x41,
+один mip, заголовок 128 байтів); `.png` — звичайні RGBA. `remastered/arc/` (JP_*, 687 файлів)
+— персонажі/ефекти без написів, у вкладку не потрапляють; `bbs_fourth` має лише `chara`.
+
+У застосунку — та сама вкладка «Текстури», що й для Re:CoM (`main/ipc-textures.js`,
+провайдер `kh-bbs-final-mix`; DDS-кодек `tools/lib/dds.js`: читає будь-який нестиснений
+24/32-bit DDS, пише назад З ОРИГІНАЛЬНИМ заголовком — змінюються лише пікселі).
+Заміна → `DONE/bbs_first/remastered/arc_en/…/US_x_arcN.dds` (розкладка патчу
+KHPCPatchManager); експорт у PNG — `<rel>.png` (`US_x_arcN.dds.png`), імпорт теки — зворотно.

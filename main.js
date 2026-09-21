@@ -12,7 +12,7 @@
 //   ipc-patch.js     — патч в один клік (KHPCPatchManager: .pcpatch + застосування до .pkg)
 //   ipc-comkern.js   — кернінг Re:CoM (шрифт FFMW .binl + атлас PNG)
 //   ipc-bubbles.js   — хмаринки Re:CoM (макети .ctdl: X/Y/W/H на репліку)
-//   ipc-textures.js  — текстури інтерфейсу Re:CoM (UK_*.imz ↔ PNG, заміна у DONE)
+//   ipc-textures.js  — текстури інтерфейсу Re:CoM (UK_*.imz) та BBS (US_*.dds|png) ↔ PNG, заміна у DONE
 //   autowrap.js      — auto-wrap за метриками .knj
 //   ipc-app.js       — updater, мова, about, openExternal
 

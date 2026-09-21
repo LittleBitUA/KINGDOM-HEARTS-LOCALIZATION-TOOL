@@ -1,13 +1,15 @@
 import { toast } from '../core/log.js';
 import { tState } from '../core/state.js';
+import { getCurrentGameId } from '../app-shell.js';
 
 // =====================================================================
-// «Текстури» Re:CoM. Написи інтерфейсу (FRIENDS, CARDS, LEVEL UP!, BONUS,
-// підказки меню…) — це картинки у remastered/FORM/<n>/FOxxxx.RTM/UK_*.imz
-// (контейнер IMGZ) та кілька UK_*.png. Тут: сітка мініатюр усіх текстур,
-// перегляд, заміна конкретної текстури своїм PNG (той самий розмір) — вона
-// одразу перезбирається у DONE/Recom/… і потрапляє у «Зібрати патч»; експорт
-// усіх у PNG та імпорт теки з відредагованими PNG.
+// «Текстури». Написи інтерфейсу, які є картинками, а не текстом:
+//   Re:CoM — remastered/FORM/<n>/FOxxxx.RTM/UK_*.imz (контейнер IMGZ) + UK_*.png;
+//   BBS    — bbs_*/remastered/arc_en/<група>/<name>.arc/US_*_arcN.dds|png.
+// Тут: сітка мініатюр усіх текстур, перегляд, заміна конкретної текстури своїм
+// PNG (той самий розмір) — вона одразу перезбирається у DONE/<archive>/… і
+// потрапляє у «Зібрати патч»; експорт усіх у PNG та імпорт теки з відредагованими
+// PNG. Формати читає/пише main (ipc-textures.js), тут гра лише передається як gameId.
 // =====================================================================
 const el = (id) => document.getElementById(id);
 const t = (k, v) => (window.i18n ? window.i18n.t(k, v) : k);
@@ -18,16 +20,17 @@ export const xState = {
   rows: [],           // плаский відфільтрований список { item, en }
   filter: 'all', search: '', folder: '', thumb: 180, zoom: 0,
   sel: null,          // { item, en }
+  gameId: '',         // гра, для якої зроблено скан (інша гра — сканувати заново)
   busy: false,
   lastDir: ''         // остання тека експорту/імпорту (для діалогу)
 };
 
-const dirs = () => ({ tsvDir: tState.settings && tState.settings.tsvDir, outDir: tState.settings && tState.settings.outDir });
+const dirs = () => ({ gameId: getCurrentGameId(), tsvDir: tState.settings && tState.settings.tsvDir, outDir: tState.settings && tState.settings.outDir });
 const keyOf = (item, en) => item.rel + '\u0001' + en.index;
-const shortRel = (rel) => rel.replace(/^remastered\//, '');
-const folderOf = (rel) => shortRel(rel).split('/').slice(0, 2).join('/');   // FORM/0002
+const shortRel = (rel) => rel.replace(/^(bbs_[a-z]+\/)?remastered\//, '');
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const nameOf = (item, en) => item.rel.split('/').pop() + (item.kind === 'imz' && item.entries.length > 1 ? ' #' + en.index : '');
+const nameOf = (item, en) => item.rel.split('/').pop() + (item.entries.length > 1 ? ' #' + en.index : '');
+const folderOf = (rel) => { const it = xState.items.find(x => x.rel === rel); return (it && it.folder) || ''; };   // FORM/0002 · menu/camp.arc (з main)
 
 // ---- список ----
 function rebuildRows() {
@@ -75,7 +78,7 @@ const thumbObserver = new IntersectionObserver((entries) => {
     const [rel, idx] = e.target.dataset.key.split('\u0001');
     const item = xState.items.find(x => x.rel === rel);
     if (!item || !img) continue;
-    window.kh1.textures.thumb({ rel, index: parseInt(idx, 10), kind: item.kind, max: 256, tsvDir: dirs().tsvDir })
+    window.kh1.textures.thumb(Object.assign({ rel, index: parseInt(idx, 10), kind: item.kind, max: 256 }, dirs()))
       .then(r => { if (r && r.ok) img.src = r.dataUrl; else e.target.classList.add('broken'); }).catch(() => {});
   }
 }, { root: null, rootMargin: '300px' });
@@ -113,23 +116,23 @@ function select(r) {
 function chip(text, cls, title) { return '<span class="bb-chip' + (cls ? ' ' + cls : '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(text) + '</span>'; }
 function fillInspector() {
   const r = xState.sel, on = !!r;
-  ui.replace.disabled = !on || (r && r.en.bpp !== 32);
+  ui.replace.disabled = !on || (r && r.en.replaceable === false);
   ui.reset.disabled = !on || !(r && r.en.replaced);
   ui.exportOne.disabled = !on; ui.reveal.disabled = !on;
   if (!on) { ui.selName.textContent = ''; ui.selInfo.innerHTML = chip(t('txSelectHint'), 'dim'); return; }
   const { item, en } = r;
   ui.selName.textContent = nameOf(item, en);
-  const chips = [chip(shortRel(item.rel), 'mono', item.rel), chip(en.w + ' × ' + en.h), chip(item.kind === 'imz' ? 'IMGZ · IMGD ' + en.bpp + 'bpp' : 'PNG')];
-  if (item.kind === 'imz' && item.entries.length > 1) chips.push(chip(t('txEntryOf', { i: en.index + 1, n: item.entries.length })));
+  const chips = [chip(shortRel(item.rel), 'mono', item.rel), chip(en.w + ' × ' + en.h), chip(en.format || item.kind.toUpperCase())];
+  if (item.entries.length > 1) chips.push(chip(t('txEntryOf', { i: en.index + 1, n: item.entries.length })));
   if (en.replaced) chips.push(chip(t('txReplacedBadge'), 'gold'));
-  if (en.bpp !== 32) chips.push(chip(t('txNoReplace8'), 'warn'));
+  if (en.replaceable === false) chips.push(chip(t('txNoReplace'), 'warn'));
   ui.selInfo.innerHTML = chips.join('');
 }
 let previewSeq = 0;
 async function loadPreview() {
   const r = xState.sel; const seq = ++previewSeq;
   if (!r) { ui.preview.hidden = true; ui.previewEmpty.hidden = false; ui.zoomVal.textContent = '—'; return; }
-  const res = await window.kh1.textures.thumb({ rel: r.item.rel, index: r.en.index, kind: r.item.kind, max: 0, tsvDir: dirs().tsvDir });
+  const res = await window.kh1.textures.thumb(Object.assign({ rel: r.item.rel, index: r.en.index, kind: r.item.kind, max: 0 }, dirs()));
   if (seq !== previewSeq) return;
   if (!res || !res.ok) { toast(t('toastError', { msg: (res && res.error) || '?' }), 'error', 6000); return; }
   ui.preview.src = res.dataUrl; ui.preview.hidden = false; ui.previewEmpty.hidden = true;
@@ -160,12 +163,12 @@ function zoomStep(dir) {
 
 // ---- дії ----
 async function replaceSel() {
-  const r = xState.sel; if (!r || r.en.bpp !== 32) return;
-  const { tsvDir, outDir } = dirs();
+  const r = xState.sel; if (!r || r.en.replaceable === false) return;
+  const { gameId, tsvDir, outDir } = dirs();
   if (!tsvDir || !outDir) { toast(t('txNoDirs'), 'error'); return; }
   const pick = await window.kh1.textures.pick();
   if (!pick || pick.canceled) return;
-  const res = await window.kh1.textures.replace({ rel: r.item.rel, index: r.en.index, kind: r.item.kind, pngPath: pick.pngPath, tsvDir, outDir });
+  const res = await window.kh1.textures.replace({ gameId, rel: r.item.rel, index: r.en.index, kind: r.item.kind, pngPath: pick.pngPath, tsvDir, outDir });
   if (!res || !res.ok) { toast(t('toastError', { msg: (res && res.error) || '?' }), 'error', 8000); return; }
   r.en.replaced = true;
   refreshCard(r); fillInspector(); loadPreview(); refreshStatus();
@@ -173,8 +176,8 @@ async function replaceSel() {
 }
 async function resetSel() {
   const r = xState.sel; if (!r || !r.en.replaced) return;
-  const { tsvDir, outDir } = dirs();
-  const res = await window.kh1.textures.reset({ rel: r.item.rel, index: r.en.index, kind: r.item.kind, tsvDir, outDir });
+  const { gameId, tsvDir, outDir } = dirs();
+  const res = await window.kh1.textures.reset({ gameId, rel: r.item.rel, index: r.en.index, kind: r.item.kind, tsvDir, outDir });
   if (!res || !res.ok) { toast(t('toastError', { msg: (res && res.error) || '?' }), 'error', 8000); return; }
   r.en.replaced = false;
   refreshCard(r); fillInspector(); loadPreview(); refreshStatus();
@@ -183,16 +186,16 @@ async function resetSel() {
 async function exportAll(one) {
   const r = one ? xState.sel : null;
   if (one && !r) return;
-  const res = await window.kh1.textures.export(Object.assign({ defaultDir: xState.lastDir, tsvDir: dirs().tsvDir }, r ? { rel: r.item.rel, kind: r.item.kind, index: r.en.index } : {}));
+  const res = await window.kh1.textures.export(Object.assign({ defaultDir: xState.lastDir }, dirs(), r ? { rel: r.item.rel, kind: r.item.kind, index: r.en.index } : {}));
   if (!res || res.canceled) return;
   if (!res.ok) { toast(t('toastError', { msg: res.error || '?' }), 'error', 8000); return; }
   xState.lastDir = res.dir; try { localStorage.setItem('kh.tx.lastDir', res.dir); } catch (_) {}
   toast(t('toastTxExported', { n: res.count, dir: res.dir }) + (res.errors && res.errors.length ? ' · ' + res.errors.slice(0, 2).join('; ') : ''), res.errors && res.errors.length ? 'warn' : 'success', 7000);
 }
 async function importDir() {
-  const { tsvDir, outDir } = dirs();
+  const { gameId, tsvDir, outDir } = dirs();
   if (!tsvDir || !outDir) { toast(t('txNoDirs'), 'error'); return; }
-  const res = await window.kh1.textures.importDir({ defaultDir: xState.lastDir, tsvDir, outDir });
+  const res = await window.kh1.textures.importDir({ gameId, defaultDir: xState.lastDir, tsvDir, outDir });
   if (!res || res.canceled) return;
   if (!res.ok) { toast(t('toastError', { msg: res.error || '?' }), 'error', 8000); return; }
   xState.lastDir = res.dir; try { localStorage.setItem('kh.tx.lastDir', res.dir); } catch (_) {}
@@ -205,7 +208,8 @@ export async function scanTextures(keepSel) {
   if (xState.busy) return;
   xState.busy = true; ui.scan.disabled = true; refreshStatus();
   try {
-    const r = await window.kh1.textures.scan({ tsvDir: dirs().tsvDir });
+    const r = await window.kh1.textures.scan(dirs());
+    xState.gameId = dirs().gameId;
     if (!r || !r.ok) { toast(t('toastError', { msg: (r && r.error) || '?' }), 'error', 8000); return; }
     xState.items = r.items;
     const selKey = keepSel && xState.sel ? keyOf(xState.sel.item, xState.sel.en) : null;
@@ -240,7 +244,7 @@ export function initTextures() {
   ui.replace.addEventListener('click', replaceSel);
   ui.reset.addEventListener('click', resetSel);
   ui.exportOne.addEventListener('click', () => exportAll(true));
-  ui.reveal.addEventListener('click', async () => { const r = xState.sel; if (!r) return; const res = await window.kh1.textures.reveal({ rel: r.item.rel, outDir: dirs().outDir }); if (res && !res.ok) toast(res.error, 'error'); });
+  ui.reveal.addEventListener('click', async () => { const r = xState.sel; if (!r) return; const res = await window.kh1.textures.reveal(Object.assign({ rel: r.item.rel }, dirs())); if (res && !res.ok) toast(res.error, 'error'); });
   ui.zoomIn.addEventListener('click', () => zoomStep(1));
   ui.zoomOut.addEventListener('click', () => zoomStep(-1));
   ui.zoomVal.addEventListener('click', () => { xState.zoom = 0; applyZoom(); });
@@ -251,6 +255,7 @@ export function initTextures() {
 
 // Перший показ вкладки — скануємо.
 export function enterTextures() {
+  if (xState.items.length && xState.gameId !== getCurrentGameId()) { xState.items = []; xState.rows = []; xState.sel = null; ui.grid.innerHTML = ''; fillInspector(); }
   if (!xState.items.length && !xState.busy) scanTextures(false);
   else applyZoom();
 }

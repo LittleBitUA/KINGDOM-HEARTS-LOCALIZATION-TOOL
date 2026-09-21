@@ -25,7 +25,7 @@ const PATCH_NAMES = { 'kh1-final-mix': 'KH1-UA', 'kh-re-com': 'ReCoM-UA', 'kh-bb
 const PATCH_EXT = { 'kh1-final-mix': 'kh1pcpatch', 'kh-re-com': 'compcpatch', 'kh-bbs-final-mix': 'bbspcpatch', 'kh-ddd': 'dddpcpatch' };
 // Службові файли, яким не місце у патчі.
 // (.imz.<n>.png / .imz.json — робочі PNG вкладки «Текстури» поруч із .imz)
-const SKIP_FILE = /\.(tsv|json|bak\.\d+|log|txt)$|\.imz\.\d+\.png$|^ua_glyphs\.json$|^preview\.png$|^ua_preview\.png$/i;
+const SKIP_FILE = /\.(tsv|json|bak\.\d+|log|txt)$|\.imz\.\d+\.png$|\.dds\.png$|^ua_glyphs\.json$|^preview\.png$|^ua_preview\.png$/i;
 const SKIP_DIR = /^_/;   // build/_reports
 
 function sendProgress(payload) { win.send('patch:progress', payload); }
