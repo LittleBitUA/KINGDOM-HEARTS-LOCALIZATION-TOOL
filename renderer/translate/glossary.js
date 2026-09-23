@@ -212,6 +212,10 @@ function buildRow(i) {
 
   const row = document.createElement('div');
   let cls = 't-row' + (ukText ? ' translated' : '');
+  if (!ukText && isSubstitutionOnly(entry.english)) {
+    cls += ' no-text';
+    row.title = window.i18n.t('gNoTextRow');
+  }
   if (ukText) {
     const issue = tokenIssueText(entry.english, ukText);
     if (issue) { cls += ' token-warn'; row.title = issue; }
@@ -266,6 +270,15 @@ function buildRow(i) {
   return row;
 }
 
+// Рядок, у якому після викидання токенів не лишилось жодної літери: усе видиме
+// гра підставляє сама (назва предмета/магії, іконка, число) — перекладати нема
+// чого. Такі рядки лишаються в списку (раптом треба правити пунктуацію), але не
+// рахуються як «неперекладені».
+const RE_ANY_LETTER = /[A-Za-zЀ-ӿ]/;
+function isSubstitutionOnly(en) {
+  return !RE_ANY_LETTER.test(String(en || '').replace(/\{[^{}\n]*\}/g, ''));
+}
+
 function entryVisible(entry, search, mode) {
   if (search) {
     if (entry._norm === undefined) entry._norm = normalizeLookalikes(entry.english);
@@ -273,7 +286,7 @@ function entryVisible(entry, search, mode) {
   }
   if (mode === 'all') return true;
   const uk = gState.translations[entry.english] || '';
-  if (mode === 'untranslated') return !uk;
+  if (mode === 'untranslated') return !uk && !isSubstitutionOnly(entry.english);
   if (mode === 'translated') return !!uk;
   if (mode === 'same-as-en') return uk === entry.english;
   if (mode === 'token-issues') return !!uk && !validateTokens(entry.english, uk).ok;
@@ -358,9 +371,13 @@ export function applyGlossaryFilter() {
 }
 
 export function refreshGlossaryProgress() {
-  const total = gState.entries.length;
+  let total = 0, noText = 0;
   let done = 0, sameEn = 0, tokenIssues = 0;
   for (const e of gState.entries) {
+    // Рядки без жодної літери («{color_green}{icon_shield}{item_name}.») —
+    // усе видиме підставляє гра, перекладати нема чого: не тягнемо їх у прогрес.
+    if (isSubstitutionOnly(e.english)) { noText++; continue; }
+    total++;
     const uk = gState.translations[e.english];
     if (uk && uk.trim()) {
       done++;
@@ -368,6 +385,7 @@ export function refreshGlossaryProgress() {
       if (!validateTokens(e.english, uk).ok) tokenIssues++;
     }
   }
+  void noText;
   const untrans = total - done;
   const pct = total > 0 ? Math.round(100 * done / total) : 0;
   gStat.textContent = total > 0

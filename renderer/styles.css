@@ -892,6 +892,9 @@ body::after {
 .t-row.error {
   background: rgba(248, 113, 113, 0.10);
 }
+/* рядок без власного тексту: усе підставляє гра — приглушуємо, у прогрес не йде */
+.t-row.no-text { opacity: 0.55; }
+.t-row.no-text:hover { opacity: 1; }
 .t-row.token-warn {
   border-left: 3px solid #f87171;
   background: rgba(248, 113, 113, 0.08);
