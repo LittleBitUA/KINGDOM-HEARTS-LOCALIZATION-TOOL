@@ -10,8 +10,11 @@
 //   • інакше потрібні ≥2 літери поспіль (ASCII або кирилиця);
 //   • акцентована латиниця (À–ÿ) у англійських файлах — ознака байткоду:
 //     відкидаємо, якщо її не менше, ніж половина ASCII-літер.
+const { CONTENT_TOKEN_RE } = require('../../shared/kh1-tokens');
+
 const RE_TOKENS = /\{[^{}\n]*\}/g;
-const RE_NAMED_TOKEN = /\{(?!0x)(?!eol\})(?!lf\})[A-Za-z][^{}\n]*\}/;
+// Старі CamelCase-імена (переклади й TSV до перейменування токенів) — теж підстановки.
+const RE_NAMED_TOKEN = /\{(?!0x)(?!eol\})(?!lf\})[A-Z][^{}\n]*\}/;
 const RE_RUN = /[A-Za-z]{2}|[А-Яа-яЁёЇїІіЄєҐґ]{2}/;
 const RE_ASCII = /[A-Za-z]/g;
 const RE_CYR = /[А-Яа-яЁёЇїІіЄєҐґ]/g;
@@ -20,7 +23,7 @@ const RE_ACCENT = /[À-ÖØ-öø-ÿŒœ]/g;
 function looksLikeText(decoded) {
   if (!decoded) return false;
   const t = decoded.replace(RE_TOKENS, ' ');
-  if (!RE_RUN.test(t) && !RE_NAMED_TOKEN.test(decoded)) return false;
+  if (!RE_RUN.test(t) && !CONTENT_TOKEN_RE.test(decoded) && !RE_NAMED_TOKEN.test(decoded)) return false;
   const ascii = (t.match(RE_ASCII) || []).length;
   const cyr = (t.match(RE_CYR) || []).length;
   const accent = (t.match(RE_ACCENT) || []).length;

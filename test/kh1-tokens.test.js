@@ -65,3 +65,13 @@ test('kh1-tokens: decode → encode лишається байт-у-байт на
   const menu = Buffer.from([0x08, 0x96, 0xF0, 0xDC, 0x80, 0x0D, 0x04, 0x00, 0x41]);
   assert.deepEqual([...codec.encode(codec.decode(menu, { cmd: 'sysmsg' }))], [...menu]);
 });
+
+test('kh1-tokens: рядок лише з команд розкладки — не текст, підстановки — текст', () => {
+  const { looksLikeText } = require('../tools/lib/text-quality');
+  for (const junk of ['{page}{eol}', '{wait 12}{eol}', '{text_x}{eol}', '{text_width} {text_size}{eol}', '{scale 20}{dx 4}{eol}', '{0x0B}{eol}']) {
+    assert.equal(looksLikeText(junk), false, junk);
+  }
+  for (const text of ['Donald,{wait 76}{eol}', '{color_green}{icon_key}{item_name}{color_base}.{wait2 90}{eol}', '{ColorGreen}{Potion}{VarItem}s{ColorBase}.', '{summon_name}{eol}', '{number_1}{eol}']) {
+    assert.equal(looksLikeText(text), true, text);
+  }
+});

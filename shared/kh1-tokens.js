@@ -231,5 +231,13 @@ function rawTokens(text) {
   return s;
 }
 
-return { nameTokens, rawTokens, RENAMED, DIALOG, MENU, VARS, DIALOG_FIXED };
+// «Контентні» токени — підстановки всередині справжнього тексту (назви
+// предметів/магії, числа, гліфи-іконки, кольори). Рядок лише з них — це текст
+// («{color_green}{icon_key}{item_name}{color_base}.»), а рядок лише з команд
+// розкладки («{wait 12}{eol}», «{text_width} {text_size}») — байткод, не текст.
+const CONTENT_NAMES = Object.keys(UNRENAMED).map(n => n.slice(1, -1))
+  .concat(Object.values(VARS), ['var']);
+const CONTENT_TOKEN_RE = new RegExp('\\{(' + CONTENT_NAMES.join('|') + ')( [^{}\\n]*)?\\}');
+
+return { nameTokens, rawTokens, RENAMED, DIALOG, MENU, VARS, DIALOG_FIXED, CONTENT_TOKEN_RE };
 }));
