@@ -26,6 +26,7 @@ function game(def) {
 export const gamesConfig = [
   game({
     id: 'kh1-final-mix',
+    kind: 'kindFull',
     title: 'KINGDOM HEARTS\nFINAL MIX',
     name: 'Kingdom Hearts Final Mix',
     // Обкладинка (SteamGridDB, 920×430) замість намальованого hero; на ній уже є логотип.
@@ -44,6 +45,7 @@ export const gamesConfig = [
   }),
   game({
     id: 'kh-re-com',
+    kind: 'kindSubsMenu',
     title: 'KINGDOM HEARTS\nRE:CHAIN OF MEMORIES',
     name: 'Kingdom Hearts Re:Chain of Memories',
     // Один список усіх рядків з усіх файлів (без вкладки «Глосарій»), txt — формат MGS1.
@@ -63,6 +65,7 @@ export const gamesConfig = [
   }),
   game({
     id: 'kh-ddd',
+    kind: 'kindSubsMenuReports',
     title: 'KINGDOM HEARTS\nDREAM DROP DISTANCE HD',
     name: 'Kingdom Hearts 3D: Dream Drop Distance HD',
     // Один список усіх рядків з усіх файлів (без вкладки «Глосарій»), txt — формат MGS1.
@@ -80,6 +83,7 @@ export const gamesConfig = [
   }),
   game({
     id: 'kh-bbs-final-mix',
+    kind: 'kindSubsMenu',
     title: 'KINGDOM HEARTS\nBIRTH BY SLEEP\nFINAL MIX',
     name: 'Kingdom Hearts: Birth by Sleep Final Mix',
     // Один список усіх рядків з усіх файлів (без вкладки «Глосарій»), txt — формат MGS1.
@@ -102,8 +106,10 @@ export const gamesConfig = [
   // немає, але ВЕСЬ текст — це субтитри, і формат той самий @CTD, що у DDD.
   game({
     id: 'kh-days',
+    kind: 'kindCutscenes',
     title: 'KINGDOM HEARTS\n358/2 DAYS',
     name: 'Kingdom Hearts 358/2 Days (HD cutscenes)',
+    image: 'assets/covers/kh-days.png',
     txtFormat: 'mgs', listTitleKey: 'tabFiles',
     platform: 'PC (KH HD 1.5+2.5)',
     format: '.ctd (cutscene subtitles + diary)',
@@ -117,8 +123,10 @@ export const gamesConfig = [
   }),
   game({
     id: 'kh-recoded',
+    kind: 'kindCutscenes',
     title: 'KINGDOM HEARTS\nRE:CODED',
     name: 'Kingdom Hearts Re:coded (HD cutscenes)',
+    image: 'assets/covers/kh-recoded.png',
     txtFormat: 'mgs', listTitleKey: 'tabFiles',
     platform: 'PC (KH HD 1.5+2.5)',
     format: '.ctd (cutscene subtitles)',
@@ -134,6 +142,7 @@ export const gamesConfig = [
   // самій грі, тому більшість рядків підставляється з глосарія KH1.
   game({
     id: 'kh-theater',
+    kind: 'kindCutscenes',
     title: 'KINGDOM HEARTS\nTHEATER',
     name: 'Kingdom Hearts Theater (KH1 cutscenes)',
     txtFormat: 'mgs', listTitleKey: 'tabFiles',
@@ -154,8 +163,10 @@ export const gamesConfig = [
   // або всередині того самого .pak, або вшиті у відео.
   game({
     id: 'kh-02-bbs',
+    kind: 'kindTextures',
     title: 'KINGDOM HEARTS 0.2\nBIRTH BY SLEEP',
     name: 'Kingdom Hearts 0.2 Birth by Sleep',
+    image: 'assets/covers/kh-02-bbs.png',
     platform: 'PC (KH HD 2.8) · Unreal Engine 4',
     format: '.pak (encrypted index)',
     theme: 'bbs',
@@ -167,8 +178,10 @@ export const gamesConfig = [
   }),
   game({
     id: 'kh-back-cover',
+    kind: 'kindVideo',
     title: 'KINGDOM HEARTS χ\nBACK COVER',
     name: 'Kingdom Hearts χ Back Cover (movie)',
+    image: 'assets/covers/kh-back-cover.png',
     platform: 'PC (KH HD 2.8)',
     format: '.usm (video only, no subtitle files)',
     theme: 're-com',
@@ -283,136 +296,194 @@ export function _gameIsPrepared(gameId) {
   return !(_gamePreparedCache && _gamePreparedCache[gameId] === false);
 }
 
+// Статистика прогресу з TSV-теки кожної гри (_glossary.json): скільки рядків
+// уже має переклад і коли востаннє змінювався прогрес. Підвантажується один
+// раз після першого рендера — картки оновлюються на місці.
+export let _gameStats = {};
+export async function refreshGameStats() {
+  try {
+    _gameStats = (await window.kh1.setup.gameStats()) || {};
+  } catch (_) { _gameStats = {}; }
+}
+
+// Стадія проєкту — те, що показує кольорова позначка й фільтри:
+//   planned   — формат ще не розібрано (сіро-синя);
+//   wip       — переклад уже почато, у глосарії гри є готові рядки (золота);
+//   supported — формат підтримується, але перекладу ще немає (зелена).
+export function _gameStage(game) {
+  if (!game.enabled) return 'planned';
+  const st = _gameStats[game.id];
+  if (st && st.done > 0) return 'wip';
+  return 'supported';
+}
+
+const STAGE_LABEL = {
+  supported: ['hubStageSupported', 'Підтримується'],
+  wip:       ['hubStageWip', 'У роботі'],
+  planned:   ['hubStagePlanned', 'Заплановано']
+};
+
+function relTime(ms) {
+  if (!ms) return '';
+  const diff = Date.now() - ms;
+  const day = 86400000;
+  if (diff < 3600000) return t('hubUpdatedNow', 'щойно');
+  if (diff < day) return t('hubUpdatedHours', '{n} год тому').replace('{n}', Math.max(1, Math.round(diff / 3600000)));
+  if (diff < day * 30) return t('hubUpdatedDays', '{n} дн тому').replace('{n}', Math.round(diff / day));
+  return new Date(ms).toLocaleDateString();
+}
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
 export function renderGameCard(game) {
-  const card = document.createElement('button');
-  card.type = 'button';
+  const card = document.createElement('article');
   // Гра доступна тільки якщо: (a) gamesConfig.enabled (статичний support flag),
   // (b) користувач указав директорію цієї гри у setup'і.
   const hasDir = _gameHasDir(game.id);
   const prepared = _gameIsPrepared(game.id);
   const isReady = game.enabled && hasDir && prepared;
-  // Підтримувана гра без теки або з нерозпакованими файлами — не disabled
-  // (disabled-кнопка не отримує click), а стан needs-setup: клік відкриває
-  // Setup для цієї гри (вибір теки / кнопка «Розпакувати»).
+  // Підтримувана гра без теки або з нерозпакованими файлами — стан needs-setup:
+  // клік відкриває Setup для цієї гри (вибір теки / кнопка «Розпакувати»).
   const needsSetup = game.enabled && !isReady;
-  card.className = 'game-card theme-' + (game.theme || 'final-mix') +
+  const stage = _gameStage(game);
+  card.className = 'game-card theme-' + (game.theme || 'final-mix') + ' stage-' + stage +
     (isReady ? '' : (needsSetup ? ' needs-setup' : ' disabled'));
   card.dataset.gameId = game.id;
+  card.dataset.stage = stage;
   card.setAttribute('role', 'listitem');
-  if (!game.enabled) {
-    card.disabled = true;
+
+  const openable = game.enabled;
+  if (openable) {
+    card.tabIndex = 0;
+    card.setAttribute('aria-label', game.name);
+  } else {
     card.setAttribute('aria-disabled', 'true');
     card.setAttribute('data-i18n-title', 'gameSoonTooltip');
     card.title = t('gameSoonTooltip', 'Підтримка з’явиться пізніше');
-  } else if (needsSetup) {
+  }
+  if (needsSetup) {
     const tipKey = hasDir ? 'gameNotPreparedTooltip' : 'gameNoDirTooltip';
     card.setAttribute('data-i18n-title', tipKey);
     card.title = t(tipKey, hasDir ? 'Натисни, щоб розпакувати файли цієї гри (Setup)' : 'Натисни, щоб вказати теку цієї гри (Setup)');
-    card.setAttribute('aria-label', game.name + ' — ' + t(hasDir ? 'gameNeedsPrepare' : 'gameNeedsSetup', 'Потрібен setup'));
-  } else {
-    card.setAttribute('aria-label', game.name);
   }
 
-  // Hero / cover
-  const cover = document.createElement('div');
-  cover.className = 'game-cover';
+  // ---- обкладинка ----
+  const cover = el('div', 'game-cover');
   if (game.image) {
     const img = document.createElement('img');
     img.src = game.image;
     img.alt = '';
+    img.loading = 'lazy';
     cover.appendChild(img);
   } else {
-    const art = document.createElement('div');
-    art.className = 'game-cover-art';
+    const art = el('div', 'game-cover-art');
     art.innerHTML = heroArt(game.theme);
     cover.appendChild(art);
-    const heart = document.createElement('div');
-    heart.className = 'game-cover-heart';
+    const heart = el('div', 'game-cover-heart');
     heart.innerHTML = HEART_SVG;
     cover.appendChild(heart);
   }
-  const ovl = document.createElement('div');
-  ovl.className = 'game-cover-overlay';
-  cover.appendChild(ovl);
-  const ct = document.createElement('div');
-  ct.className = 'game-cover-title';
+  cover.appendChild(el('div', 'game-cover-overlay'));
+  const ct = el('div', 'game-cover-title');
   // На готовій обкладинці логотип уже є — свій заголовок не малюємо.
   if (game.image) ct.hidden = true;
-  const lines = String(game.title).split('\n');
-  lines.forEach((line, i) => {
+  String(game.title).split('\n').forEach((line, i) => {
     if (i) ct.appendChild(document.createElement('br'));
     ct.appendChild(document.createTextNode(line));
   });
   cover.appendChild(ct);
 
-  if (!game.enabled) {
-    const ribbon = document.createElement('div');
-    ribbon.className = 'game-ribbon';
-    ribbon.setAttribute('data-i18n', 'comingSoon');
-    ribbon.textContent = t('comingSoon', 'Coming Soon');
-    card.appendChild(ribbon);
-  } else if (!hasDir) {
-    // Картка enabled, але директорія не задана — підказка, що треба зробити.
-    const ribbon = document.createElement('div');
-    ribbon.className = 'game-ribbon game-ribbon-setup';
-    ribbon.setAttribute('data-i18n', 'gameNeedsSetup');
-    ribbon.textContent = t('gameNeedsSetup', 'Setup needed');
-    card.appendChild(ribbon);
-  }
-
+  // Позначка стадії — прямо на обкладинці.
+  const badge = el('span', 'game-badge badge-' + stage);
+  if (stage !== 'planned') badge.innerHTML = CHECK_SVG;
+  const badgeText = el('span', null, t(STAGE_LABEL[stage][0], STAGE_LABEL[stage][1]));
+  badgeText.setAttribute('data-i18n', STAGE_LABEL[stage][0]);
+  badge.appendChild(badgeText);
+  cover.appendChild(badge);
   card.appendChild(cover);
 
-  // Info
-  const info = document.createElement('div');
-  info.className = 'game-info';
-  const name = document.createElement('h3');
-  name.className = 'game-name';
-  name.textContent = game.name;
-  const sub = document.createElement('p');
-  sub.className = 'game-subtitle';
-  sub.textContent = game.subtitle;
-  const foot = document.createElement('div');
-  foot.className = 'game-info-foot';
-  const status = document.createElement('span');
-  status.className = 'game-status status-' + game.status;
-  const statusKey = game.status === 'ready' ? 'gameStatusReady' : 'gameStatusSoon';
-  status.innerHTML = CHECK_SVG;
-  const statusText = document.createElement('span');
-  statusText.setAttribute('data-i18n', statusKey);
-  statusText.textContent = _gameStatusLabel(game.status);
-  status.appendChild(statusText);
-  const badges = document.createElement('div');
-  badges.className = 'game-badges';
-  badges.appendChild(status);
-  if (needsSetup) {
-    // «Підтримується» + окремий warning: нема теки гри або файли ще не розпаковано.
-    const needKey = hasDir ? 'gameNeedsPrepare' : 'gameNeedsSetup';
-    const need = document.createElement('span');
-    need.className = 'game-status status-setup';
-    need.innerHTML = WARN_SVG;
-    const needText = document.createElement('span');
-    needText.setAttribute('data-i18n', needKey);
-    needText.textContent = t(needKey, hasDir ? 'Не розпаковано' : 'Потрібен setup');
-    need.appendChild(needText);
-    badges.appendChild(need);
+  // ---- текст ----
+  const info = el('div', 'game-info');
+  info.appendChild(el('h3', 'game-name', game.name));
+
+  const meta = el('p', 'game-meta');
+  meta.appendChild(el('span', 'game-meta-platform', game.platform));
+  meta.appendChild(el('span', 'game-meta-sep', '·'));
+  meta.appendChild(el('span', 'game-meta-kind', t(game.kind || '', game.format)));
+  // Технічні деталі (.ctd / .ard / UTF-16) — другорядні: тільки у підказці.
+  meta.title = game.format;
+  info.appendChild(meta);
+
+  // Прогрес — лише коли справді є що показати.
+  const st = _gameStats[game.id];
+  if (st && st.total) {
+    const pct = Math.round((st.done / st.total) * 100);
+    const wrap = el('div', 'game-progress');
+    const head = el('div', 'game-progress-head');
+    head.appendChild(el('span', 'game-progress-label', t('hubProgress', 'Переклад')));
+    head.appendChild(el('span', 'game-progress-val', pct + '%'));
+    const bar = el('div', 'game-progress-bar');
+    const fill = el('div', 'game-progress-fill');
+    fill.style.width = Math.max(2, pct) + '%';
+    bar.appendChild(fill);
+    wrap.appendChild(head);
+    wrap.appendChild(bar);
+    wrap.title = t('hubProgressTip', '{done} з {total} рядків')
+      .replace('{done}', st.done).replace('{total}', st.total);
+    info.appendChild(wrap);
   }
-  const open = document.createElement('span');
-  open.className = 'game-open';
-  open.innerHTML = CHEVRON_SVG;
-  foot.appendChild(badges);
+
+  const foot = el('div', 'game-info-foot');
+  const left = el('div', 'game-foot-left');
+  if (needsSetup) {
+    const needKey = hasDir ? 'gameNeedsPrepare' : 'gameNeedsSetup';
+    const need = el('span', 'game-status status-setup');
+    need.innerHTML = WARN_SVG;
+    const needText = el('span', null, t(needKey, hasDir ? 'Не розпаковано' : 'Потрібен setup'));
+    needText.setAttribute('data-i18n', needKey);
+    need.appendChild(needText);
+    left.appendChild(need);
+  } else if (st && st.updatedAt) {
+    left.appendChild(el('span', 'game-updated',
+      t('hubUpdated', 'Оновлено {when}').replace('{when}', relTime(st.updatedAt))));
+  }
+  foot.appendChild(left);
+
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.className = 'game-open-btn';
+  const openLabel = el('span', null, t('hubOpen', 'Відкрити'));
+  openLabel.setAttribute('data-i18n', 'hubOpen');
+  open.appendChild(openLabel);
+  const chev = el('span', 'game-open-chev');
+  chev.innerHTML = CHEVRON_SVG;
+  open.appendChild(chev);
+  if (!openable) open.disabled = true;
   foot.appendChild(open);
-  info.appendChild(name);
-  info.appendChild(sub);
+
   info.appendChild(foot);
   card.appendChild(info);
 
-  if (isReady && typeof game.onSelect === 'function') {
-    card.addEventListener('click', () => game.onSelect());
-  } else if (needsSetup) {
-    // Клік по картці без теки — відкрити Setup з цією грою (слухач у setup.js;
-    // подія замість імпорту, бо setup.js сам імпортує home.js).
-    card.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('kh:setup-game', { detail: { gameId: game.id } }));
+  if (!game.enabled) {
+    const ribbon = el('div', 'game-ribbon', t('comingSoon', 'Coming Soon'));
+    ribbon.setAttribute('data-i18n', 'comingSoon');
+    card.appendChild(ribbon);
+  }
+
+  // Клік будь-де по картці = «Відкрити».
+  const activate = () => {
+    if (isReady && typeof game.onSelect === 'function') game.onSelect();
+    else if (needsSetup) document.dispatchEvent(new CustomEvent('kh:setup-game', { detail: { gameId: game.id } }));
+  };
+  if (openable) {
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
     });
   }
   return card;
@@ -424,11 +495,36 @@ export function renderGameCard(game) {
 // ---------------------------------------------------------------------
 let _search = '';
 let _view = 'grid';
+let _filter = 'all';
 
 function matchesSearch(game, q) {
   if (!q) return true;
   const hay = [game.name, game.title, game.platform, game.format, game.id].join(' ').toLowerCase();
   return q.split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+
+function matchesFilter(game) {
+  return _filter === 'all' || _gameStage(game) === _filter;
+}
+
+// Рядок-підсумок під заголовком: скільки проєктів і в якому вони стані.
+export function updateHomeSummary() {
+  const counts = { all: gamesConfig.length, supported: 0, wip: 0, planned: 0 };
+  for (const g of gamesConfig) counts[_gameStage(g)]++;
+  for (const el of document.querySelectorAll('.hub-filter-n')) {
+    const k = el.getAttribute('data-count');
+    if (k in counts) el.textContent = String(counts[k]);
+  }
+  const sum = $('hub-summary');
+  if (sum) {
+    const parts = [
+      t('hubProjectsCount', '{n} проєктів').replace('{n}', counts.all),
+      t('hubSummarySupported', '{n} підтримуються').replace('{n}', counts.supported),
+      t('hubSummaryWip', '{n} у роботі').replace('{n}', counts.wip),
+      t('hubSummaryPlanned', '{n} заплановано').replace('{n}', counts.planned)
+    ];
+    sum.textContent = parts.join(' · ');
+  }
 }
 
 export function applyHomeFilter() {
@@ -437,19 +533,23 @@ export function applyHomeFilter() {
   let visible = 0;
   for (const card of homeGrid.querySelectorAll('.game-card')) {
     const g = gamesConfig.find(x => x.id === card.dataset.gameId);
-    const show = !g || matchesSearch(g, q);
+    const show = !g || (matchesSearch(g, q) && matchesFilter(g));
     card.classList.toggle('hidden', !show);
     if (show) visible++;
   }
   const empty = $('home-empty');
   if (empty) empty.classList.toggle('hidden', visible > 0);
-  const countEl = $('home-count');
-  if (countEl) {
-    const total = gamesConfig.length;
-    countEl.textContent = (q && visible !== total)
-      ? t('hubProjectsFiltered', '{n} з {total} проєктів').replace('{n}', visible).replace('{total}', total)
-      : t('hubProjectsCount', '{n} проєкти').replace('{n}', total);
+  updateHomeSummary();
+}
+
+export function setHomeFilter(filter) {
+  _filter = filter || 'all';
+  for (const btn of document.querySelectorAll('.hub-filter')) {
+    const on = btn.dataset.filter === _filter;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
+  applyHomeFilter();
 }
 
 export function setHomeView(view) {
@@ -474,6 +574,9 @@ function wireToolbar() {
       if (e.key === 'Escape' && input.value) { e.preventDefault(); input.value = ''; _search = ''; applyHomeFilter(); }
     });
   }
+  for (const btn of document.querySelectorAll('.hub-filter')) {
+    btn.addEventListener('click', () => setHomeFilter(btn.dataset.filter));
+  }
   for (const btn of document.querySelectorAll('.hub-view-btn')) {
     btn.addEventListener('click', () => setHomeView(btn.dataset.view));
   }
@@ -486,6 +589,9 @@ function wireToolbar() {
 // Sidebar navigation. Handlers (settings/about/help) живуть у main.js —
 // передаються сюди, щоб не тягнути editor.js/settings-modal.js у home.js.
 // ---------------------------------------------------------------------
+let REPO_URL = 'https://github.com/LittleBitUA';
+const DISCORD_URL = 'https://discord.gg/';
+
 export function initHomeNav(handlers) {
   const h = handlers || {};
   const wire = (id, fn) => { const el = $(id); if (el && typeof fn === 'function') el.addEventListener('click', fn); };
@@ -493,10 +599,15 @@ export function initHomeNav(handlers) {
   wire('hub-nav-settings', h.onSettings);
   wire('hub-nav-about', h.onAbout);
   wire('hub-nav-help', h.onHelp);
-  const ver = $('hub-version');
-  if (ver && window.kh1 && window.kh1.about) {
+  wire('hub-check-updates', h.onCheckUpdates);
+  const open = (url) => { if (window.kh1 && window.kh1.app && window.kh1.app.openExternal) window.kh1.app.openExternal(url); };
+  wire('hub-link-github', () => open(REPO_URL));
+  wire('hub-link-discord', () => open(DISCORD_URL));
+  const vers = ['hub-version', 'hub-version-foot'].map($).filter(Boolean);
+  if (vers.length && window.kh1 && window.kh1.about) {
     window.kh1.about().then((info) => {
-      if (info && info.version) ver.textContent = 'v' + info.version;
+      if (info && info.version) for (const v of vers) v.textContent = 'v' + info.version;
+      if (info && info.repo) REPO_URL = info.repo;
     }).catch(() => {});
   }
 }
@@ -507,6 +618,26 @@ export function renderHome() {
   for (const g of gamesConfig) homeGrid.appendChild(renderGameCard(g));
   wireToolbar();
   applyHomeFilter();
+  markFeatured();
+}
+
+// Найсвіжіше оновлений проєкт отримує трохи помітніше оформлення.
+function markFeatured() {
+  let best = null;
+  for (const [gid, st] of Object.entries(_gameStats)) {
+    if (st && st.updatedAt && (!best || st.updatedAt > best.at)) best = { id: gid, at: st.updatedAt };
+  }
+  for (const card of homeGrid.querySelectorAll('.game-card')) {
+    card.classList.toggle('is-featured', !!best && card.dataset.gameId === best.id);
+  }
+}
+
+// Статистика читається з диска, тому підвантажуємо її після першого малювання
+// і перемальовуємо картки вже з прогресом.
+export async function renderHomeWithStats() {
+  renderHome();
+  await refreshGameStats();
+  renderHome();
 }
 
 export function showHome() {

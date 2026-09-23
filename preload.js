@@ -100,6 +100,7 @@ contextBridge.exposeInMainWorld('kh1', {
   },
   setup: {
     status:  () => ipcRenderer.invoke('setup:status'),
+    gameStats: () => ipcRenderer.invoke('setup:gameStats'),
     run:     (payload) => ipcRenderer.invoke('setup:run', payload),
     detectGames: () => ipcRenderer.invoke('setup:detectGames'),
     checkGameDir: (payload) => ipcRenderer.invoke('setup:checkGameDir', payload),

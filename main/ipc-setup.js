@@ -11,7 +11,7 @@ const win = require('./window');
 const setupTools = require('../tools/lib/setup-tools');
 const {
   GAME_DIR_LAYOUT, ensureLocalizationDirs,
-  writeSettingsRaw, loadSettingsRaw, migrateIfNeeded
+  writeSettingsRaw, loadSettingsRaw, migrateIfNeeded, loadSettings
 } = require('./settings');
 const { dl } = require('./menu');
 const { detectGames, COLLECTIONS } = require('./game-detect');
@@ -279,6 +279,31 @@ ipcMain.handle('setup:detectGames', async () => {
 });
 
 // Повертає поточний стан setup'а: чи завершений + поточні шляхи.
+// Коротка статистика для головного екрана: скільки рядків уже має переклад
+// у кожній грі й коли востаннє змінювався прогрес. Читаємо ЛИШЕ _glossary.json
+// з TSV-теки гри — жодних сканувань ігрових архівів.
+ipcMain.handle('setup:gameStats', async () => {
+  const out = {};
+  for (const gid of Object.keys(GAME_DIR_LAYOUT)) {
+    try {
+      const s = loadSettings(gid);
+      if (!s || !s.tsvDir) continue;
+      const file = path.join(s.tsvDir, '_glossary.json');
+      const st = fsSync.statSync(file);
+      const json = JSON.parse(fsSync.readFileSync(file, 'utf8'));
+      const entries = (json && json.entries) || {};
+      let done = 0;
+      let total = 0;
+      for (const v of Object.values(entries)) {
+        total++;
+        if (v && String(v).trim()) done++;
+      }
+      out[gid] = { total, done, updatedAt: st.mtimeMs };
+    } catch (_) { /* теки ще немає — просто без статистики */ }
+  }
+  return out;
+});
+
 ipcMain.handle('setup:status', async () => {
   const raw = migrateIfNeeded(loadSettingsRaw());
   const defaults = getSetupDefaults();

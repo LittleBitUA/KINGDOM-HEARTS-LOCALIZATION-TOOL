@@ -3185,6 +3185,44 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .settings-modal .setting-row:last-of-type { margin-bottom: 0; }
 .settings-modal .setting-row > label { margin-bottom: 6px; font-size: 13px; color: var(--text-primary); letter-spacing: 0; }
 
+/* Перемикач гри у розділі «Теки локалізації»: у кожної гри свої теки,
+   тому спершу обираєш гру, а вже тоді правиш шляхи. */
+.settings-modal .setting-row-games { margin-bottom: 16px; }
+.settings-games {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 5px;
+  background: rgba(3, 8, 18, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.settings-game {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 11px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit; font-size: 12.5px; font-weight: 500; letter-spacing: 0;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: none; text-shadow: none;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.settings-game:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.04); }
+.settings-game.active {
+  color: var(--text-primary);
+  background: rgba(211, 173, 82, 0.14);
+  border-color: rgba(211, 173, 82, 0.45);
+}
+.settings-game:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.settings-game-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--c-green); opacity: 0.85; flex: 0 0 auto;
+}
+.settings-game.is-soon .settings-game-dot { background: var(--c-gray); }
+.settings-game.is-soon { opacity: 0.75; }
+.settings-game-note {
+  margin: 8px 0 0; font-size: 12px; color: var(--text-dim); letter-spacing: 0;
+}
+
 /* segmented control мови */
 .settings-modal .lang-toggle {
   display: inline-flex; gap: 0; padding: 3px;
@@ -3435,3 +3473,283 @@ code { font-family: "Cascadia Code", "Consolas", monospace; background: rgba(10,
 .tx-actions { gap: 8px; }
 .tx-inspector .bb-sel-info { padding-top: 0; }
 @media (max-width: 1400px) { .tx-body { grid-template-columns: minmax(340px, 50%) minmax(0, 1fr); } }
+
+/* =====================================================================
+   HUB — оновлення оформлення головного екрана (2026-09)
+   Той самий словник кольорів і шрифтів, що вище; тут лише щільніша
+   шапка, панель фільтрів, нові елементи картки й підвал бічної панелі.
+   Блок навмисно в кінці файлу — перекриває попередні правила каскадом.
+   ===================================================================== */
+
+/* ---------- фон: ледь помітний ромбовий візерунок ---------- */
+.hub-main {
+  background:
+    radial-gradient(circle at 50% 0%, #f8f1e2 0%, #eee2c6 44%, #e3d2ad 100%);
+}
+.hub-main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image:
+    linear-gradient(45deg, #6b4c12 25%, transparent 25%, transparent 75%, #6b4c12 75%),
+    linear-gradient(45deg, #6b4c12 25%, transparent 25%, transparent 75%, #6b4c12 75%);
+  background-size: 34px 34px;
+  background-position: 0 0, 17px 17px;
+}
+.hub-content { position: relative; z-index: 1; padding: 16px 40px 28px; }
+
+/* ---------- шапка: нижча на ~28% ---------- */
+.hub-hero { margin-bottom: 14px; padding-top: 0; }
+.hub-hero-emblem { transform: scale(0.62); margin-bottom: -4px; }
+.hub-hero-spark { display: none; }
+.hub-title-main { font-size: clamp(27px, 2.2vw, 35px); letter-spacing: 0.045em; }
+.hub-title-sub { font-size: clamp(11px, 0.8vw, 13px); letter-spacing: 0.17em; }
+.hub-subtitle { margin-top: 6px; font-size: 13.5px; letter-spacing: 0; gap: 12px; }
+.hub-subtitle-rule { width: 56px; }
+.hub-summary {
+  margin: 7px 0 0;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  color: var(--kh-text-muted);
+  opacity: 0.92;
+}
+.hub-hero .home-bg-decor { mask-size: auto 78%; -webkit-mask-size: auto 78%; }
+
+/* ---------- тулбар: вбудований у сторінку, без «коробки» ---------- */
+.hub-toolbar {
+  margin-bottom: 16px;
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(180, 130, 30, 0.28);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.hub-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 10px;
+  background: rgba(255, 253, 246, 0.55);
+  flex-wrap: wrap;
+}
+.hub-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--kh-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 170ms ease, color 170ms ease, border-color 170ms ease;
+}
+.hub-filter:hover { color: var(--kh-text); background: rgba(199, 153, 52, 0.10); }
+.hub-filter.active {
+  color: #2a200c;
+  background: linear-gradient(180deg, #ecd9a6, #dcc07a);
+  border-color: rgba(160, 118, 28, 0.55);
+}
+.hub-filter:focus-visible { outline: 2px solid var(--kh-gold-dark); outline-offset: 1px; }
+.hub-filter-n {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(107, 76, 18, 0.13);
+  color: inherit;
+  opacity: 0.85;
+}
+.hub-filter-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.hub-filter-dot.dot-supported { background: #3f9d63; }
+.hub-filter-dot.dot-wip { background: #c79a31; }
+.hub-filter-dot.dot-planned { background: #7d8898; }
+.hub-search, .hub-view, .hub-view-btn { height: 38px; }
+.hub-view-btn { width: 40px; }
+.hub-search { border-radius: 10px; }
+.hub-search input { font-size: 13.5px; }
+
+/* ---------- сітка: 3 / 2 / 1 колонки ---------- */
+.hub-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 1320px) { .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px)  { .hub-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 2100px) { .hub-content { max-width: 1840px; } }
+
+/* ---------- картка ---------- */
+.hub .game-card {
+  transition:
+    transform 170ms ease,
+    box-shadow 170ms ease,
+    border-color 170ms ease;
+}
+.hub .game-card:hover:not(.disabled),
+.hub .game-card:focus-visible { transform: translateY(-3px); }
+.hub .game-card:focus-visible { outline: 2px solid var(--kh-gold-dark); outline-offset: 2px; }
+.hub .game-cover { height: 168px; }
+
+/* позначка стадії — на обкладинці */
+.hub .game-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(3px);
+  box-shadow: 0 2px 8px rgba(20, 14, 4, 0.28);
+}
+.hub .game-badge.badge-supported { background: rgba(222, 245, 228, 0.94); color: #1c6b3f; border: 1px solid rgba(40, 140, 80, 0.32); }
+.hub .game-badge.badge-wip       { background: rgba(252, 240, 206, 0.95); color: #7c5610; border: 1px solid rgba(180, 132, 28, 0.42); }
+.hub .game-badge.badge-planned   { background: rgba(228, 233, 240, 0.92); color: #4a5666; border: 1px solid rgba(90, 105, 125, 0.30); }
+
+.hub .game-info { gap: 6px; padding: 14px 16px 14px; }
+.hub .game-name { font-size: 16px; line-height: 1.28; }
+.hub .game-meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--kh-text-muted);
+}
+.hub .game-meta-sep { opacity: 0.5; }
+.hub .game-meta-kind { color: #6a5834; }
+
+/* прогрес */
+.hub .game-progress { margin-top: 4px; }
+.hub .game-progress-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 11.5px; color: var(--kh-text-muted); margin-bottom: 4px;
+}
+.hub .game-progress-val { font-weight: 700; color: #6a5834; }
+.hub .game-progress-bar {
+  height: 6px; border-radius: 999px; overflow: hidden;
+  background: rgba(107, 76, 18, 0.14);
+}
+.hub .game-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #d7b65c, #bd8b20);
+}
+
+.hub .game-info-foot { margin-top: 10px; gap: 10px; align-items: center; }
+.hub .game-foot-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hub .game-updated { font-size: 11.5px; color: var(--kh-text-muted); opacity: 0.9; }
+.hub .game-open-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 14px;
+  border: 1px solid var(--kh-card-border);
+  border-radius: 9px;
+  background: var(--kh-chip-bg);
+  color: #5a4718;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: background-color 170ms ease, color 170ms ease, border-color 170ms ease, transform 170ms ease;
+}
+.hub .game-open-chev { display: inline-flex; line-height: 0; }
+.hub .game-card:hover:not(.disabled) .game-open-btn,
+.hub .game-open-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e2c46f, #c79a31);
+  border-color: var(--kh-gold);
+  color: #2a200c;
+}
+.hub .game-open-btn:focus-visible { outline: 2px solid var(--kh-gold-dark); outline-offset: 2px; }
+.hub .game-open-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* найсвіжіший проєкт — трохи помітніший */
+.hub .game-card.is-featured {
+  border-color: rgba(190, 140, 35, 0.7);
+  box-shadow: 0 10px 26px rgba(73, 52, 17, 0.16), 0 0 0 3px rgba(199, 153, 52, 0.14);
+}
+.hub .game-card.is-featured::before { opacity: 1; }
+
+/* список замість сітки */
+.hub.view-list .hub-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.hub.view-list .game-card { flex-direction: row; }
+.hub.view-list .game-cover { width: 260px; height: auto; min-height: 108px; flex: 0 0 auto; border-bottom: 0; border-right: 1px solid rgba(180, 130, 30, 0.35); }
+.hub.view-list .game-info { flex: 1; }
+
+/* ---------- бічна панель ---------- */
+.hub-nav-item { height: 38px; }
+.hub-nav-item.active {
+  position: relative;
+  background: rgba(215, 182, 92, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(215, 182, 92, 0.22);
+}
+.hub-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -12px; top: 7px; bottom: 7px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #e7cd84, #bd8b20);
+  box-shadow: 0 0 10px rgba(215, 182, 92, 0.55);
+}
+.hub-sidebar-actions {
+  margin-top: auto;
+  padding: 12px 0 10px;
+  border-top: 1px solid rgba(215, 182, 92, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hub-side-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 10px;
+  border: 1px solid rgba(215, 182, 92, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--kh-sidebar-text);
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  text-align: left; cursor: pointer;
+  transition: background-color 170ms ease, border-color 170ms ease, color 170ms ease;
+}
+.hub-side-btn:hover { background: rgba(215, 182, 92, 0.14); border-color: rgba(215, 182, 92, 0.45); }
+.hub-side-btn:focus-visible { outline: 2px solid var(--kh-gold-light); outline-offset: 1px; }
+.hub-side-links { display: flex; align-items: center; gap: 6px; }
+.hub-side-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border: 1px solid rgba(215, 182, 92, 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--kh-sidebar-muted);
+  cursor: pointer;
+  transition: color 170ms ease, border-color 170ms ease, background-color 170ms ease;
+}
+.hub-side-icon:hover { color: var(--kh-gold-light); border-color: rgba(215, 182, 92, 0.5); background: rgba(215, 182, 92, 0.10); }
+.hub-side-icon:focus-visible { outline: 2px solid var(--kh-gold-light); outline-offset: 1px; }
+.hub-version-foot {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--kh-sidebar-muted);
+}
+/* цитата — тихіше */
+.hub-sidebar-foot { margin-top: 0; padding-top: 10px; opacity: 0.72; }
+.hub-motto { font-size: 10.5px; }
+.hub-brand-version { display: none; }
+
+.hub-footer { padding-top: 26px; opacity: 0.7; }

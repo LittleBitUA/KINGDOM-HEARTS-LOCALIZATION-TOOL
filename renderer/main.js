@@ -4,7 +4,7 @@ import { _logBadgeUpdate, _logRender, eventLog, toast } from './core/log.js';
 import { state } from './core/state.js';
 import { hideAbout, showAbout } from './about.js';
 import { decodeDds, kApplyKnjLoaded, kRefreshStatus, kRenderGrid, kState } from './kerning/kerning.js';
-import { applyHomeFilter, initHomeNav, renderHome } from './screens/home.js';
+import { applyHomeFilter, initHomeNav, renderHome, renderHomeWithStats } from './screens/home.js';
 import { bootstrapApp } from './screens/setup.js';
 import { hideSettings, openSettings } from './settings-modal.js';
 import { gExportTxtBtn, gImportTxtBtn, saveGlossary } from './translate/glossary.js';
@@ -198,6 +198,18 @@ initHomeNav({
     const p = window.kh1 && window.kh1.app && window.kh1.app.openExternal
       ? window.kh1.app.openExternal(HELP_URL) : Promise.resolve({ ok: false });
     p.then((r) => { if (!r || !r.ok) toast(HELP_URL, 'info', 6000); }).catch(() => toast(HELP_URL, 'info', 6000));
+  },
+  onCheckUpdates: async () => {
+    if (!(window.kh1 && window.kh1.app && window.kh1.app.checkForUpdates)) return;
+    toast(window.i18n.t('hubCheckingUpdates'), 'info');
+    try {
+      const r = await window.kh1.app.checkForUpdates();
+      if (!r || !r.ok) toast(window.i18n.t('hubUpdateFailed'), 'error');
+      else if (r.version && r.version !== r.currentVersion) toast(window.i18n.t('hubUpdateFound', { version: r.version }), 'success', 8000);
+      else toast(window.i18n.t('hubUpToDate'), 'success');
+    } catch (_) {
+      toast(window.i18n.t('hubUpdateFailed'), 'error');
+    }
   }
 });
 
@@ -252,6 +264,7 @@ export async function maybeFirstRunSettings() {
   try { await initLanguage(); } catch (_) {}
   try { renderHome(); } catch (_) {}
   try { await bootstrapApp(); } catch (_) {}
+  try { await renderHomeWithStats(); } catch (_) {}
 })();
 // maybeFirstRunSettings() та kAutoLoadKnjOnBoot() викликаються з enterEditor()
 // при першому вході в редактор (щоб не виконувати KH1-specific логіку, коли

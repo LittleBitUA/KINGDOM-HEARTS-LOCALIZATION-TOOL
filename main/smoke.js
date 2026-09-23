@@ -174,19 +174,34 @@ async function runSmoke(win) {
       const i = document.getElementById('home-search');
       i.value = 'drop'; i.dispatchEvent(new Event('input'));
       const visible = [...document.querySelectorAll('#home-grid .game-card:not(.hidden)')].map(c => c.dataset.gameId);
-      const count = document.getElementById('home-count').textContent;
+      const summary = document.getElementById('hub-summary').textContent;
       i.value = ''; i.dispatchEvent(new Event('input'));
       const restored = document.querySelectorAll('#home-grid .game-card:not(.hidden)').length;
-      return { visible, count, restored, sidebar: !!document.getElementById('hub-nav-settings') };
+      // Фільтр «Заплановані» має лишити самі непідтримувані ігри.
+      document.querySelector('.hub-filter[data-filter="planned"]').click();
+      const planned = [...document.querySelectorAll('#home-grid .game-card:not(.hidden)')];
+      const plannedOk = planned.length > 0 && planned.every(c => c.dataset.stage === 'planned');
+      document.querySelector('.hub-filter[data-filter="all"]').click();
+      const afterFilter = document.querySelectorAll('#home-grid .game-card:not(.hidden)').length;
+      return { visible, summary, restored, plannedOk, afterFilter,
+               sidebar: !!document.getElementById('hub-nav-settings'),
+               openBtn: !!document.querySelector('#home-grid .game-open-btn'),
+               updates: !!document.getElementById('hub-check-updates') };
     })()`);
-    check('renderer: hub search filters cards', search.visible.length === 1 && search.visible[0] === 'kh-ddd' && /1/.test(search.count) && search.restored === cards && search.sidebar, search);
+    check('renderer: hub search + filters work', search.visible.length === 1 && search.visible[0] === 'kh-ddd'
+      && /\d/.test(search.summary) && search.restored === cards && search.plannedOk
+      && search.afterFilter === cards && search.sidebar && search.openBtn && search.updates, search);
     // Картка «Потрібен setup» (без теки гри) відкриває Setup для цієї гри; «Назад» повертає на hub.
     const setupOk = await call(`(async () => {
       const home = document.getElementById('home-screen');
       const setup = document.getElementById('setup-screen');
-      const card = document.querySelector('#home-grid .game-card.needs-setup');
+      // На налаштованій машині картки «потрібен setup» може не бути —
+      // тоді шлемо ту саму подію, яку надсилає сама картка.
+      const card = document.querySelector('#home-grid .game-card.needs-setup')
+        || document.querySelector('#home-grid .game-card[data-game-id]');
       if (!card) return { noCard: true };
-      card.click();
+      if (card.classList.contains('needs-setup')) card.click();
+      else document.dispatchEvent(new CustomEvent('kh:setup-game', { detail: { gameId: card.dataset.gameId } }));
       // автопошук Steam + перевірка тек — асинхронні; чекаємо до 6 с, поки Setup з'явиться
       for (let i = 0; i < 60 && setup.classList.contains('hidden'); i++) await new Promise(r => setTimeout(r, 100));
       await new Promise(r => setTimeout(r, 300));
@@ -206,6 +221,20 @@ async function runSmoke(win) {
     })()`);
     check('renderer: needs-setup card opens Setup for that game and Back returns',
       setupOk.setupShown && setupOk.homeHidden && setupOk.activeGame === setupOk.gameId && setupOk.rows === cards && setupOk.detectBtn && setupOk.backShown && setupOk.homeBack, setupOk);
+    const dirs = await call(`(async () => {
+      document.getElementById('hub-nav-settings').click();
+      await new Promise(r => setTimeout(r, 250));
+      const tabs = [...document.querySelectorAll('#settings-games .settings-game')];
+      const first = document.getElementById('set-eng-dir').value;
+      const other = tabs.find(b => !b.classList.contains('active'));
+      if (other) { other.click(); await new Promise(r => setTimeout(r, 250)); }
+      const second = document.getElementById('set-eng-dir').value;
+      const active = document.querySelector('#settings-games .settings-game.active');
+      document.getElementById('settings-close').click();
+      return { tabs: tabs.length, first, second, active: active && active.dataset.gameId,
+               switched: !!other && first !== second };
+    })()`);
+    check('renderer: settings show per-game folders', dirs && dirs.tabs >= 4 && dirs.switched, dirs);
     const detect = await call('window.kh1.setup.detectGames()');
     check('setup.detectGames returns collections', detect && Array.isArray(detect.collections) && detect.games && typeof detect.games === 'object', detect);
     const chk = await call(`window.kh1.setup.checkGameDir(${J({ gameId: 'kh-ddd', dir: engDir })})`);
