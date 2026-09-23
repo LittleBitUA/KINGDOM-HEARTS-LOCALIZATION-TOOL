@@ -9,8 +9,10 @@ const fs = require('fs');
 const fsP = require('fs/promises');
 const path = require('path');
 const { classifyFile, parseFile } = require('./formats');
-const { legacyCommandKey } = require('../../shared/codec');
+const { legacyCommandKey, encodeDetailed: codecEncodeDetailed } = require('../../shared/codec');
 const { rawTokens } = require('../../shared/kh1-tokens');
+const kh1Limits = require('../../shared/kh1-limits');
+const codecEncode = (text, opts) => codecEncodeDetailed(text, opts).bytes;
 const { preserveStructure, validateTokens, upgradeLegacyUk, lookupEolVariant, kh1OutRel, kh1SplitRel, patchOutRel } = require('../../shared/text-structure');
 
 // Структурний guard (ідея з OpenKh PR #1275 ValidateBody): переклад не має
@@ -21,6 +23,14 @@ const STRUCTURAL_RAW = /^\{0x(05|06|0A|0B)(,|\})/i;
 // Гліфи-токени ({-}, {mX}, {III}, {Potion}…) і кольори/змінні перекладач може
 // прибирати — це не ламає розбір; guard стосується лише сирих `{0x..}`-команд.
 const RAW_TOKEN = /^\{0x/i;
+// Переповнення буфера розкладки (0x1F18): сторінка > 384 гліфів / 32 рядків
+// валить гру без жодної перевірки з її боку. Рахуємо на закодованих байтах.
+function overflowIssue(uk) {
+  try {
+    return kh1Limits.overflowIssue(codecEncode(uk, { lenient: true }));
+  } catch (_) { return null; }
+}
+
 function structuralIssue(en, uk) {
   // Порівнюємо у «сирій» формі: оригінал уже з новими іменами (`{wait 90}`),
   // а старі переклади користувача — ще з `{0x05,0x5A}`. Одна форма для обох.
@@ -139,7 +149,7 @@ async function composeFile(engPath, replacements, outPath, env) {
     let uk = slot ? upgradeUkForSlot(slot, r.ukText) : r.ukText;
     if (slot && h.prepareUk) uk = h.prepareUk(slot, uk);
     if (slot && h.structuralGuard && (!env || env.strictTokens !== false)) {
-      const issue = structuralIssue(slot.english, uk);
+      const issue = structuralIssue(slot.english, uk) || overflowIssue(uk);
       if (issue) { guardErrors.push({ offset: r.offset, message: issue + ' — лишено оригінал' }); continue; }
     }
     ukByOffset.set(r.offset, uk);
@@ -309,7 +319,7 @@ async function composeOneFile(rel, env) {
       if (h.prepareUk) uk = h.prepareUk(s, uk);
       if (h.preserveWhitespace) uk = preserveStructure(s.english, uk);
       if (h.structuralGuard && env.strictTokens !== false) {
-        const issue = structuralIssue(s.english, uk);
+        const issue = structuralIssue(s.english, uk) || overflowIssue(uk);
         if (issue) { guardErrors.push({ offset: s.offset, message: issue + ' — лишено оригінал' }); continue; }
       }
       ukByOffset.set(s.offset, uk);

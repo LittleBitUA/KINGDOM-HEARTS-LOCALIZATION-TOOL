@@ -75,3 +75,17 @@ test('kh1-tokens: рядок лише з команд розкладки — н�
     assert.equal(looksLikeText(text), true, text);
   }
 });
+
+test('kh1-limits: межі буфера розкладки (384 гліфи / 32 рядки / 32 паузи) на сторінку', () => {
+  const lim = require('../shared/kh1-limits');
+  assert.equal(lim.LAYOUT_BUFFER, 0x1F18);
+  assert.equal(lim.overflowIssue(codec.encode('Привіт, Соро!{lf}Як справи?{wait 90}{eol}')), null);
+  // {page} ділить повідомлення на сторінки — кожна рахується окремо
+  const stats = lim.pageStats(codec.encode('abc{page}defg{eol}'));
+  assert.deepEqual(stats.map(p => p.glyphs), [3, 4]);
+  const long = codec.encode('A'.repeat(500) + '{eol}');
+  assert.match(String(lim.overflowIssue(long)), /задовга сторінка: 500 гліфів/);
+  // дві сторінки по 250 — уже в межах
+  assert.equal(lim.overflowIssue(codec.encode('A'.repeat(250) + '{page}' + 'B'.repeat(250) + '{eol}')), null);
+  assert.match(String(lim.overflowIssue(codec.encode('x{lf}'.repeat(40) + '{eol}'))), /забагато рядків/);
+});
