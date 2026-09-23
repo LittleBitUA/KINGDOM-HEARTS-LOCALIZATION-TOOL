@@ -96,6 +96,87 @@ export const gamesConfig = [
     dirs: ['engDir', 'tsvDir', 'outDir'],
     sourceDirKey: 'engDir',
     onSelect: () => enterEditor('kh-bbs-final-mix')
+  }),
+  // --- збірки роликів (Image/Mare.hed) ------------------------------------
+  // Days і Re:coded вийшли на PC лише як відеоверсії сюжету: ігрового процесу
+  // немає, але ВЕСЬ текст — це субтитри, і формат той самий @CTD, що у DDD.
+  game({
+    id: 'kh-days',
+    title: 'KINGDOM HEARTS\n358/2 DAYS',
+    name: 'Kingdom Hearts 358/2 Days (HD cutscenes)',
+    txtFormat: 'mgs', listTitleKey: 'tabFiles',
+    platform: 'PC (KH HD 1.5+2.5)',
+    format: '.ctd (cutscene subtitles + diary)',
+    theme: 're-com',
+    enabled: true,
+    status: 'ready',
+    formats: ['ctd-ddd'],
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir',
+    onSelect: () => enterEditor('kh-days')
+  }),
+  game({
+    id: 'kh-recoded',
+    title: 'KINGDOM HEARTS\nRE:CODED',
+    name: 'Kingdom Hearts Re:coded (HD cutscenes)',
+    txtFormat: 'mgs', listTitleKey: 'tabFiles',
+    platform: 'PC (KH HD 1.5+2.5)',
+    format: '.ctd (cutscene subtitles)',
+    theme: 'ddd',
+    enabled: true,
+    status: 'ready',
+    formats: ['ctd-ddd'],
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir',
+    onSelect: () => enterEditor('kh-recoded')
+  }),
+  // Режим «Театр» KH1 (KINGDOM HEARTS Theater.exe): ті самі репліки, що в
+  // самій грі, тому більшість рядків підставляється з глосарія KH1.
+  game({
+    id: 'kh-theater',
+    title: 'KINGDOM HEARTS\nTHEATER',
+    name: 'Kingdom Hearts Theater (KH1 cutscenes)',
+    txtFormat: 'mgs', listTitleKey: 'tabFiles',
+    platform: 'PC (KH HD 1.5+2.5)',
+    format: '.ctd (subtitles + chapter titles)',
+    theme: 'final-mix',
+    enabled: true,
+    status: 'ready',
+    formats: ['ctd-ddd'],
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir',
+    onSelect: () => enterEditor('kh-theater')
+  }),
+  // --- ще не відкриті ------------------------------------------------------
+  // 0.2 — гра на Unreal Engine 4; текст лежить у Content/Paks/*.pak, і індекс
+  // архіву зашифрований, тож перелічити файли без ключа неможливо.
+  // Back Cover — повнометражний ролик; окремих субтитрів поруч немає, вони
+  // або всередині того самого .pak, або вшиті у відео.
+  game({
+    id: 'kh-02-bbs',
+    title: 'KINGDOM HEARTS 0.2\nBIRTH BY SLEEP',
+    name: 'Kingdom Hearts 0.2 Birth by Sleep',
+    platform: 'PC (KH HD 2.8) · Unreal Engine 4',
+    format: '.pak (encrypted index)',
+    theme: 'bbs',
+    enabled: false,
+    status: 'soon',
+    formats: [],
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir'
+  }),
+  game({
+    id: 'kh-back-cover',
+    title: 'KINGDOM HEARTS χ\nBACK COVER',
+    name: 'Kingdom Hearts χ Back Cover (movie)',
+    platform: 'PC (KH HD 2.8)',
+    format: '.usm (video only, no subtitle files)',
+    theme: 're-com',
+    enabled: false,
+    status: 'soon',
+    formats: [],
+    dirs: ['engDir', 'tsvDir', 'outDir'],
+    sourceDirKey: 'engDir'
   })
 ];
 

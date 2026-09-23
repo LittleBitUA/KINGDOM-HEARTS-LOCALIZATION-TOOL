@@ -163,8 +163,10 @@ async function runSmoke(win) {
     check('shared UMD modules loaded in renderer', khGlobal === true);
 
     // Renderer bootstrap (ESM main.js): home-картки відрендерені, версія у титлбарі.
+    // Кількість карток не фіксуємо числом — ігри додаються; перевіряємо, що
+    // вони відрендерились, а далі звіряємо з цим числом пошук і список Setup.
     const cards = await call('document.querySelectorAll("#home-grid .game-card").length');
-    check('renderer: home cards rendered', cards === 4, cards);
+    check('renderer: home cards rendered', typeof cards === 'number' && cards >= 4, cards);
     const ver = await call('document.getElementById("tb-version").textContent');
     check('renderer: title-bar version filled', /^v\d+\.\d+/.test(ver), ver);
     // Hub toolbar: пошук фільтрує картки, лічильник відображає стан.
@@ -177,7 +179,7 @@ async function runSmoke(win) {
       const restored = document.querySelectorAll('#home-grid .game-card:not(.hidden)').length;
       return { visible, count, restored, sidebar: !!document.getElementById('hub-nav-settings') };
     })()`);
-    check('renderer: hub search filters cards', search.visible.length === 1 && search.visible[0] === 'kh-ddd' && /1/.test(search.count) && search.restored === 4 && search.sidebar, search);
+    check('renderer: hub search filters cards', search.visible.length === 1 && search.visible[0] === 'kh-ddd' && /1/.test(search.count) && search.restored === cards && search.sidebar, search);
     // Картка «Потрібен setup» (без теки гри) відкриває Setup для цієї гри; «Назад» повертає на hub.
     const setupOk = await call(`(async () => {
       const home = document.getElementById('home-screen');
@@ -203,7 +205,7 @@ async function runSmoke(win) {
       return res;
     })()`);
     check('renderer: needs-setup card opens Setup for that game and Back returns',
-      setupOk.setupShown && setupOk.homeHidden && setupOk.activeGame === setupOk.gameId && setupOk.rows === 4 && setupOk.detectBtn && setupOk.backShown && setupOk.homeBack, setupOk);
+      setupOk.setupShown && setupOk.homeHidden && setupOk.activeGame === setupOk.gameId && setupOk.rows === cards && setupOk.detectBtn && setupOk.backShown && setupOk.homeBack, setupOk);
     const detect = await call('window.kh1.setup.detectGames()');
     check('setup.detectGames returns collections', detect && Array.isArray(detect.collections) && detect.games && typeof detect.games === 'object', detect);
     const chk = await call(`window.kh1.setup.checkGameDir(${J({ gameId: 'kh-ddd', dir: engDir })})`);

@@ -48,8 +48,41 @@ const HED_PATHS = {
     copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) || /^original\/arc_en\/[^/]+\/[^/]+\.arc$/i.test(rel) }
   },
   'kh-ddd': {
-    heds: [{ rel: 'Image/dt/kh3d_first.hed', namePattern: /^kh3d_first\.hed$/i }],
+    heds: [
+      { rel: 'Image/dt/kh3d_first.hed', namePattern: /^kh3d_first\.hed$/i },
+      { rel: 'Image/dt/kh3d_fourth.hed', namePattern: /^kh3d_fourth\.hed$/i }
+    ],
     copy: { subdir: 'ENG', withPrefix: true, filter: (rel) => /^original\/message\/en\/.*\.ctd$/i.test(rel) }
+  },
+  // Ролики 358/2 Days і Re:coded лежать в одному архіві Image/Mare.hed —
+  // розділяємо за іменем файла. Текст: message/en/event/hd/bin/cthd*.ctd
+  // (субтитри роликів), message/diary/ctmn2xx|3xx.ctd (щоденник Роксаса),
+  // ctd/ct00100.ctd + ctd/ctmn000.ctd (назви розділів і меню театру).
+  // Формат той самий, що у DDD (@CTD, UTF-16) — окремий парсер не потрібен.
+  'kh-days': {
+    heds: [{ rel: 'Image/Mare.hed', namePattern: /^mare\.hed$/i }],
+    copy: {
+      subdir: 'ENG', withPrefix: true,
+      filter: (rel) => /^original\/uk\/message\/en\/event\/hd\/bin\/cthd(000|050|100|300|800)\.ctd$/i.test(rel)
+        || /^original\/uk\/message\/diary\/ctmn(200|300)\.ctd$/i.test(rel)
+        || /^original\/uk\/ctd\/(ct00100|ctmn000)\.ctd$/i.test(rel)
+    }
+  },
+  'kh-recoded': {
+    heds: [{ rel: 'Image/Mare.hed', namePattern: /^mare\.hed$/i }],
+    copy: {
+      subdir: 'ENG', withPrefix: true,
+      filter: (rel) => /^original\/uk\/message\/en\/event\/hd\/bin\/cthd(500|550|600)\.ctd$/i.test(rel)
+    }
+  },
+  // Режим «Театр» KH1: ті самі репліки, що в самій грі, тож більшу частину
+  // можна підставити з готового глосарія KH1.
+  'kh-theater': {
+    heds: [{ rel: 'Image/dt/Theater.hed', namePattern: /^theater\.hed$/i }],
+    copy: {
+      subdir: 'ENG', withPrefix: true,
+      filter: (rel) => /^original\/uk\/(ctd\/[^/]+\.ctd|message\/en\/event\/hd\/bin\/cthd400\.ctd)$/i.test(rel)
+    }
   },
   // KH1: текст розкиданий по п'яти архівах kh1_first…kh1_fifth (Steam — Image/dt/,
   // старі збірки — Image/en/): kh1_first — Destiny Islands/Traverse Town/Deep Jungle…

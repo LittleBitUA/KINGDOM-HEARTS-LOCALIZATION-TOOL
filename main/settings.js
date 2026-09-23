@@ -42,6 +42,20 @@ const GAME_DIR_LAYOUT = {
     base: 'DDD',
     dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
   },
+  // Ролики 358/2 Days і Re:coded лежать в ОДНОМУ архіві Image/Mare.hed —
+  // розділяємо їх фільтром за іменем файла (див. HED_PATHS в ipc-setup.js).
+  'kh-days': {
+    base: 'Days',
+    dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  },
+  'kh-recoded': {
+    base: 'Recoded',
+    dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  },
+  'kh-theater': {
+    base: 'Theater',
+    dirs: { engDir: 'ENG', tsvDir: 'PROGRESS', outDir: 'DONE' }
+  },
   'kh-re-com': {
     base: 'ReCoM',
     // FILES виконує роль engDir: туди copy-step кладе оригінальні
