@@ -1,0 +1,8 @@
+LIBRARY dinput8
+EXPORTS
+  DirectInput8Create
+  DllCanUnloadNow = kh1_DllCanUnloadNow
+  DllGetClassObject = kh1_DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  GetdfDIJoystick
