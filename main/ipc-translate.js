@@ -123,7 +123,7 @@ ipcMain.handle('translate:saveGlossary', async (_e, payload) => {
 // Щоб вхід був миттєвим, результат кладемо у <userData>/index-cache/<key>.json із
 // сигнатурою списку файлів (rel + size + mtime) — будь-яка зміна ENG перебудовує.
 // INDEX_CACHE_VERSION піднімати, коли змінюються ключі/слоти у format-handler'ах.
-const INDEX_CACHE_VERSION = 3;   // 3: entry.maxBytes (ліміти буферів Re:CoM)
+const INDEX_CACHE_VERSION = 4;   // 3: entry.maxBytes (ліміти буферів Re:CoM); 4: іменовані токени KH1
 function indexCachePaths(engDir, safeMode, filesMeta) {
   const dir = path.join(app.getPath('userData'), 'index-cache');
   const key = crypto.createHash('sha1').update([INDEX_CACHE_VERSION, app.getVersion(), engDir.toLowerCase(), safeMode ? 1 : 0].join('|')).digest('hex');
