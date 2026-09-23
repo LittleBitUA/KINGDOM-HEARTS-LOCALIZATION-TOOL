@@ -269,9 +269,20 @@ ipcMain.handle('setup:status', async () => {
   };
   // prepared[gid] — чи вже розпаковано/скопійовано файли гри у робочу теку.
   const prepared = {};
+  // Тека «валідна», лише якщо в ній справді лежить архів САМЕ цієї гри:
+  // існуюча, але чужа тека (DDD у 1.5+2.5) раніше вважалася нормальною, і
+  // розпакування мовчки не знаходило .hed.
+  const suggested = {};
   for (const [gid, dir] of Object.entries(gameDirectories)) {
-    validity.gameDirectories[gid] = dir ? fsSync.existsSync(dir) : false;
-    if (dir && HED_PATHS[gid]) prepared[gid] = isGamePrepared(gid, textAssetsDir);
+    const cfg = HED_PATHS[gid];
+    validity.gameDirectories[gid] = dir
+      ? (cfg ? !!(fsSync.existsSync(dir) && locateHed(dir, cfg.heds[0], true)) : fsSync.existsSync(dir))
+      : false;
+    if (!validity.gameDirectories[gid] && cfg) {
+      const r = resolveGameRoot(gid, dir);
+      if (r.corrected) suggested[gid] = r.dir;
+    }
+    if (dir && cfg) prepared[gid] = isGamePrepared(gid, textAssetsDir);
   }
   return {
     completed,
@@ -281,6 +292,7 @@ ipcMain.handle('setup:status', async () => {
     textAssetsDir,
     defaults,
     validity,
+    suggested,          // gameId → правильна тека, знайдена автопошуком
     prepared,
     tools: raw.tools || {}
   };
@@ -315,6 +327,37 @@ function locateHed(gameRoot, hed, quiet) {
     return found[0];
   }
   return null;
+}
+
+// Тека збірки для конкретної гри. Якщо у налаштованій теці архіву цієї гри
+// НЕМА (класичний випадок: DDD шукають у теці 1.5+2.5, а він живе у 2.8) —
+// знаходимо правильну автопошуком і мовчки беремо її, замість того щоб
+// питати шлях у користувача.
+// Повертає { dir, corrected, collection }.
+function resolveGameRoot(gameId, configured) {
+  const cfg = HED_PATHS[gameId];
+  const dir = typeof configured === 'string' ? configured.trim() : '';
+  if (!cfg) return { dir, corrected: false };
+  if (dir && fsSync.existsSync(dir) && locateHed(dir, cfg.heds[0], true)) return { dir, corrected: false };
+  let hit = null;
+  try { hit = (detectGames().games || {})[gameId] || null; } catch (_) { hit = null; }
+  if (hit && hit.path && hit.path !== dir && locateHed(hit.path, cfg.heds[0], true)) {
+    return { dir: hit.path, corrected: true, collection: hit.collection || '' };
+  }
+  return { dir, corrected: false };
+}
+
+// Виправити теки всіх ігор за автопошуком (де налаштована тека не містить
+// архіву цієї гри). Повертає новий об'єкт + список виправлень.
+function resolveGameDirectories(gameDirectories) {
+  const out = Object.assign({}, gameDirectories || {});
+  const fixed = [];
+  for (const gid of Object.keys(HED_PATHS)) {
+    if (!(gid in out) && !gameDirectories[gid]) continue;
+    const r = resolveGameRoot(gid, out[gid]);
+    if (r.corrected && r.dir) { out[gid] = r.dir; fixed.push({ gameId: gid, dir: r.dir, collection: r.collection }); }
+  }
+  return { gameDirectories: out, fixed };
 }
 
 // Чи є у вказаній теці архів цієї гри (напр. DDD шукаємо у 2.8, а не в 1.5+2.5).
@@ -404,6 +447,12 @@ async function prepareGame(gameId, gameRoot, textAssetsDir, exePath, opts) {
   opts = opts || {};
   const cfg = HED_PATHS[gameId];
   if (!cfg) return { skipped: true, reason: 'no unpack config for ' + gameId };
+  // Тека вказана не та (у ній нема архіву цієї гри) — беремо знайдену автопошуком.
+  const resolved = resolveGameRoot(gameId, gameRoot);
+  if (resolved.corrected) {
+    sendSetupProgress({ phase: 'unpack-game', key: 'spGameDirAuto', params: { game: gameId, path: resolved.dir, collection: resolved.collection || '' } });
+    gameRoot = resolved.dir;
+  }
   if (!gameRoot || !fsSync.existsSync(gameRoot)) return { skipped: true, reason: 'game dir not found: ' + gameRoot };
   if (!exePath || !fsSync.existsSync(exePath)) {
     sendSetupProgress({ phase: 'unpack-game', key: 'spExeMissing', params: { path: exePath || 'KHPCPatchManager.exe' } });
@@ -465,7 +514,9 @@ async function prepareGame(gameId, gameRoot, textAssetsDir, exePath, opts) {
 ipcMain.handle('setup:run', async (_e, payload) => {
   payload = payload || {};
   const activeGame = String(payload.activeGame || '').trim();
-  const gameDirectories = payload.gameDirectories || {};
+  // Теки, у яких нема архіву своєї гри, підміняємо знайденими автопошуком —
+  // щоб не питати шлях там, де його видно й так.
+  const gameDirectories = resolveGameDirectories(payload.gameDirectories || {}).gameDirectories;
   const toolsDir = String(payload.toolsDir || '').trim();
   const textAssetsDir = String(payload.textAssetsDir || '').trim();
   const skipDownload = !!payload.skipDownload;
