@@ -10,6 +10,7 @@ const fsP = require('fs/promises');
 const path = require('path');
 const { classifyFile, parseFile } = require('./formats');
 const { legacyCommandKey } = require('../../shared/codec');
+const { rawTokens } = require('../../shared/kh1-tokens');
 const { preserveStructure, validateTokens, upgradeLegacyUk, lookupEolVariant, kh1OutRel, kh1SplitRel, patchOutRel } = require('../../shared/text-structure');
 
 // Структурний guard (ідея з OpenKh PR #1275 ValidateBody): переклад не має
@@ -21,7 +22,9 @@ const STRUCTURAL_RAW = /^\{0x(05|06|0A|0B)(,|\})/i;
 // прибирати — це не ламає розбір; guard стосується лише сирих `{0x..}`-команд.
 const RAW_TOKEN = /^\{0x/i;
 function structuralIssue(en, uk) {
-  const v = validateTokens(en, uk);
+  // Порівнюємо у «сирій» формі: оригінал уже з новими іменами (`{wait 90}`),
+  // а старі переклади користувача — ще з `{0x05,0x5A}`. Одна форма для обох.
+  const v = validateTokens(rawTokens(en), rawTokens(uk));
   const missing = v.missing.filter(x => RAW_TOKEN.test(x.token));
   if (missing.length) {
     return 'втрачено токени: ' + missing.map(x => x.expected - x.got > 1 ? x.token + '×' + (x.expected - x.got) : x.token).join(', ');
@@ -43,6 +46,12 @@ function glossaryLookup(glossary, key) {
   if (hasOwn(glossary, key)) return glossary[key] || '';
   const viaEol = lookupEolVariant(glossary, key);
   if (viaEol) return viaEol;
+  // Ключі, збережені до іменування токенів (`{0x05,0x5A}` замість `{wait 90}`).
+  const raw = rawTokens(key);
+  if (raw !== key) {
+    const v = glossaryLookup(glossary, raw);
+    if (v) return v;
+  }
   // Старі ключі з 2-байтовими 05/06/07-токенами (до u16-параметрів): значення
   // теж у старій формі — переписуємо токени, інакше structural guard відкине.
   const legacy = legacyCommandKey(key);
@@ -69,7 +78,10 @@ function toUiSlot(s) {
   // Не віддаємо _fullText/key у renderer — UI працює з english/offset.
   // legacyKey — стара форма (2-байтові 05/06/07-токени), щоб UI переписав
   // значення зі старих TSV у нову форму.
-  const legacy = legacyCommandKey(s.english);
+  // Стара форма ключа: спершу «сирі» токени (до іменування), потім —
+  // 2-байтові 05/06/07 (до u16-параметрів).
+  const raw = rawTokens(s.english);
+  const legacy = legacyCommandKey(raw) || (raw !== s.english ? raw : null);
   return {
     index: s.index,
     offset: s.offset,
@@ -243,7 +255,8 @@ async function buildGlossaryIndex(files, env) {
   for (const [english, info] of map) {
     // file/index — перше входження (для колонки «Файл» та inspector'а; occurrences повністю — лише за запитом)
     const e = { english, count: info.count, fileCount: info.files.size, file: info.first.rel, index: info.first.index, offset: info.first.offset };
-    const legacy = legacyCommandKey(english);
+    const raw = rawTokens(english);
+    const legacy = legacyCommandKey(raw) || (raw !== english ? raw : null);
     if (legacy) e.legacyKey = legacy;   // renderer переносить переклад зі старого ключа
     if (info.maxBytes != null) e.maxBytes = info.maxBytes;
     if (withOcc) e.occurrences = info.occurrences;

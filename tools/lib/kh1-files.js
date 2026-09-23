@@ -15,6 +15,8 @@ function isKh1TextFile(rel) {
   if (/^remastered\/menu\/uk\/sysmsg\.bin\/UK_sysmsg\.binl$/i.test(rel)) return true;
   // kh1_third: original/exchange/UK_*.bin|BIN (магазини, кубки, SAW*MSG + таблиці зсувів)
   if (/^original\/exchange\/UK_[^/]+\.bin$/i.test(rel)) return !KH1_UI_LAYOUT.test(base);
+  // kh1_first: original/exchange/UK_treasure.ev — скрині/далматинці/«Отримано …»
+  if (/^original\/exchange\/UK_[^/]+\.ev$/i.test(rel)) return true;
   // НЕ текст: exchange/UK/psel.bin (графіка), *_allarea.nam — назви кімнат у
   // fullwidth Shift-JIS для шрифту меню (окрема задача разом із sysmsg).
   // kh1_third: gummi-повідомлення, словник/гімн/Jiminy/синопсис (md_*.kmb), memo sysmsg

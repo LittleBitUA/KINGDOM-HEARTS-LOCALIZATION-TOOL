@@ -2,7 +2,14 @@
 export const ts = window.KH.textStructure;
 export const preserveStructure = ts.preserveStructure;
 export const tokensOf = ts.tokensOf;
-export const validateTokens = ts.validateTokens;
+// KH1: оригінал уже з іменованими токенами (`{wait 90}`), а переклади,
+// зроблені раніше, ще з `{0x05,0x5A}` — порівнюємо обидві сторони у сирій формі,
+// інакше кожен старий рядок виглядав би як «зламані токени».
+const kh1 = (window.KH && window.KH.kh1Tokens) || null;
+export const kh1RawTokens = kh1 ? kh1.rawTokens : ((s) => s);
+export const validateTokens = kh1
+  ? ((en, uk) => ts.validateTokens(kh1.rawTokens(en), kh1.rawTokens(uk)))
+  : ts.validateTokens;
 export const bbsNormalizeTags = ts.bbsNormalizeTags;
 export const bbsShapeMatch = ts.bbsShapeMatch;
 export const tokenIssueText = ts.tokenIssueText;

@@ -18,7 +18,7 @@ const PER_ENTRY = 4096;
 // текст для перекладу: є латинська літера, не шаблон-заглушка з одних A/W/x/пробілів
 function translatable(text) {
   const t = text.replace(/\{[^}]*\}/g, '');          // без тегів іконок/кольорів
-  if (/[　-ヿ一-鿿Ѐ-ӿ]/.test(t)) return false;   // японські рядки інших мов (у т. ч. катакана, що декодується як кирилиця)
+  if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Cyrillic}]/u.test(t)) return false;   // японські рядки інших мов (у т. ч. катакана, що декодується як кирилиця)
   return /[A-Za-z]/.test(t) && !/^[AaWwXx .:]+$/.test(t);
 }
 

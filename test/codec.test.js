@@ -43,11 +43,11 @@ test('decode appends newline after {eol} and encode strips it (idempotent)', () 
   assert.deepEqual([...codec.encode(text)], [...bytes]);
 });
 
-test('unknown 2-byte prefix command is kept as a single {0xAA,0xBB} token', () => {
+test('unknown 2-byte prefix command is kept as a single named token', () => {
   // 0x0C (колір) має 1-байтовий параметр — далі йде текст.
   const bytes = Buffer.from([0x0C, 0x3C, ...codec.encode('R')]);
   const text = codec.decode(bytes);
-  assert.match(text, /^\{0x0C,0x3C\}R$/);
+  assert.match(text, /^\{color 60\}R$/);
   assert.deepEqual([...codec.encode(text)], [...bytes]);
 });
 
@@ -55,14 +55,16 @@ test('05/06/07 carry a u16 parameter: high byte joins the token when non-zero', 
   // 0x012C = 300 — старший байт 0x01 раніше показувався як «пробіл» і губився.
   const bytes = Buffer.from([...codec.encode('Hi'), 0x06, 0x2C, 0x01]);
   const text = codec.decode(bytes);
-  assert.equal(text, 'Hi{0x06,0x2C,0x01}');
+  assert.equal(text, 'Hi{wait2 300}');
   assert.deepEqual([...codec.encode(text)], [...bytes]);
   // Старший байт 0x00 — у 0x00-розбитих слотах він є термінатором, токен лишається 2-байтовим.
   const short = Buffer.from([0x05, 0x6E]);
-  assert.equal(codec.decode(short), '{0x05,0x6E}');
+  assert.equal(codec.decode(short), '{wait 110}');
   // Цілий буфер із 0x00 після параметра: 00 лишається окремим {eol}.
   const whole = Buffer.from([0x05, 0x6E, 0x00]);
-  assert.equal(codec.decode(whole), '{0x05,0x6E}{eol}\n');
+  assert.equal(codec.decode(whole), '{wait 110}{eol}\n');
+  assert.deepEqual([...codec.encode('{wait 110}{eol}\n')], [...whole]);
+  // Сира форма з попередніх перекладів теж приймається кодувальником.
   assert.deepEqual([...codec.encode('{0x05,0x6E}{eol}\n')], [...whole]);
   // Сирі hex-токени довільної довжини.
   assert.deepEqual([...codec.encode('{0x0A,0x00,0x00,0x01}')], [0x0A, 0x00, 0x00, 0x01]);
@@ -72,8 +74,10 @@ test('known 2-byte token from kh1sys_multi round-trips', () => {
   const { multiMap } = codec.load();
   const [combo, token] = multiMap.entries().next().value;
   const bytes = Buffer.from([combo >> 8, combo & 0xFF]);
-  assert.equal(codec.decode(bytes), token);
+  const { nameTokens } = require('../shared/kh1-tokens');
+  assert.equal(codec.decode(bytes), nameTokens(token, 'dialog'));
   assert.deepEqual([...codec.encode(token)], [...bytes]);
+  assert.deepEqual([...codec.encode(nameTokens(token, 'dialog'))], [...bytes]);
 });
 
 test('raw {0xNN} escapes encode to the byte and unknown bytes decode to escapes', () => {
@@ -113,9 +117,10 @@ test('token aliases (Pro100luk-style names) encode to the same bytes as canonica
   }
   assert.ok(checked > 0, 'kh1sys_multi.json has encodeAliases');
   // Канонічна назва завжди перемагає при decode.
+  const { nameTokens } = require('../shared/kh1-tokens');
   for (const [token, pair] of Object.entries(multi)) {
     if (!Array.isArray(pair) || pair.length !== 2) continue;
-    assert.equal(codec.decode(Buffer.from(pair)), token);
+    assert.equal(codec.decode(Buffer.from(pair)), nameTokens(token, 'dialog'));
   }
 });
 
@@ -134,10 +139,12 @@ test('native map: Cyrillic ↔ 19 NN glyph codes, Latin stays Latin, unknown 19 
   // мапа детермінована: літера i → індекс 224+i → 19 (i)
   for (let i = 0; i < UA.length; i++) assert.deepEqual(map.map[UA[i]], [0x19, i]);
 
-  const text = 'Привіт, Sora! Ґудзик {ColorRed}A{ColorBase}';
+  const text = 'Привіт, Sora! Ґудзик {color_red}A{color_base}';
   const nat = codec.encode(text);
   assert.deepEqual([...nat.subarray(0, 4)], [0x19, 0x13, 0x19, 0x35]);            // П р
   assert.equal(codec.decode(nat), text);                                           // без втрат
+  // старі імена кольорів із попередніх перекладів дають ті самі байти
+  assert.deepEqual([...codec.encode('Привіт, Sora! Ґудзик {ColorRed}A{ColorBase}')], [...nat]);
   assert.deepEqual([...codec.encode('Ї')], [0x19, 0x0C]);
   // hybrid: А/В/С/Е… — 1 байт латинського гліфа; решта — 19 NN
   const hyb = codec.encode('САД', { hybrid: true });

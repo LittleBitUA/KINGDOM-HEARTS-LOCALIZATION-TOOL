@@ -170,7 +170,7 @@ test('structural guard: KH1 compose keeps EN when a translation drops a command 
     assert.equal(r.errors[0].count, 2);
     const outBuf = fs.readFileSync(path.join(out, 'g.binl')).subarray(11);
     assert.match(codec.decode(outBuf), /Стрибай/);                                   // UA-режим
-    assert.match(codec.decode(outBuf), /Wake up!\{0x06,0x2C,0x01\}/); // EN лишився
+    assert.match(codec.decode(outBuf), /Wake up!\{wait2 300\}/); // EN лишився
     assert.doesNotMatch(codec.decode(outBuf), /Біжи/);
 
     // composeFile (редактор одного файла) — той самий guard, strictTokens:false вимикає.
@@ -195,12 +195,14 @@ test('legacy keys: index exposes legacyKey and lookup bridges old 2-byte 05/06/0
     fs.writeFileSync(path.join(rus, 'l.binl'), synth.buildBinl(['Nope']));
     const idx = await ops.buildGlossaryIndex(['l.binl'], { engDir: eng, rusDir: rus, safeMode: true });
     const wake = idx.entries.find(e => e.english.startsWith('Wake'));
-    assert.equal(wake.english, 'Wake up!{0x06,0x2C,0x01}');
+    assert.equal(wake.english, 'Wake up!{wait2 300}');   // токени з іменами
     assert.equal(wake.legacyKey, 'Wake up!{0x06,0x2C} ');
     assert.equal(idx.entries.find(e => e.english === 'Plain').legacyKey, undefined);
     // Старий глосарій (ключ у 2-байтовій формі) далі знаходиться при compose.
     // значення теж переписується у нову форму токена (інакше guard відкине)
-    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} ': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{0x06,0x2C,0x01}'), 'Прокинься!{0x06,0x2C,0x01}');
+    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} ': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{wait2 300}'), 'Прокинься!{0x06,0x2C,0x01}');
+    // глосарій із сирими токенами (до іменування) теж знаходиться за новим ключем
+    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C,0x01}': 'Прокинься!' }, 'Wake up!{wait2 300}'), 'Прокинься!');
     assert.equal(codec.legacyCommandKey('x{0x07,0x0C,0x02}y'), 'x{0x07,0x0C}{lf}y');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

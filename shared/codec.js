@@ -3,6 +3,8 @@
 const path = require('path');
 const fs = require('fs');
 
+const { nameTokens, rawTokens } = require('./kh1-tokens');
+
 const BASE_PATH = path.join(__dirname, '..', 'data', 'kh1sys_text.json');
 const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
 const NATIVE_PATH = path.join(__dirname, '..', 'data', 'kh1_native.json');
@@ -271,7 +273,10 @@ function decode(bytes, opts) {
     i++;
   }
 
-  return out;
+  // Керівні байти показуємо людськими іменами (`{wait 90}`, `{item_name}`),
+  // щоб параметр не виглядав як літера і не зникав при перекладі. Зворотне
+  // перетворення — rawTokens() на вході encode.
+  return nameTokens(out, sysmsg ? 'menu' : 'dialog');
 }
 
 function isHex(c) {
@@ -314,7 +319,9 @@ function encodeDetailed(text, opts) {
   const { byFirstChar } = load();
   const nat = loadNative();
   const lenient = !!(opts && opts.lenient);
-  let s = text == null ? '' : String(text);
+  // Нові імена токенів → сира форма; старі `{0x..}` і CamelCase-імена з
+  // попередніх перекладів теж приймаються (rawTokens їх не чіпає).
+  let s = rawTokens(text == null ? '' : String(text));
 
   s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   s = s.split('{eol}\n').join('{eol}');

@@ -43,7 +43,7 @@ test('kmb: u32 count + terminated strings; identity is byte-identical, growth ke
   const buf = buildKmb(['What would you like{lf}to read?', menuStr('Rotate with'), 'Bye'], { padTo: 64 });
   const p = menuMsg.parseCounted(buf);
   assert.equal(p.count, 3);
-  assert.equal(codec.decode(p.entries[1].bytes, { cmd: 'sysmsg' }), '{0x0C,0x14}{0x0E,0xFD,0xFF}{0x0D,0x0C,0x00}Rotate with');
+  assert.equal(codec.decode(p.entries[1].bytes, { cmd: 'sysmsg' }), '{scale 20}{dy -3}{dx 12}Rotate with');
   assert.deepEqual([...menuMsg.composeCounted(p, new Map())], [...buf]);
   // коротший переклад → розмір файла той самий; довший → хвіст (нулі) + вирівнювання 16
   const shorter = menuMsg.composeCounted(p, new Map([[2, codec.encode('B')]]));
@@ -61,15 +61,15 @@ test('mes-ofs pairs: menu dialect keeps 0x00 inside commands and round-trips a l
   const { ofs, data } = buildMenuPair([menuStr('End of the World'), menuStr('Monstro'), codec.encode('Atlantica')]);
   const p = mesOfs.parsePair(ofs, data, codec, { cmd: 'sysmsg' });
   assert.equal(p.uniqueStrings, 3);
-  assert.equal(p.slots[0].english, '{0x0C,0x14}{0x0E,0xFD,0xFF}{0x0D,0x0C,0x00}End of the World{eol}');
+  assert.equal(p.slots[0].english, '{scale 20}{dy -3}{dx 12}End of the World{eol}');
   assert.equal(p.slots[2].english, 'Atlantica{eol}');
   // старий (evmsg) сканер обрізав би перший рядок на параметрі 0x00
   const naive = mesOfs.parsePair(ofs, data, codec);
   assert.notEqual(naive.slots[0].english, p.slots[0].english);
-  const c = mesOfs.composePair(p.slots.map(s => Object.assign({}, s, { ukText: s.offset === p.slots[1].offset ? '{0x0C,0x14}{0x0E,0xFD,0xFF}{0x0D,0x0C,0x00}Монстро{eol}' : '' })),
+  const c = mesOfs.composePair(p.slots.map(s => Object.assign({}, s, { ukText: s.offset === p.slots[1].offset ? '{scale 20}{dy -3}{dx 12}Монстро{eol}' : '' })),
     { ofsLength: ofs.length, dataLength: data.length, cellLengthByOffset: p.cellLengthByOffset }, codec);
   const back = mesOfs.parsePair(c.ofsBuf, c.dataBuf, codec, { cmd: 'sysmsg' });
-  assert.equal(back.slots[1].english, '{0x0C,0x14}{0x0E,0xFD,0xFF}{0x0D,0x0C,0x00}Монстро{eol}');
+  assert.equal(back.slots[1].english, '{scale 20}{dy -3}{dx 12}Монстро{eol}');
   assert.equal(back.slots[0].english, p.slots[0].english);
   assert.equal(back.slots[2].english, 'Atlantica{eol}');
 });
