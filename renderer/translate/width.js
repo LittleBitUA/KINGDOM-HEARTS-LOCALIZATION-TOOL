@@ -62,7 +62,16 @@ export function measure(text) {
   return mx;
 }
 
-// Заповнити бейдж ширини у рядку глосарію: «UK / EN» px, клас over — UK ширший.
+// Стеля ширини рядка діалогу. Виміряно по всіх офіційних локалізаціях
+// (UK/US/FR/GR/IT/SP, ~250 тис. рядків кожна): p99.9 ≈ 570–600 одиниць таблиці
+// .knj, вище — лише debug-рядки. У наших px (ширина × 2) це ≈ 1200.
+// Хмаринку гра підганяє під виміряний текст сама (docs/formats/kh1-exe-map.md),
+// тож «ширше за оригінал» — ще не проблема; проблема — вище цієї стелі.
+export const SAFE_LINE_PX = 1200;
+
+// Заповнити бейдж ширини у рядку глосарію: «UK / EN» px.
+//   over  — рядок ширший за стелю гри (справжня проблема, червоне);
+//   wider — просто ширший за оригінал (інформативно).
 export function updateWidthBadge(badge, en, uk) {
   if (!badge) return;
   if (!widths) { badge.hidden = true; return; }
@@ -70,6 +79,8 @@ export function updateWidthBadge(badge, en, uk) {
   const ukW = uk ? measure(uk) : null;
   badge.hidden = false;
   badge.textContent = (ukW == null ? '–' : ukW) + '/' + enW;
-  badge.classList.toggle('over', ukW != null && enW > 0 && ukW > enW);
-  badge.title = (window.i18n ? window.i18n.t('widthBadgeTitle', { uk: ukW == null ? '—' : ukW, en: enW }) : ukW + ' / ' + enW + ' px') + (source ? '\n' + source : '');
+  const limit = Math.max(SAFE_LINE_PX, enW);
+  badge.classList.toggle('over', ukW != null && ukW > limit);
+  badge.classList.toggle('wider', ukW != null && enW > 0 && ukW > enW && ukW <= limit);
+  badge.title = (window.i18n ? window.i18n.t('widthBadgeTitle', { uk: ukW == null ? '—' : ukW, en: enW, max: limit }) : ukW + ' / ' + enW + ' px') + (source ? '\n' + source : '');
 }
