@@ -1,6 +1,8 @@
 'use strict';
 
 const { decode } = require('../../shared/codec');
+const { splitSlots, walkFits } = require('../../shared/kh1-message');
+const { splitEdges } = require('../../shared/kh1-tokens');
 const { looksLikeText } = require('./text-quality');
 const tsv = require('../../shared/tsv');
 
@@ -62,12 +64,31 @@ function segmentSet(buf) {
   return set;
 }
 
+// Сегменти файла для розбору. Основний шлях — обхід байткоду (одна сторінка =
+// один слот). Якщо обхід не сходиться (файл лише схожий на діалоговий байткод
+// або зсунутий футер) — падаємо назад на старий поділ по 0x00, щоб не зіпсувати
+// такий файл.
+function pageSegments(eng, header, footer) {
+  const from = header;
+  for (let extra = 0; extra <= footer; extra++) {
+    const to = eng.length - footer + extra;
+    if (to <= from) break;
+    if (!walkFits(eng, from, to)) continue;
+    return splitSlots(eng, from, to).map(s => ({
+      offset: s.start,
+      bytes: eng.subarray(s.start, s.end)
+    }));
+  }
+  return null;
+}
+
 function extract(eng, rus, opts = {}) {
   const HEADER = opts.header != null ? opts.header : 11;
   const FOOTER = opts.footer != null ? opts.footer : 5;
   const MIN_LEN = opts.minLen != null ? opts.minLen : 3;
 
-  const engStrs = splitStrings(eng, HEADER, FOOTER);
+  const paged = opts.pages === false ? null : pageSegments(eng, HEADER, FOOTER);
+  const engStrs = paged || splitStrings(eng, HEADER, FOOTER);
   // Неперекладні сегменти: з reference-файла (якщо є) + вбудований еталон
   // (opts.preservedSegs, data/kh1_oracle.json) — тека RUS більше не потрібна.
   const rusSegs = segmentSet(rus || Buffer.alloc(0));
@@ -95,15 +116,20 @@ function extract(eng, rus, opts = {}) {
 
     // Без оракула сюди потрапляють і байти параметрів команд — відсіюємо те,
     // що не схоже на текст (`{0x19}`, `H`, `Bö ìoèy`).
-    const english = decode(s.bytes, { overlay: false });
-    if (!looksLikeText(english)) { stats.skippedNoText++; continue; }
+    const full = decode(s.bytes, { overlay: false });
+    // Службова обгортка сторінки (інтервал рядків, зсув, тривалість показу) —
+    // не текст: ховаємо її з ключа й повертаємо назад при збірці.
+    const { prefix, body, suffix } = paged ? splitEdges(full) : { prefix: '', body: full, suffix: '' };
+    if (!looksLikeText(body)) { stats.skippedNoText++; continue; }
 
     stats.translatable++;
     slots.push({
       index: i,
       offset: s.offset,
       byteLen: s.bytes.length,
-      english
+      english: body,
+      prefix,
+      suffix
     });
   }
 

@@ -27,8 +27,9 @@ test('extract: strings present verbatim in reference file are preserved, others 
   const eng = buildBinl(['Potion', 'Attack', 'Traverse Town', 'ab']);
   const rus = buildBinl(['Potion', 'XXXX', 'Traverse Town']); // Attack відсутній → translatable
   const r = extract(eng, rus, { header: 11, footer: 5 });
-  assert.equal(r.stats.engStrings, 5); // 4 рядки + порожній хвостовий сегмент
-  assert.equal(r.stats.skippedEmpty, 1);
+  // Обхід байткоду не вигадує порожнього хвостового сегмента після останнього 0x00.
+  assert.equal(r.stats.engStrings, 4);
+  assert.equal(r.stats.skippedEmpty, 0);
   assert.equal(r.stats.preserved, 2);
   assert.equal(r.stats.skippedShort, 1); // 'ab' < minLen 3
   assert.equal(r.slots.length, 1);

@@ -17,7 +17,10 @@ async function parse(engPath, env) {
     absOffset: s.absOffset,
     byteLen: s.byteLen,
     english: s.english,
-    key: s.english
+    key: s.english,
+    // Службова обгортка сторінки — дописується назад при збірці.
+    prefix: s.prefix || '',
+    suffix: s.suffix || ''
   }));
   const cellPreserving = !!(env.opts && env.opts.cellPreserving);
 
@@ -34,10 +37,12 @@ async function parse(engPath, env) {
     engSize: buf.length,
     rusSize: 0,
     async compose(ukByOffset) {
+      // ukText лише там, де переклад справді є: решта слотів копіюється
+      // байт-у-байт з оригіналу (composeEv), без зайвого перекодування.
       const slotsForCompose = parsed.slots.map(s => ({
         offset: s.offset,
         english: s.english,
-        ukText: ukByOffset.has(s.offset) ? ukByOffset.get(s.offset) : s.english
+        ukText: ukByOffset.get(s.offset) || null
       }));
       const c = composeEv(buf, slotsForCompose, codec, { cellPreserving });
       return {
@@ -51,4 +56,4 @@ async function parse(engPath, env) {
   };
 }
 
-module.exports = { kind: 'ev', preserveWhitespace: true, structuralGuard: true, parse };
+module.exports = { kind: 'ev', preserveWhitespace: true, structuralGuard: true, pageLimits: true, parse };

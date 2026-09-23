@@ -77,7 +77,10 @@ test('ev: parse finds text block, footer and translatable slots', () => {
   assert.equal(p.textOffset, textOffset);
   assert.equal(p.footerOffset, footerOffset);
   const tr = p.slots.filter(s => s.translatable);
-  assert.deepEqual(tr.map(s => s.english), ['Hello there{eol}', 'Bye{eol}']);
+  // Слот = сторінка без байта-роздільника, тож {eol} у ключі більше нема
+  // (ключі .ev і .binl тепер однакові й діляться одним записом глосарія).
+  assert.deepEqual(tr.map(s => s.english), ['Hello there', 'Bye']);
+  assert.deepEqual(tr.map(s => s.term), [0x00, 0x00]);
 });
 
 test('ev: identity compose (compact) is byte-identical', () => {
@@ -91,7 +94,7 @@ test('ev: identity compose (compact) is byte-identical', () => {
 test('ev: growing text relocates footer pointers by sizeDiff and keeps footer bytes', () => {
   const { buf, footerOffset } = buildEv(['Hi', 'Bye']);
   const p = ev.parseEv(buf, codec);
-  const slots = p.slots.map(s => ({ offset: s.offset, english: s.english, ukText: s.english === 'Hi{eol}' ? 'Привіт усім{eol}' : '' }));
+  const slots = p.slots.map(s => ({ offset: s.offset, english: s.english, ukText: s.english === 'Hi' ? 'Привіт усім' : '' }));
   const c = ev.composeEv(buf, slots, codec);
   assert.ok(c.sizeDiff > 0);
   assert.equal(c.relocCount, 2);
@@ -104,7 +107,7 @@ test('ev: growing text relocates footer pointers by sizeDiff and keeps footer by
 test('ev: cell-preserving mode never changes size and falls back to EN on overflow', () => {
   const { buf } = buildEv(['Hi', 'Bye']);
   const p = ev.parseEv(buf, codec);
-  const slots = p.slots.map(s => ({ offset: s.offset, english: s.english, ukText: s.english === 'Hi{eol}' ? 'Привіт усім{eol}' : '' }));
+  const slots = p.slots.map(s => ({ offset: s.offset, english: s.english, ukText: s.english === 'Hi' ? 'Привіт усім' : '' }));
   const c = ev.composeEv(buf, slots, codec, { cellPreserving: true });
   assert.equal(c.buf.length, buf.length);
   assert.equal(c.overflowCount, 1);

@@ -69,14 +69,29 @@ const DIALOG = {
   0x07: { name: 'yshift', kind: 'i16' },            // зсув по Y
   0x08: { name: 'style_1', kind: 'none' },          // режим показу (local_198 = 1)
   0x09: { name: 'icon', kind: 'u8' },               // іконка кнопки за номером
-  0x0A: { name: 'text_size', kind: 'none' },        // розмір шрифту / маркер кінця
-  0x0B: { name: 'text_x', kind: 'none' },           // позиція X / маркер кінця
+  0x0A: { name: 'text_size', kind: 'u8?' },         // 0A NN — розмір шрифту
+  0x0B: { name: 'text_x', kind: 'u8?' },            // 0B NN — позиція X (вузька форма)
   0x0C: { name: 'color', kind: 'u8' },              // колір
-  0x0D: { name: 'text_width', kind: 'none' },       // стиснення по ширині
+  0x0D: { name: 'text_width', kind: 'u8?' },        // 0D NN — ширина (вузька форма)
   0x0E: { name: 'var', kind: 'u8' },                // змінна (див. VARS)
   0x10: { name: 'style_5', kind: 'none' },
   0x11: { name: 'style_6', kind: 'none' },
   0x12: { name: 'wait_at', kind: 'u16' }
+};
+// «Широкі» 4-байтові форми 0x0A/0x0B/0x0D: другий байт — підтип, далі i16.
+// Саме вони раніше й ламали розбір: їхній нульовий байт підтипу виглядав як
+// кінець рядка, а параметр — як текст (`{text_x}{eol}`, `{text_size}{eol}{eol}`).
+const DIALOG_WIDE = {
+  0x0A: { 0x00: { name: 'line_spacing', kind: 'pair' } },   // 0A 00 xx yy — інтервал (yy + xx/10)
+  0x0B: {
+    0x00: { name: 'text_dx', kind: 'i16w' },                // 0B 00 lo hi — зсув X
+    0x01: { name: 'text_at', kind: 'i16w' },                // 0B 01 lo hi — абсолютний X
+    0x10: { name: 'text_dx2', kind: 'i16w' }                // 0B 10 lo hi — зсув X (2-й варіант)
+  },
+  0x0D: {
+    0x00: { name: 'text_speed', kind: 'i16w' },             // 0D 00 lo hi — швидкість виводу (0x80/N)
+    0x01: { name: 'text_scale', kind: 'i16w' }              // 0D 01 lo hi — масштаб по ширині
+  }
 };
 // 0x0E NN — змінні; кожна бере назву з окремої таблиці гри
 const VARS = {
@@ -143,11 +158,25 @@ function nameOfRaw(bytes, dialect) {
       if (f.bytes.length === bytes.length && f.bytes.every((x, i) => x === bytes[i])) return '{' + f.name + '}';
     }
     if (b0 === 0x0E && bytes.length === 2 && VARS[bytes[1]]) return '{' + VARS[bytes[1]] + '}';
+    const wide = DIALOG_WIDE[b0];
+    if (wide && bytes.length === 4) {
+      const sub = wide[bytes[1]];
+      if (sub) {
+        if (sub.kind === 'pair') return '{' + sub.name + ' ' + bytes[2] + ',' + bytes[3] + '}';
+        let v = bytes[2] | (bytes[3] << 8);
+        if (v > 0x7FFF) v -= 0x10000;
+        return '{' + sub.name + ' ' + v + '}';
+      }
+    }
   }
   const d = table[b0];
   if (!d) return null;
   const rest = bytes.length - 1;
   if (d.kind === 'none') return rest === 0 ? '{' + d.name + '}' : null;
+  if (d.kind === 'u8?') {
+    if (rest === 0) return '{' + d.name + '}';
+    return rest === 1 ? '{' + d.name + ' ' + bytes[1] + '}' : null;
+  }
   if (d.kind === 'u8') return rest === 1 ? '{' + d.name + ' ' + bytes[1] + '}' : null;
   if (d.kind === 'rgba') return rest === 4 ? '{' + d.name + ' ' + bytes.slice(1).map(hex2).join('') + '}' : null;
   if (d.kind === 'bytes') return rest >= 1 ? '{' + d.name + ' ' + bytes.slice(1).map(hex2).join(',') + '}' : null;
@@ -158,12 +187,12 @@ function nameOfRaw(bytes, dialect) {
     return '{' + d.name + ' ' + v + '}';
   }
   if (d.kind === 'u16' || d.kind === 'i16') {
-    // Декодувальник пакує третій байт у токен, лише коли він ≠ 0, тож
-    // «двобайтова» форма завжди означає 0 < v ≤ 255 — маркер не потрібен.
+    // Гра завжди читає 3 байти (`05 lo hi`), тож канонічна форма — 3-байтова.
+    // Двобайтову приймаємо теж: так виглядали токени у перекладах, зроблених
+    // до того, як розбір навчився рахувати довжини команд.
     if (rest !== 1 && rest !== 2) return null;
     let v = bytes[1] | ((rest === 2 ? bytes[2] : 0) << 8);
     if (d.kind === 'i16' && v > 0x7FFF) v -= 0x10000;
-    if (rest === 1 ? !(v >= 0 && v <= 255) : !(v < 0 || v > 255)) return null;
     return '{' + d.name + ' ' + v + '}';
   }
   return null;
@@ -173,14 +202,28 @@ function nameOfRaw(bytes, dialect) {
 function rawOfName(name, arg) {
   for (const f of DIALOG_FIXED) if (f.name === name) return f.bytes;
   for (const [n, vn] of Object.entries(VARS)) if (vn === name) return [0x0E, Number(n)];
+  for (const [b, subs] of Object.entries(DIALOG_WIDE)) {
+    for (const [sub, d] of Object.entries(subs)) {
+      if (d.name !== name || arg === undefined) continue;
+      if (d.kind === 'pair') {
+        const m = /^(\d+),(\d+)$/.exec(String(arg));
+        return m ? [Number(b), Number(sub), Number(m[1]) & 0xFF, Number(m[2]) & 0xFF] : null;
+      }
+      if (!/^-?\d+$/.test(String(arg))) return null;
+      const v = Number(arg);
+      const u = v < 0 ? v + 0x10000 : v;
+      return [Number(b), Number(sub), u & 0xFF, (u >> 8) & 0xFF];
+    }
+  }
   for (const [dialect, table] of [['dialog', DIALOG], ['menu', MENU]]) {
     void dialect;
     for (const [b, d] of Object.entries(table)) {
       if (d.name !== name) continue;
       const b0 = Number(b);
       if (d.kind === 'none') return arg === undefined ? [b0] : null;
+      if (d.kind === 'u8?' && arg === undefined) return [b0];
       if (arg === undefined) return null;
-      if (d.kind === 'u8') return [b0, Number(arg) & 0xFF];
+      if (d.kind === 'u8' || d.kind === 'u8?') return [b0, Number(arg) & 0xFF];
       if (d.kind === 'rgba') {
         if (!/^[0-9A-Fa-f]{8}$/.test(arg)) return null;
         return [b0, parseInt(arg.slice(0, 2), 16), parseInt(arg.slice(2, 4), 16), parseInt(arg.slice(4, 6), 16), parseInt(arg.slice(6, 8), 16)];
@@ -193,11 +236,11 @@ function rawOfName(name, arg) {
         return [b0, u & 0xFF, (u >> 8) & 0xFF];
       }
       if (d.kind === 'u16' || d.kind === 'i16') {
+        // Завжди 3 байти — саме стільки читає гра (`case 5/6/7/0x12` → +3).
         const v = Number(arg);
         if (!Number.isFinite(v) || !/^-?\d+$/.test(String(arg))) return null;
-        const wide = v < 0 || v > 255;
         const u = v < 0 ? v + 0x10000 : v;
-        return wide ? [b0, u & 0xFF, (u >> 8) & 0xFF] : [b0, u & 0xFF];
+        return [b0, u & 0xFF, (u >> 8) & 0xFF];
       }
     }
   }
@@ -235,9 +278,61 @@ function rawTokens(text) {
 // предметів/магії, числа, гліфи-іконки, кольори). Рядок лише з них — це текст
 // («{color_green}{icon_key}{item_name}{color_base}.»), а рядок лише з команд
 // розкладки («{wait 12}{eol}», «{text_width} {text_size}») — байткод, не текст.
+// ── «обгортка» повідомлення: розкладка й темп, а не зміст ───────────────────
+// Гра тримає на початку кожної сторінки службовий блок (інтервал рядків, зсув
+// по Y, позиція X, стиль) і в кінці — тривалість показу. Перекладачеві це нічого
+// не дає, а в рядку глосарія виглядає як сміття (`{lf}{text_x}`), тому ми ці
+// токени ЗРІЗАЄМО з тексту й повертаємо назад при збірці — байт-у-байт.
+const LAYOUT_NAMES = new Set([
+  'wait', 'wait2', 'wait_at', 'yshift', 'pause', 'page',
+  'style_1', 'style_2', 'style_5', 'style_6',
+  'text_size', 'text_x', 'text_width',
+  'line_spacing', 'text_dx', 'text_at', 'text_dx2', 'text_speed', 'text_scale',
+  'rtl_on', 'rtl_off', 'lf', 'eol'
+]);
+// Ті самі команди у сирій формі (`{0x0B,0x00,0x04,0x00}`) — на випадок, коли
+// байт не має імені.
+const LAYOUT_RAW = new Set([0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0A, 0x0B, 0x0D, 0x10, 0x11, 0x12]);
+const TOKEN_SCAN = /\{[^{}\n]*\}/g;
+
+function isLayoutToken(tok) {
+  const named = /^\{([a-z][a-z0-9_]*)(?: |\})/.exec(tok);
+  if (named) return LAYOUT_NAMES.has(named[1]);
+  const raw = /^\{0x([0-9A-Fa-f]{2})/.exec(tok);
+  if (raw) return LAYOUT_RAW.has(parseInt(raw[1], 16));
+  return false;
+}
+
+// splitEdges(text) → { prefix, body, suffix }
+// body — те, що бачить і редагує перекладач; prefix/suffix повертаються при
+// збірці як є. Якщо тексту нема зовсім, усе лишається у prefix.
+function splitEdges(text) {
+  const s = String(text == null ? '' : text);
+  if (s.indexOf('{') < 0 && s.indexOf('\n') < 0) return { prefix: '', body: s, suffix: '' };
+  const toks = [];
+  let m;
+  TOKEN_SCAN.lastIndex = 0;
+  while ((m = TOKEN_SCAN.exec(s)) !== null) toks.push([m.index, m.index + m[0].length, m[0]]);
+  let i = 0, t = 0;
+  for (;;) {
+    while (i < s.length && s[i] === '\n') i++;
+    if (t < toks.length && toks[t][0] === i && isLayoutToken(toks[t][2])) { i = toks[t][1]; t++; continue; }
+    break;
+  }
+  const head = i;
+  let j = s.length, u = toks.length - 1;
+  for (;;) {
+    while (j > head && s[j - 1] === '\n') j--;
+    if (u >= 0 && toks[u][1] === j && toks[u][0] >= head && isLayoutToken(toks[u][2])) { j = toks[u][0]; u--; continue; }
+    break;
+  }
+  if (j < head) j = head;
+  return { prefix: s.slice(0, head), body: s.slice(head, j), suffix: s.slice(j) };
+}
+
 const CONTENT_NAMES = Object.keys(UNRENAMED).map(n => n.slice(1, -1))
   .concat(Object.values(VARS), ['var']);
 const CONTENT_TOKEN_RE = new RegExp('\\{(' + CONTENT_NAMES.join('|') + ')( [^{}\\n]*)?\\}');
 
-return { nameTokens, rawTokens, RENAMED, DIALOG, MENU, VARS, DIALOG_FIXED, CONTENT_TOKEN_RE };
+return { nameTokens, rawTokens, RENAMED, DIALOG, DIALOG_WIDE, MENU, VARS, DIALOG_FIXED, CONTENT_TOKEN_RE, LAYOUT_NAMES, splitEdges };
 }));

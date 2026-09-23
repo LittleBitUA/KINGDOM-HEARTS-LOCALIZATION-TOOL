@@ -57,15 +57,15 @@ test('05/06/07 carry a u16 parameter: high byte joins the token when non-zero', 
   const text = codec.decode(bytes);
   assert.equal(text, 'Hi{wait2 300}');
   assert.deepEqual([...codec.encode(text)], [...bytes]);
-  // Старший байт 0x00 — у 0x00-розбитих слотах він є термінатором, токен лишається 2-байтовим.
-  const short = Buffer.from([0x05, 0x6E]);
-  assert.equal(codec.decode(short), '{wait 110}');
-  // Цілий буфер із 0x00 після параметра: 00 лишається окремим {eol}.
+  // Гра читає 3 байти завжди (`case 5/6/7` → +3), тож 0x00 — це старший байт
+  // параметра, а не кінець рядка: `05 6E 00` — цілий {wait 110}.
   const whole = Buffer.from([0x05, 0x6E, 0x00]);
-  assert.equal(codec.decode(whole), '{wait 110}{eol}\n');
-  assert.deepEqual([...codec.encode('{wait 110}{eol}\n')], [...whole]);
-  // Сира форма з попередніх перекладів теж приймається кодувальником.
-  assert.deepEqual([...codec.encode('{0x05,0x6E}{eol}\n')], [...whole]);
+  assert.equal(codec.decode(whole), '{wait 110}');
+  assert.deepEqual([...codec.encode('{wait 110}')], [...whole]);
+  // Обрізаний хвіст (команда без третього байта) усе одно читається.
+  assert.equal(codec.decode(Buffer.from([0x05, 0x6E])), '{wait 110}');
+  // Сира форма з попередніх перекладів лишається як є (2 байти + {eol}).
+  assert.deepEqual([...codec.encode('{0x05,0x6E}{eol}')], [0x05, 0x6E, 0x00]);
   // Сирі hex-токени довільної довжини.
   assert.deepEqual([...codec.encode('{0x0A,0x00,0x00,0x01}')], [0x0A, 0x00, 0x00, 0x01]);
 });

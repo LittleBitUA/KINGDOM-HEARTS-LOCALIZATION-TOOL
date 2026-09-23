@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { nameTokens, rawTokens } = require('./kh1-tokens');
+const { cmdLen: dialogCmdLen } = require('./kh1-message');
 
 const BASE_PATH = path.join(__dirname, '..', 'data', 'kh1sys_text.json');
 const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
@@ -240,6 +241,32 @@ function decode(bytes, opts) {
       out += tok + '}';
       i += n;
       continue;
+    }
+
+    // Діалоговий діалект: довжину команди беремо з коду гри (FUN_140171e80),
+    // а не «на око». Інакше байти параметра (`05 54 00`, `0B 00 04 00`)
+    // розпадаються на `{wait 84}{eol}` і `{text_x}{eol}` — саме через це
+    // повідомлення раніше рвалися на шматки.
+    if (!sysmsg) {
+      const n = dialogCmdLen(b, i + 1 < len ? bytes[i + 1] : 0);
+      if (n >= 2 && i + n <= len) {
+        if (n === 2) {
+          const tok = multiMap.get((b << 8) | bytes[i + 1]);
+          if (tok !== undefined) { out += tok; i += 2; continue; }
+        }
+        // `0F` + літера — ідентифікатор кнопки ({button X}); другу половину
+        // лишаємо декодуватись як гліф, щоб токен не змінив вигляд.
+        if (b === 0x0F && bytes[i + 1] !== 0x00 && bytes[i + 1] !== 0x02 && bytes[i + 1] !== 0x03) {
+          out += '{0x0F}';
+          i += 1;
+          continue;
+        }
+        let tok = '{0x' + hex2(b);
+        for (let k = 1; k < n; k++) tok += ',0x' + hex2(bytes[i + k]);
+        out += tok + '}';
+        i += n;
+        continue;
+      }
     }
 
     if (PREFIX_BYTES.has(b) && i + 1 < len) {

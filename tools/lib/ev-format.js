@@ -29,6 +29,21 @@
 
 const TEXT_PAD_BYTE = 0x00;
 const { looksLikeText } = require('./text-quality');
+const { splitSlots, walkFits } = require('../../shared/kh1-message');
+const { splitEdges } = require('../../shared/kh1-tokens');
+
+// Старий поділ по 0x00 — запасний шлях для файлів, де обхід байткоду не сходиться.
+function legacySplit(text) {
+  const out = [];
+  let pos = 0;
+  while (pos < text.length) {
+    let end = pos;
+    while (end < text.length && text[end] !== 0x00) end++;
+    out.push({ start: pos, end, term: end < text.length ? 0x00 : -1 });
+    pos = end + 1;
+  }
+  return out;
+}
 
 function parseEv(buf, codec) {
   if (!buf || buf.length < 16) throw new Error('EV file too short');
@@ -47,31 +62,33 @@ function parseEv(buf, codec) {
   }
 
   const text = buf.subarray(textOffset, footerOffset);
+  // Один слот = одна СТОРІНКА повідомлення: межі беремо обходом байткоду, а не
+  // наївним поділом по 0x00 (той різав команди навпіл — див. shared/kh1-message.js).
+  const paged = walkFits(text, 0, text.length);
+  const pieces = paged ? splitSlots(text, 0, text.length) : legacySplit(text);
   const slots = [];
-  let pos = 0;
   let idx = 0;
-  while (pos < text.length) {
-    let end = pos;
-    while (end < text.length && text[end] !== 0x00) end++;
-    // Включаємо 0x00 у байти слота (якщо він є).
-    const sliceWithEol = text.subarray(pos, Math.min(end + 1, text.length));
+  for (const piece of pieces) {
+    const bytes = text.subarray(piece.start, piece.end);
     let decoded = '';
-    try { decoded = codec.decode(sliceWithEol, { overlay: false }); } catch (_) { decoded = ''; }
-    const stringText = decoded.replace(/\n$/, '');
-    // translatable = схоже на текст (≥2 літери поспіль поза токенами, без
-    // «акцентованого» байткоду) — див. text-quality.js.
-    const translatable = looksLikeText(stringText);
+    try { decoded = codec.decode(bytes, { overlay: false }); } catch (_) { decoded = ''; }
+    const full = decoded.replace(/\n$/, '');
+    // Службова обгортка сторінки (інтервал рядків, зсув, тривалість показу)
+    // відділяється від тексту й повертається при збірці.
+    const cut = paged ? splitEdges(full) : { prefix: '', body: full, suffix: '' };
     slots.push({
       index: idx++,
-      offset: pos,                          // відносно textOffset
-      absOffset: textOffset + pos,
-      byteLen: sliceWithEol.length,
-      english: stringText,
+      offset: piece.start,                  // відносно textOffset
+      absOffset: textOffset + piece.start,
+      byteLen: bytes.length,                // БЕЗ байта-роздільника
+      term: piece.term,                     // 0x00 кінець повідомлення, 0x04 кінець сторінки, -1 нема
+      english: cut.body,
+      prefix: cut.prefix,
+      suffix: cut.suffix,
       ukText: '',
-      translatable
+      // translatable = схоже на текст (≥2 літери поспіль поза токенами) — text-quality.js
+      translatable: looksLikeText(cut.body)
     });
-    pos = end + 1;
-    if (sliceWithEol.length === 0) break;
   }
 
   return {
@@ -84,6 +101,17 @@ function parseEv(buf, codec) {
     pointers,
     textLength: footerOffset - textOffset
   };
+}
+
+// offset → переклад (лише там, де він справді є; null = лишаємо оригінальні байти).
+function ukMap(slots) {
+  const m = new Map();
+  for (const s of slots || []) {
+    if (m.has(s.offset)) continue;
+    const uk = s.ukText;
+    m.set(s.offset, (typeof uk === 'string' && uk.length) ? uk : null);
+  }
+  return m;
 }
 
 function composeEv(origBuf, slots, codec, opts) {
@@ -118,41 +146,28 @@ function composeEv(origBuf, slots, codec, opts) {
 
     // Best-effort: для overflow-слотів fallback на EN (не ростимо cell).
     // Текст НЕ росте → KGR-секції на місці → str[N] індексація валідна.
-    const ukByOffset = new Map();
-    for (const s of slots) {
-      if (!ukByOffset.has(s.offset)) {
-        const text = (s.ukText && s.ukText.length) ? s.ukText : (s.english || '');
-        ukByOffset.set(s.offset, text);
-      }
-    }
+    const ukByOffset = ukMap(slots);
     let overflowCount = 0;
     let fitCount = 0;
     const newText = Buffer.alloc(oldTextLength, TEXT_PAD_BYTE);
     for (const off of sortedOffsets) {
       const slot = slotByOffset.get(off);
       const cellLen = cellLength.get(off);
-      let text = ukByOffset.get(off);
-      if (text === undefined) text = slot.english;
-      let encoded = codec.encode(text);
-      let needLen = encoded.length + (encoded[encoded.length - 1] === 0x00 ? 0 : 1);
-      if (needLen > cellLen) {
-        // Overflow — fallback на EN. Гарантує що text НЕ росте.
+      const orig = origBuf.subarray(textOffset + off, textOffset + off + slot.byteLen);
+      const uk = ukByOffset.get(off);
+      // Роздільник (0x00 кінець повідомлення / 0x04 кінець сторінки) — свій у
+      // кожного слота; раніше завжди дописувався 0x00 і це псувало сторінки.
+      const termLen = slot.term >= 0 ? 1 : 0;
+      let encoded = uk == null ? orig : codec.encode(uk);
+      if (encoded.length + termLen > cellLen) {
         overflowCount++;
-        encoded = codec.encode(slot.english);
-        needLen = encoded.length + (encoded[encoded.length - 1] === 0x00 ? 0 : 1);
-        // Якщо навіть EN не влазить (дивно, але можливо при corrupted даних) —
-        // обрізаємо до cell-1 байтів + 0x00.
-        if (needLen > cellLen) {
-          encoded = encoded.subarray(0, Math.max(0, cellLen - 1));
-        }
+        encoded = orig;
+        if (encoded.length + termLen > cellLen) encoded = encoded.subarray(0, Math.max(0, cellLen - termLen));
       } else {
         fitCount++;
       }
       encoded.copy(newText, off);
-      let writePos = off + encoded.length;
-      if (!encoded.length || encoded[encoded.length - 1] !== 0x00) {
-        if (writePos < off + cellLen) newText[writePos++] = 0x00;
-      }
+      if (termLen) newText[off + encoded.length] = slot.term;
     }
 
     const headerBuf = origBuf.subarray(0, textOffset);
@@ -170,18 +185,16 @@ function composeEv(origBuf, slots, codec, opts) {
   }
 
   // === Compact режим (опціональний, ризикований) ===
-  // 1) Будуємо новий text-блок sequentially.
+  // 1) Будуємо новий text-блок sequentially. Неперекладені слоти копіюємо
+  //    байт-у-байт — так round-trip гарантовано точний, навіть якщо якийсь
+  //    рідкісний байт кодувальник відтворив би інакше.
+  const ukByOffset2 = ukMap(slots);
   const chunks = [];
-  for (const s of slots) {
-    const text = (s.ukText && s.ukText.length) ? s.ukText : (s.english || '');
-    const encoded = codec.encode(text);
-    let chunk;
-    if (encoded.length && encoded[encoded.length - 1] === 0x00) {
-      chunk = encoded;
-    } else {
-      chunk = Buffer.concat([encoded, Buffer.from([0x00])]);
-    }
-    chunks.push(chunk);
+  for (const s of parsed.slots) {
+    const uk = ukByOffset2.get(s.offset);
+    const orig = origBuf.subarray(textOffset + s.offset, textOffset + s.offset + s.byteLen);
+    chunks.push(uk == null ? orig : codec.encode(uk));
+    if (s.term >= 0) chunks.push(Buffer.from([s.term]));
   }
   let newText = Buffer.concat(chunks);
   // 2) Pad до %4.

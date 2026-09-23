@@ -44,7 +44,11 @@ async function parse(engPath, env) {
     offset: s.offset,
     byteLen: s.byteLen,
     english: s.english,
-    key: s.english
+    key: s.english,
+    // Службова обгортка сторінки — не показується перекладачеві, дописується
+    // назад при збірці (див. tools/lib/extract.js).
+    prefix: s.prefix || '',
+    suffix: s.suffix || ''
   }));
 
   return {
@@ -73,4 +77,6 @@ async function parse(engPath, env) {
   };
 }
 
-module.exports = { kind: 'binl', preserveWhitespace: true, structuralGuard: true, parse };
+// pageLimits — межі розкладки діалогів (384 гліфи / 32 рядки на сторінку);
+// у меню-рендерера свої буфери, тому там ця перевірка не діє.
+module.exports = { kind: 'binl', preserveWhitespace: true, structuralGuard: true, pageLimits: true, parse };

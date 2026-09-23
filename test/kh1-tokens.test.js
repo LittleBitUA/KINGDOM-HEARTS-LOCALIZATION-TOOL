@@ -9,8 +9,12 @@ test('kh1-tokens: іменування команд діалогів і меню
   const cases = [
     ['{0x03}', 'dialog', '{pause}'],
     ['{0x04}', 'dialog', '{page}'],
-    ['{0x05,0x5A}', 'dialog', '{wait 90}'],
+    ['{0x05,0x5A,0x00}', 'dialog', '{wait 90}'],
     ['{0x06,0x2C,0x01}', 'dialog', '{wait2 300}'],
+    ['{0x0A,0x00,0x00,0x00}', 'dialog', '{line_spacing 0,0}'],
+    ['{0x0B,0x00,0x04,0x00}', 'dialog', '{text_dx 4}'],
+    ['{0x0B,0x01,0x14,0x00}', 'dialog', '{text_at 20}'],
+    ['{0x0D,0x00,0x14,0x00}', 'dialog', '{text_speed 20}'],
     ['{0x07,0xEE,0xFF}', 'dialog', '{yshift -18}'],
     ['{0x09,0x08}', 'dialog', '{icon 8}'],
     ['{0x0C,0x14}', 'dialog', '{color 20}'],
@@ -28,6 +32,26 @@ test('kh1-tokens: іменування команд діалогів і меню
     assert.equal(nameTokens(raw, dialect), named, raw + ' @' + dialect);
     assert.equal(rawTokens(named), raw, named);
   }
+  // Стисла 2-байтова форма 05/06/07/0x12 лишилась у перекладах, зроблених до
+  // того, як розбір навчився рахувати довжини команд: читаємо її так само,
+  // а назад пишемо канонічні 3 байти (саме стільки читає гра).
+  assert.equal(nameTokens('{0x05,0x5A}', 'dialog'), '{wait 90}');
+  assert.equal(nameTokens('{0x07,0x0C}', 'dialog'), '{yshift 12}');
+  // Голий байт без параметра (так виглядали обрізані команди у старих ключах).
+  assert.equal(nameTokens('{0x0B}', 'dialog'), '{text_x}');
+  assert.equal(rawTokens('{text_x}'), '{0x0B}');
+});
+
+test('kh1-tokens: splitEdges зрізає службову обгортку сторінки', () => {
+  const { splitEdges } = require('../shared/kh1-tokens');
+  const r = splitEdges('{line_spacing 0,0}{yshift 12}{lf}Hey there, Donald.{wait 80}');
+  assert.equal(r.body, 'Hey there, Donald.');
+  assert.equal(r.prefix + r.body + r.suffix, '{line_spacing 0,0}{yshift 12}{lf}Hey there, Donald.{wait 80}');
+  // Підстановки всередині тексту — НЕ обгортка, лишаються у тілі.
+  const r2 = splitEdges('{yshift 12}{color_green}{item_name}{color_base}.{wait2 90}');
+  assert.equal(r2.body, '{color_green}{item_name}{color_base}.');
+  // Рядок без тексту — усе в префіксі, тіло порожнє.
+  assert.equal(splitEdges('{text_size}{page}').body, '');
 });
 
 test('kh1-tokens: старі CamelCase-імена перейменовано, кодувальник розуміє обидві форми', () => {
@@ -53,9 +77,10 @@ test('kh1-tokens: імена в діалектах не перетинаютьс
 
 test('kh1-tokens: decode → encode лишається байт-у-байт на керівних послідовностях', () => {
   const samples = [
-    [0x0C, 0x04, 0x0E, 0x01, 0x0C, 0xFF, 0x2E, 0x06, 0x3C],          // Obtained {item}.{wait2 60}
-    [0x0F, 0x62, 0x20, 0x41, 0x04, 0x0B, 0x00],                       // {button b} A{page}{text_x}
+    [0x0C, 0x04, 0x0E, 0x01, 0x0C, 0xFF, 0x2E, 0x06, 0x3C, 0x00],    // Obtained {item}.{wait2 60}
+    [0x0F, 0x62, 0x20, 0x41, 0x04, 0x0B, 0x00, 0x04, 0x00],           // {button b} A{page}{text_dx 4}
     [0x05, 0x5A, 0x00],
+    [0x0A, 0x00, 0x00, 0x00, 0x07, 0x0C, 0x00, 0x41],
     [0x07, 0xEE, 0xFF, 0x41]
   ];
   for (const s of samples) {

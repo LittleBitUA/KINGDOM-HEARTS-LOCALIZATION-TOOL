@@ -103,6 +103,14 @@ function toUiSlot(s) {
   };
 }
 
+// Повернути службову обгортку сторінки навколо перекладу. Перекладач бачить
+// і редагує лише текст; команди розкладки (`{line_spacing 0,0}{yshift 12}` на
+// початку, `{wait 80}` у кінці) дописуються з оригіналу байт-у-байт.
+function withEdges(slot, uk) {
+  if (!slot) return uk;
+  return (slot.prefix || '') + uk + (slot.suffix || '');
+}
+
 // Значення зі старих per-file TSV мають 2-байтову форму токенів 05/06/07 —
 // переписуємо у нову, інакше structural guard їх відкине.
 function upgradeUkForSlot(slot, uk) {
@@ -149,10 +157,10 @@ async function composeFile(engPath, replacements, outPath, env) {
     let uk = slot ? upgradeUkForSlot(slot, r.ukText) : r.ukText;
     if (slot && h.prepareUk) uk = h.prepareUk(slot, uk);
     if (slot && h.structuralGuard && (!env || env.strictTokens !== false)) {
-      const issue = structuralIssue(slot.english, uk) || overflowIssue(uk);
+      const issue = structuralIssue(slot.english, uk) || (h.pageLimits ? overflowIssue(withEdges(slot, uk)) : null);
       if (issue) { guardErrors.push({ offset: r.offset, message: issue + ' — лишено оригінал' }); continue; }
     }
-    ukByOffset.set(r.offset, uk);
+    ukByOffset.set(r.offset, withEdges(slot, uk));
   }
   const result = await parsed.compose(ukByOffset);
   if (guardErrors.length) result.errors = guardErrors.concat(result.errors || []);
@@ -319,10 +327,10 @@ async function composeOneFile(rel, env) {
       if (h.prepareUk) uk = h.prepareUk(s, uk);
       if (h.preserveWhitespace) uk = preserveStructure(s.english, uk);
       if (h.structuralGuard && env.strictTokens !== false) {
-        const issue = structuralIssue(s.english, uk) || overflowIssue(uk);
+        const issue = structuralIssue(s.english, uk) || (h.pageLimits ? overflowIssue(withEdges(s, uk)) : null);
         if (issue) { guardErrors.push({ offset: s.offset, message: issue + ' — лишено оригінал' }); continue; }
       }
-      ukByOffset.set(s.offset, uk);
+      ukByOffset.set(s.offset, withEdges(s, uk));
     }
     // Хмаринки Re:CoM (PROGRESS/_bubbles.json): макети правляться навіть там,
     // де перекладів нема.

@@ -97,7 +97,7 @@ test('buildGlossaryIndex aggregates keys across formats, safe mode skips unknown
   assert.ok(keys.includes('Attack'));
   assert.ok(keys.includes('Potion{eol}'));
   assert.ok(keys.includes('Press {icon triangle} now'));
-  assert.ok(keys.includes('Hello there{eol}'));
+  assert.ok(keys.includes('Hello there'));   // .ev: слот = сторінка, роздільник не входить у ключ
   const yes = r.entries.find(e => e.english === 'Yes');
   assert.equal(yes.count, 2);          // ctd + ctdl
   assert.equal(yes.fileCount, 2);
@@ -123,7 +123,7 @@ test('composeAll: TSV override (legacy useTsvOverrides) beats glossary; whitespa
     'Traverse Town': ' Місто Траверс',
     'Potion': 'Зілля',               // для mesofs через {eol}-bridge
     'Yes': 'Так',
-    'Hello there{eol}': 'Привіт{eol}',
+    'Hello there': 'Привіт',
     'Press {icon triangle} now': 'Тисни {icon triangle} зараз'
   };
   const progress = [];
@@ -143,7 +143,7 @@ test('composeAll: TSV override (legacy useTsvOverrides) beats glossary; whitespa
 
   // ev
   const ev = parseEv(fs.readFileSync(path.join(outDir, 'e.evdl')), codec);
-  assert.deepEqual([...codec.encode(ev.slots[0].english)], [...codec.encode('Привіт{eol}')]);
+  assert.deepEqual([...codec.encode(ev.slots[0].english)], [...codec.encode('Привіт')]);
   // ctd + ctdl 'Yes'
   assert.equal(parseCtdl(fs.readFileSync(path.join(outDir, 'c.ctdl'))).entries[1].text.length > 0, true);
   const ctd = parseCtd(fs.readFileSync(path.join(outDir, 'b.ctd')));
@@ -156,14 +156,15 @@ test('structural guard: KH1 compose keeps EN when a translation drops a command 
   try {
     const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS'), out = path.join(dir, 'DONE');
     for (const d of [eng, rus, out]) fs.mkdirSync(d);
-    // «Wake up!{0x06,0x2C,0x01}» — команда з u16-параметром 0x012C у кінці рядка.
-    fs.writeFileSync(path.join(eng, 'g.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}', 'Run', 'Jump']));
+    // «Wake up!{0x06,0x2C,0x01}now» — команда з u16-параметром 0x012C УСЕРЕДИНІ
+    // рядка (на краю вона була б службовою обгорткою і до перекладача не дійшла б).
+    fs.writeFileSync(path.join(eng, 'g.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}now', 'Run', 'Jump']));
     fs.writeFileSync(path.join(rus, 'g.binl'), synth.buildBinl(['Nope']));
     assert.equal(ops.structuralIssue('Wake up!{0x06,0x2C,0x01}', 'Прокинься!'), 'втрачено токени: {0x06,0x2C,0x01}');
     assert.equal(ops.structuralIssue('Run', 'Біжи{0x0A,0x00}'), 'додано структурні команди: {0x0A,0x00}');
     assert.equal(ops.structuralIssue('Run{lf}fast', 'Біжи швидко{ColorRed}'), null);   // {lf} вільний, колір — не структурний
 
-    const glossary = { 'Wake up!{0x06,0x2C,0x01}': 'Прокинься!', 'Run': 'Біжи{0x0A,0x00}', 'Jump': 'Стрибай' };
+    const glossary = { 'Wake up!{0x06,0x2C,0x01}now': 'Прокинься!', 'Run': 'Біжи{0x0A,0x00}', 'Jump': 'Стрибай' };
     const r = await ops.composeAll(['g.binl'], { engDir: eng, rusDir: rus, outDir: out, glossary, safeMode: true });
     assert.equal(r.written, 1);
     assert.equal(r.errors.length, 1);
@@ -191,18 +192,18 @@ test('legacy keys: index exposes legacyKey and lookup bridges old 2-byte 05/06/0
   try {
     const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS');
     fs.mkdirSync(eng); fs.mkdirSync(rus);
-    fs.writeFileSync(path.join(eng, 'l.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}', 'Plain']));
+    fs.writeFileSync(path.join(eng, 'l.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}now', 'Plain']));
     fs.writeFileSync(path.join(rus, 'l.binl'), synth.buildBinl(['Nope']));
     const idx = await ops.buildGlossaryIndex(['l.binl'], { engDir: eng, rusDir: rus, safeMode: true });
     const wake = idx.entries.find(e => e.english.startsWith('Wake'));
-    assert.equal(wake.english, 'Wake up!{wait2 300}');   // токени з іменами
-    assert.equal(wake.legacyKey, 'Wake up!{0x06,0x2C} ');
+    assert.equal(wake.english, 'Wake up!{wait2 300}now');   // токени з іменами
+    assert.equal(wake.legacyKey, 'Wake up!{0x06,0x2C} now');
     assert.equal(idx.entries.find(e => e.english === 'Plain').legacyKey, undefined);
     // Старий глосарій (ключ у 2-байтовій формі) далі знаходиться при compose.
     // значення теж переписується у нову форму токена (інакше guard відкине)
-    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} ': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{wait2 300}'), 'Прокинься!{0x06,0x2C,0x01}');
+    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C} now': 'Прокинься!{0x06,0x2C} ' }, 'Wake up!{wait2 300}now'), 'Прокинься!{0x06,0x2C,0x01}');
     // глосарій із сирими токенами (до іменування) теж знаходиться за новим ключем
-    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C,0x01}': 'Прокинься!' }, 'Wake up!{wait2 300}'), 'Прокинься!');
+    assert.equal(ops.glossaryLookup({ 'Wake up!{0x06,0x2C,0x01}now': 'Прокинься!' }, 'Wake up!{wait2 300}now'), 'Прокинься!');
     assert.equal(codec.legacyCommandKey('x{0x07,0x0C,0x02}y'), 'x{0x07,0x0C}{lf}y');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
