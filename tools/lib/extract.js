@@ -74,10 +74,17 @@ function pageSegments(eng, header, footer) {
     const to = eng.length - footer + extra;
     if (to <= from) break;
     if (!walkFits(eng, from, to)) continue;
-    return splitSlots(eng, from, to).map(s => ({
-      offset: s.start,
-      bytes: eng.subarray(s.start, s.end)
-    }));
+    let slots = splitSlots(eng, from, to);
+    // У заголовку EvMsg ("EvMsg" + мова + u32) лежить кількість записів, і вона
+    // збігається саме з кількістю СТОРІНОК (роздільники 0x00 і 0x04) — ще одне
+    // підтвердження, що гра рахує сторінки. Усе після N-го запису — сміття від
+    // попередніх, довших версій файла (у 135 файлах гри там висять хвости
+    // на кшталт «xir.{wait2 45}»); у глосарій його не беремо.
+    if (header === 11 && eng.length >= 11 && eng.subarray(0, 5).toString('latin1') === 'EvMsg') {
+      const count = eng.readUInt32LE(7);
+      if (count > 0 && count < slots.length) slots = slots.slice(0, count);
+    }
+    return slots.map(s => ({ offset: s.start, bytes: eng.subarray(s.start, s.end) }));
   }
   return null;
 }
