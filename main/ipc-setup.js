@@ -279,26 +279,51 @@ ipcMain.handle('setup:detectGames', async () => {
 });
 
 // Повертає поточний стан setup'а: чи завершений + поточні шляхи.
-// Коротка статистика для головного екрана: скільки рядків уже має переклад
-// у кожній грі й коли востаннє змінювався прогрес. Читаємо ЛИШЕ _glossary.json
-// з TSV-теки гри — жодних сканувань ігрових архівів.
+// Статистика для головного екрана — ТОЙ САМИЙ відсоток, що на панелі
+// редактора (renderer/translate/glossary.js, refreshGlossaryProgress):
+//   total = усі унікальні рядки гри, КРІМ тих, у яких поза токенами немає
+//           жодної літери («{color_green}{item_name}.») — там нема чого
+//           перекладати;
+//   done  = з них ті, що мають непорожній переклад у _glossary.json.
+//
+// Знаменник беремо з кешу індексу, який будується при вході в гру
+// (<userData>/index-cache). Без нього відсотка не показуємо взагалі —
+// рахувати з самого глосарія не можна: там лежать ЛИШЕ перекладені рядки,
+// тому виходило б завжди 100%.
+const RE_ANY_LETTER = /[A-Za-zЀ-ӿ]/;
+function isSubstitutionOnly(en) {
+  return !RE_ANY_LETTER.test(String(en || '').replace(/\{[^{}\n]*\}/g, ''));
+}
+
 ipcMain.handle('setup:gameStats', async () => {
+  const { indexCacheFile } = require('./index-cache');
   const out = {};
   for (const gid of Object.keys(GAME_DIR_LAYOUT)) {
     try {
       const s = loadSettings(gid);
       if (!s || !s.tsvDir) continue;
-      const file = path.join(s.tsvDir, '_glossary.json');
-      const st = fsSync.statSync(file);
-      const json = JSON.parse(fsSync.readFileSync(file, 'utf8'));
-      const entries = (json && json.entries) || {};
-      let done = 0;
-      let total = 0;
-      for (const v of Object.values(entries)) {
-        total++;
-        if (v && String(v).trim()) done++;
+      const gfile = path.join(s.tsvDir, '_glossary.json');
+      const gst = fsSync.statSync(gfile);
+      const glossary = (JSON.parse(fsSync.readFileSync(gfile, 'utf8')) || {}).entries || {};
+      const res = { updatedAt: gst.mtimeMs };
+
+      if (s.engDir) {
+        try {
+          const cache = JSON.parse(fsSync.readFileSync(indexCacheFile(s.engDir, true), 'utf8'));
+          if (cache && Array.isArray(cache.entries)) {
+            let total = 0, done = 0;
+            for (const e of cache.entries) {
+              const en = e && e.english;
+              if (!en || isSubstitutionOnly(en)) continue;
+              total++;
+              const uk = glossary[en];
+              if (uk && String(uk).trim()) done++;
+            }
+            if (total) { res.total = total; res.done = done; }
+          }
+        } catch (_) { /* гру ще не відкривали — індексу немає, відсотка не буде */ }
       }
-      out[gid] = { total, done, updatedAt: st.mtimeMs };
+      out[gid] = res;
     } catch (_) { /* теки ще немає — просто без статистики */ }
   }
   return out;

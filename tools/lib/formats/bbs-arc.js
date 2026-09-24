@@ -62,7 +62,30 @@ async function parse(engPath) {
             for (const g of codec.missingGlyphs(raw)) missing.add(g);
           } catch (e2) { errors.push({ offset: off, message: entry.name + ': ' + ((e2 && e2.message) || String(e2)) }); }
         }
-        if (raws.size) replace.set(entry.name, rebuildL2d(entry.data, raws));
+        if (!raws.size) continue;
+        // Розкладку не можна збільшувати (див. tools/lib/bbs-l2d.js): якщо
+        // переклад не влазить у пул, файл лишається англійським — і ми маємо
+        // сказати, ЯКИЙ саме рядок і на скільки завеликий.
+        const report = {};
+        replace.set(entry.name, rebuildL2d(entry.data, raws, report));
+        if (report.fit === 'skipped') {
+          applied -= raws.size;
+          const rows = [];
+          for (const s2 of parsed.entries) {
+            if (!raws.has(s2.index)) continue;
+            const off2 = entry.i * PER_ENTRY + s2.index;
+            rows.push({ en: codec.decode(s2.raw), uk: ukByOffset.get(off2),
+              was: s2.raw.length, now: raws.get(s2.index).length });
+          }
+          rows.sort((a, b) => (b.now - b.was) - (a.now - a.was));
+          const worst = rows.slice(0, 4).map(r =>
+            '«' + r.en + '» → «' + r.uk + '» (' + r.was + '→' + r.now + ' Б)').join('; ');
+          errors.push({ offset: -1, message:
+            entry.name + ': переклад не влазить у розкладку — потрібно ' + report.need +
+            ' Б, а місця ' + report.poolLen + ' Б (бракує ' + (report.need - report.poolLen) +
+            '). Файл лишено англійським, бо збільшувати розкладку не можна: у грі поїдуть текстури. ' +
+            'Найдорожчі рядки: ' + worst });
+        }
       }
       if (missing.size) errors.push({ offset: -1, message: 'У шрифті FontEn.arc немає гліфів: ' + [...missing].slice(0, 12).map(h => '0x' + h).join(' ') + (missing.size > 12 ? ' …' : '') });
       const composed = replace.size ? buildArc(buf, replace) : Buffer.from(buf);

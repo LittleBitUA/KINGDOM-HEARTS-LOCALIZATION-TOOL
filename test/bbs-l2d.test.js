@@ -25,16 +25,37 @@ test('bbs-l2d: parse → рядки і зсуви; rebuild без змін — �
   assert.ok(rebuildL2d(buf, new Map([[1, Buffer.from('Resume')]])).equals(buf));
 });
 
-test('bbs-l2d: змінені рядки дописуються в пул, секції після нього зсуваються, заголовки правляться', () => {
+test('bbs-l2d: переклад лягає у наявний пул, довжина файла НЕ змінюється', () => {
+  // Розкладку не можна збільшувати: у контейнері .arc за нею йдуть текстури,
+  // і будь-який зсув ламає їх у грі. Тому пул перезбирається на місці.
   const buf = makeL2d(['Continue', 'Resume', 'Skip Scene']);
-  const long = Buffer.from('Пропустити сцену, дуже довгий рядок', 'latin1');
-  const out = rebuildL2d(buf, new Map([[2, long], [1, long]]));
+  const uk = Buffer.from('Skip', 'latin1');
+  const out = rebuildL2d(buf, new Map([[2, uk]]));
+  assert.equal(out.length, buf.length);
   const p = parseL2d(out);
   assert.equal(p.entries[0].raw.toString('latin1'), 'Continue');
-  assert.ok(p.entries[2].raw.equals(long)); assert.equal(p.entries[1].poolOffset, p.entries[2].poolOffset);
-  assert.equal(out.readUInt32LE(0x2c), out.length);
+  assert.equal(p.entries[1].raw.toString('latin1'), 'Resume');
+  assert.ok(p.entries[2].raw.equals(uk));
+  // секція імен розкладок лишилася на місці
   assert.equal(out.subarray(p.ly + p.next, p.ly + p.next + 8).toString('latin1'), 'layout_a');
-  assert.ok(out.length > buf.length && (out.length - buf.length) % 16 === 0);
+  assert.equal(out.readUInt32LE(0x2c), buf.readUInt32LE(0x2c));
+});
+
+test('bbs-l2d: однакові переклади зберігаються один раз', () => {
+  const buf = makeL2d(['Continue', 'Resume', 'Skip Scene']);
+  const same = Buffer.from('Далі', 'latin1');
+  const out = rebuildL2d(buf, new Map([[1, same], [2, same]]));
+  const p = parseL2d(out);
+  assert.equal(out.length, buf.length);
+  assert.equal(p.entries[1].poolOffset, p.entries[2].poolOffset);
+  assert.ok(p.entries[1].raw.equals(same));
+});
+
+test('bbs-l2d: якщо переклад не влазить — файл лишається недоторканим', () => {
+  const buf = makeL2d(['Continue', 'Resume', 'Skip Scene']);
+  const huge = Buffer.from('x'.repeat(200), 'latin1');
+  const out = rebuildL2d(buf, new Map([[2, huge]]));
+  assert.ok(out.equals(buf));
 });
 
 test('bbs-arc: buildArc — той самий файл без змін, підміна запису з вирівнюванням 16 і link-записами', () => {

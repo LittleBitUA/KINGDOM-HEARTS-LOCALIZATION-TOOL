@@ -4,7 +4,7 @@
 // глосарій, масові операції. Уся формат-специфіка — у tools/lib/formats
 // і tools/lib/translate-ops; тут лише IPC-обгортки.
 
-const { ipcMain, dialog, app } = require('electron');
+const { ipcMain, dialog } = require('electron');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs/promises');
@@ -123,13 +123,11 @@ ipcMain.handle('translate:saveGlossary', async (_e, payload) => {
 // Щоб вхід був миттєвим, результат кладемо у <userData>/index-cache/<key>.json із
 // сигнатурою списку файлів (rel + size + mtime) — будь-яка зміна ENG перебудовує.
 // INDEX_CACHE_VERSION піднімати, коли змінюються ключі/слоти у format-handler'ах.
-const INDEX_CACHE_VERSION = 6;   // 4: іменовані токени KH1; 5: рядки лише з команд розкладки не текст; 6: слот = сторінка, обгортка поза ключем
+const { indexCacheFile, rememberIndexCache } = require('./index-cache');
 function indexCachePaths(engDir, safeMode, filesMeta) {
-  const dir = path.join(app.getPath('userData'), 'index-cache');
-  const key = crypto.createHash('sha1').update([INDEX_CACHE_VERSION, app.getVersion(), engDir.toLowerCase(), safeMode ? 1 : 0].join('|')).digest('hex');
   const sigSrc = filesMeta.slice().sort((a, b) => a.rel.localeCompare(b.rel)).map(f => f.rel + ':' + f.size + ':' + Math.round(f.mtimeMs || 0)).join('\n');
   const sig = crypto.createHash('sha1').update(sigSrc).digest('hex');
-  return { file: path.join(dir, key + '.json'), sig };
+  return { file: indexCacheFile(engDir, safeMode), sig };
 }
 ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   const engDir = payload && payload.engDir;
@@ -160,6 +158,7 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
       const { entries, ...result } = r;
       fs.mkdir(path.dirname(cache.file), { recursive: true })
         .then(() => writeFileAtomic(cache.file, JSON.stringify({ sig: cache.sig, savedAt: new Date().toISOString(), result, entries }), { encoding: 'utf8' }))
+        .then(() => rememberIndexCache(engDir, safeMode, cache.file))
         .catch(() => {});
     }
     return r;

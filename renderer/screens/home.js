@@ -94,7 +94,10 @@ export const gamesConfig = [
     theme: 'bbs',
     enabled: true,
     status: 'ready',
-    formats: ['ctd'],
+    // `.ctd` — репліки й меню; `bbs-arc` — підписи, зашиті у розкладки .l2d
+    // всередині original/arc_en/*/*.arc (пауза, табір, вибір героя). Без
+    // bbs-arc ці файли не потрапляли у список і тому ніколи не збиралися.
+    formats: ['ctd', 'bbs-arc'],
     // BBS: ENG = і джерело тексту і список файлів; UA = вихід; TSV = прогрес.
     // Без RUS-оракула.
     dirs: ['engDir', 'tsvDir', 'outDir'],

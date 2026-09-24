@@ -30,36 +30,73 @@ function parseL2d(buf) {
   return { ly, n, tab, pool, next, end, entries };
 }
 
-// rebuildL2d(buf, rawByIndex: Map<index, Buffer>) → новий буфер. Незмінені рядки лишаються на
-// своїх зсувах (пул може містити нереференсовані/дублетні байти — не чіпаємо), змінені
-// дописуються в кінець пулу (однакові — один зсув); секції після пулу зсуваються на дельту.
-function rebuildL2d(buf, rawByIndex) {
+// rebuildL2d(buf, rawByIndex: Map<index, Buffer>) → новий буфер ТІЄЇ САМОЇ ДОВЖИНИ.
+function rebuildL2d(buf, rawByIndex, report) {
   const p = parseL2d(buf);
   const changed = p.entries.filter((e) => rawByIndex.has(e.index) && !rawByIndex.get(e.index).equals(e.raw));
   if (!changed.length) return Buffer.from(buf);
+
+  // Розкладку НІКОЛИ не збільшуємо: у контейнері .arc за нею йдуть текстури,
+  // і будь-який зсув ламає їх у грі (титульний екран, смуги підказок).
+  // Спершу пробуємо вкластися у наявний пул, зібравши його наново; якщо не
+  // влазить — звільняємо японські залишки; якщо й тоді ні — лишаємо файл як є,
+  // краще англійський напис, ніж зіпсована графіка.
+  const tight = rebuildPoolInPlace(buf, p, rawByIndex, false);
+  if (tight.out) {
+    if (report) Object.assign(report, { fit: 'in-place', need: tight.need, poolLen: tight.poolLen });
+    return tight.out;
+  }
+  const loose = rebuildPoolInPlace(buf, p, rawByIndex, true);
+  if (loose.out) {
+    if (report) Object.assign(report, { fit: 'reclaimed', need: loose.need, poolLen: loose.poolLen });
+    return loose.out;
+  }
+  if (report) {
+    Object.assign(report, { fit: 'skipped', need: loose.need, poolLen: loose.poolLen, entries: p.entries });
+  }
+  return Buffer.from(buf);
+}
+
+// Рядок «мертвий» для англійської збірки: жодної латинської літери й жодного
+// токена {…} — тобто це японський залишок, який видно лише в JP-версії.
+function isDeadJp(raw) {
+  const s = raw.toString('latin1');
+  if (!raw.length) return false;
+  if (/[A-Za-z]/.test(s)) return false;
+  if (s.includes('{')) return false;
+  return raw.some((b) => b >= 0x80);
+}
+
+// Зібрати пул рядків наново, НЕ змінюючи довжини файла: лише ті рядки, на які
+// посилається таблиця, дублікати — один раз, решта місця — нулі. Повертає новий
+// буфер тієї самої довжини або null, якщо переклад не влазить.
+function rebuildPoolInPlace(buf, p, rawByIndex, dropDead) {
   const ly = p.ly;
-  const oldPool = p.next - p.pool;
-  // хвостові нулі старого пулу — вирівнювання, їх можна перевикористати
-  let used = oldPool; while (used > 0 && buf[ly + p.pool + used - 1] === 0) used--;
-  used = Math.min(oldPool, used + 1);                                   // один NUL після останнього рядка
-  const parts = [buf.subarray(ly + p.pool, ly + p.pool + used)]; let size = used;
-  const offOf = new Map(); const offsets = new Map();
-  for (const e of changed) {
-    const raw = rawByIndex.get(e.index); const key = raw.toString('hex');
-    if (!offOf.has(key)) { offOf.set(key, size); parts.push(raw, Buffer.alloc(1)); size += raw.length + 1; }
+  const poolLen = p.next - p.pool;
+  const parts = [];
+  const offOf = new Map();
+  const offsets = new Map();
+  const EMPTY = Buffer.alloc(0);
+  let size = 0;
+  for (const e of p.entries) {
+    let raw = rawByIndex.has(e.index) ? rawByIndex.get(e.index) : e.raw;
+    // Другий захід: японські залишки (в англійській збірці їх не видно) кладемо
+    // на один спільний порожній рядок — це звільняє місце під переклад.
+    if (dropDead && !rawByIndex.has(e.index) && isDeadJp(e.raw)) raw = EMPTY;
+    const key = raw.toString('hex');
+    if (!offOf.has(key)) {
+      offOf.set(key, size);
+      parts.push(raw, Buffer.alloc(1));
+      size += raw.length + 1;
+    }
     offsets.set(e.index, offOf.get(key));
   }
-  const newPool = Math.max(oldPool, (size + 15) & ~15);
-  const delta = newPool - oldPool;
-  const out = Buffer.alloc(buf.length + delta);
-  buf.copy(out, 0, 0, ly + p.pool);
+  if (size > poolLen) return { need: size, poolLen };   // не влазить — рахуємо скільки бракує
+  const out = Buffer.from(buf);
+  out.fill(0, ly + p.pool, ly + p.next);
   Buffer.concat(parts).copy(out, ly + p.pool);
-  buf.copy(out, ly + p.next + delta, ly + p.next);
   for (const [i, off] of offsets) out.writeUInt32LE(off, ly + p.tab + i * 16);
-  out.writeUInt32LE(p.next + delta, ly + 0x38);
-  out.writeUInt32LE(p.end + delta, ly + 0x3c);
-  out.writeUInt32LE(buf.length + delta, 0x2c);
-  return out;
+  return { out, need: size, poolLen };
 }
 
 module.exports = { parseL2d, rebuildL2d };
