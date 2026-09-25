@@ -337,7 +337,7 @@ ipcMain.handle('setup:status', async () => {
   let completed = raw.setupCompleted === true;
   if (!('setupCompleted' in raw)) {
     const hasLegacy = !!(raw.localizationRoot ||
-      (raw.games && Object.values(raw.games).some(g => g && (g.engDir || g.rusDir || g.outDir || g.tsvDir))));
+      (raw.games && Object.values(raw.games).some(g => g && (g.engDir || g.refDir || g.outDir || g.tsvDir))));
     if (hasLegacy) completed = true;
   }
   // Перевіряємо чи валідні шляхи (були не видалені після setup'а).

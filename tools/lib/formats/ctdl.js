@@ -48,7 +48,7 @@ async function parse(engPath) {
       fileSize: buf.length
     },
     engSize: buf.length,
-    rusSize: 0,
+    refSize: 0,
     // opts.layouts — { [msgId]: {x,y,w,h} } з PROGRESS/_bubbles.json («Хмаринки»):
     // геометрія макетів правиться у копії, текст — як завжди.
     async compose(ukByOffset, opts) {

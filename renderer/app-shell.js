@@ -79,7 +79,7 @@ export function resetTranslateState() {
   // Скидаємо pending autosave-таймери: інакше таймер попередньої гри
   // спрацює вже з новими settings і запише TSV/глосарій не в ту теку.
   cancelAutoSaveTimers();
-  tState.settings = { engDir: '', rusDir: '', outDir: '', tsvDir: '' };
+  tState.settings = { engDir: '', refDir: '', outDir: '', tsvDir: '' };
   tState.files = [];
   // Глосарій — per-game: інакше переклади KH1 ("Yes"/"No"/"Cancel" збігаються)
   // підхопились би в іншій грі.

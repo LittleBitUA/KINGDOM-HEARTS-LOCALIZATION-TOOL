@@ -1,5 +1,5 @@
 import { getCurrentGame, getCurrentGameId } from './app-shell.js';
-import { setEngDir, setOutDir, setRusDir, setTsvDir, settingsClose, settingsOverlay } from './core/dom.js';
+import { setEngDir, setOutDir, setRefDir, setTsvDir, settingsClose, settingsOverlay } from './core/dom.js';
 import { toast } from './core/log.js';
 import { tState } from './core/state.js';
 import { loadFileList } from './translate/files.js';
@@ -8,7 +8,7 @@ import { gamesConfig } from './screens/home.js';
 // =====================================================================
 // Settings modal
 //
-// Теки — НЕ глобальні: кожна гра має власні engDir/rusDir/tsvDir/outDir
+// Теки — НЕ глобальні: кожна гра має власні engDir/refDir/tsvDir/outDir
 // (див. main/settings.js, games[<id>]). Тому в розділі «Теки локалізації»
 // стоїть перемикач ігор: обираєш гру — бачиш і правиш саме її теки,
 // незалежно від того, яку гру відкрито в редакторі.
@@ -93,7 +93,7 @@ export async function selectDirsGame(gameId, opts) {
 
   const s = await settingsFor(dirsGameId);
   setEngDir.value = s.engDir || '';
-  setRusDir.value = s.rusDir || '';
+  setRefDir.value = s.refDir || '';
   setTsvDir.value = s.tsvDir || '';
   setOutDir.value = s.outDir || '';
   applyGameDirsVisibility(game);
@@ -107,10 +107,10 @@ async function settingsFor(gameId) {
   return s;
 }
 
-// Показати лише ті рядки тек, які гра справді використовує (BBS не має RUS).
+// Показати лише ті рядки тек, які гра справді використовує (BBS не має еталона).
 export function applyGameDirsVisibility(gameArg) {
   const game = gameArg || gameById(dirsGameId) || getCurrentGame();
-  const allowed = (game && game.dirs) || ['engDir', 'rusDir', 'tsvDir', 'outDir'];
+  const allowed = (game && game.dirs) || ['engDir', 'refDir', 'tsvDir', 'outDir'];
   document.querySelectorAll('.setting-row[data-dir-key]').forEach(row => {
     const key = row.getAttribute('data-dir-key');
     row.style.display = allowed.includes(key) ? '' : 'none';
@@ -154,7 +154,7 @@ export async function pickAndSetDir(key, inputEl, title) {
   // Перезавантажити список файлів, лише якщо змінився source-dir ВІДКРИТОЇ гри.
   if (gameId === getCurrentGameId()) {
     const game = getCurrentGame();
-    const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
+    const sourceDirKey = (game && game.sourceDirKey) || 'refDir';
     if (key === sourceDirKey) loadFileList();
   }
 }
@@ -163,12 +163,12 @@ settingsOverlay.addEventListener('click', (e) => {
   const pick = e.target.closest && e.target.closest('[data-pick]');
   if (pick) {
     const key = pick.dataset.pick;
-    const inputs = { engDir: setEngDir, rusDir: setRusDir, tsvDir: setTsvDir, outDir: setOutDir };
+    const inputs = { engDir: setEngDir, refDir: setRefDir, tsvDir: setTsvDir, outDir: setOutDir };
     const game = gameById(dirsGameId);
     const suffix = game ? ' — ' + game.name : '';
     const titles = {
       engDir: 'Виберіть теку з оригінальними файлами (ENG)' + suffix,
-      rusDir: 'Виберіть теку з російською локалізацією (RUS)' + suffix,
+      refDir: 'Виберіть теку з референсним перекладом' + suffix,
       tsvDir: 'Виберіть теку для збереження прогресу (TSV)' + suffix,
       outDir: 'Виберіть теку для готових українських файлів (UA)' + suffix
     };

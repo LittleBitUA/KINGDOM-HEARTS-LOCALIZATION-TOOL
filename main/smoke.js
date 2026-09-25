@@ -24,15 +24,15 @@ async function runSmoke(win) {
   }
   const codec = require(path.join(ROOT, 'shared', 'codec'));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-smoke-'));
-  const engDir = path.join(root, 'ENG'), rusDir = path.join(root, 'RUS');
+  const engDir = path.join(root, 'ENG'), refDir = path.join(root, 'MYFILES');
   const outDir = path.join(root, 'DONE'), tsvDir = path.join(root, 'PROGRESS');
-  for (const d of [engDir, rusDir, outDir, tsvDir]) fs.mkdirSync(d, { recursive: true });
+  for (const d of [engDir, refDir, outDir, tsvDir]) fs.mkdirSync(d, { recursive: true });
   fs.writeFileSync(path.join(engDir, 'a.binl'), synth.buildBinl(['Potion', 'Attack']));
-  fs.writeFileSync(path.join(rusDir, 'a.binl'), synth.buildBinl(['Potion']));
+  fs.writeFileSync(path.join(refDir, 'a.binl'), synth.buildBinl(['Potion']));
   fs.writeFileSync(path.join(engDir, 'b.ctd'), synth.buildCtd([{ id: 1, text: 'Yes' }], 1));
-  fs.writeFileSync(path.join(rusDir, 'b.ctd'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(refDir, 'b.ctd'), Buffer.alloc(1));
   fs.writeFileSync(path.join(engDir, 'UK_sysmsg.binl'), synth.buildMsgV361(['Load this game?', 'Form your party.']));
-  fs.writeFileSync(path.join(rusDir, 'UK_sysmsg.binl'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(refDir, 'UK_sysmsg.binl'), Buffer.alloc(1));
 
   const wc = win.webContents;
   const call = (js) => wc.executeJavaScript(js, true);
@@ -51,7 +51,7 @@ async function runSmoke(win) {
     check('listFiles kinds', list.files.map(f => f.kind).sort().join(',') === 'binl,binl-v361,ctd', list.files);
 
     // Message v361 (sysmsg): extract + compose через IPC.
-    const v3 = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'UK_sysmsg.binl'), rusPath: path.join(rusDir, 'UK_sysmsg.binl') })})`);
+    const v3 = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'UK_sysmsg.binl'), refPath: path.join(refDir, 'UK_sysmsg.binl') })})`);
     check('extract v361 slots', v3.slots && v3.slots.length === 2 && v3.slots[0].english === 'Load this game?', v3);
     const v3c = await call(`window.kh1.translate.compose(${J({ engPath: path.join(engDir, 'UK_sysmsg.binl'), outPath: path.join(outDir, 'UK_sysmsg.binl'), replacements: [{ offset: v3.slots[0].offset, ukText: 'Завантажити гру?' }] })})`);
     check('compose v361 applied', v3c.ok === true && v3c.applied === 1, v3c);
@@ -60,10 +60,10 @@ async function runSmoke(win) {
     check('compose v361 bytes', v3out.subarray(0, 12).toString('ascii') === 'Message v361' && codec.decode(v3out.subarray(v3out.readUInt32LE(0x14)), { cmd: 'sysmsg' }).includes('Зaвaнтaжити гpy?'));
 
 
-    const ex = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'a.binl'), rusPath: path.join(rusDir, 'a.binl') })})`);
+    const ex = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'a.binl'), refPath: path.join(refDir, 'a.binl') })})`);
     check('extract binl slots', ex.slots && ex.slots.length === 1 && ex.slots[0].english === 'Attack', ex);
 
-    const ctdEx = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'b.ctd'), rusPath: path.join(rusDir, 'b.ctd') })})`);
+    const ctdEx = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'b.ctd'), refPath: path.join(refDir, 'b.ctd') })})`);
     check('extract ctd slots', ctdEx.slots && ctdEx.slots.length === 1 && ctdEx.stats.ctd === true, ctdEx);
 
     const outPath = path.join(outDir, 'a.binl');
@@ -83,10 +83,10 @@ async function runSmoke(win) {
     const gr = await call(`window.kh1.translate.readGlossary(${J(tsvDir)})`);
     check('readGlossary', gr.ok === true && gr.entries.Attack === 'Атака', gr);
 
-    const bg = await call(`window.kh1.translate.buildGlossary(${J({ engDir, rusDir, files: ['a.binl', 'b.ctd'], safeMode: true })})`);
+    const bg = await call(`window.kh1.translate.buildGlossary(${J({ engDir, refDir, files: ['a.binl', 'b.ctd'], safeMode: true })})`);
     check('buildGlossary', bg.ok === true && bg.entries.some(e => e.english === 'Attack') && bg.entries.some(e => e.english === 'Yes'), bg);
 
-    const ca = await call(`window.kh1.translate.composeAll(${J({ engDir, rusDir, outDir, tsvDir, files: ['a.binl', 'b.ctd'], glossary: { Attack: 'Атака', Yes: 'Так' }, safeMode: true })})`);
+    const ca = await call(`window.kh1.translate.composeAll(${J({ engDir, refDir, outDir, tsvDir, files: ['a.binl', 'b.ctd'], glossary: { Attack: 'Атака', Yes: 'Так' }, safeMode: true })})`);
     check('composeAll written', ca.ok === true && ca.written === 2, ca);
 
     const st = await call('window.kh1.translate.getSettings("kh1-final-mix")');
@@ -105,9 +105,9 @@ async function runSmoke(win) {
     check('setup.status', setup && typeof setup.completed === 'boolean', setup);
 
     // text_all: експорт синтетичних файлів і зворотний імпорт через IPC
-    const ta = await call(`window.kh1.translate.exportTextAll(${J({ engDir, rusDir, files: ['a.binl', 'b.ctd'], glossary: { Yes: 'Так' }, safeMode: true })})`);
+    const ta = await call(`window.kh1.translate.exportTextAll(${J({ engDir, refDir, files: ['a.binl', 'b.ctd'], glossary: { Yes: 'Так' }, safeMode: true })})`);
     check('exportTextAll', ta.ok === true && /### b\.ctd\n#0\nТак\n/.test(ta.content), ta);
-    const ti = await call(`window.kh1.translate.importTextAll(${J({ engDir, rusDir, tsvDir, files: ['a.binl', 'b.ctd'], content: '### b.ctd\n#0\nНі\n', safeMode: true })})`);
+    const ti = await call(`window.kh1.translate.importTextAll(${J({ engDir, refDir, tsvDir, files: ['a.binl', 'b.ctd'], content: '### b.ctd\n#0\nНі\n', safeMode: true })})`);
     check('importTextAll', ti.ok === true && ti.applied === 1 && ti.tsvWritten === 1 && ti.glossary.Yes === 'Ні', ti);
 
     // UA fonts: детекція Python (не вимагаємо наявності) і locate без гри

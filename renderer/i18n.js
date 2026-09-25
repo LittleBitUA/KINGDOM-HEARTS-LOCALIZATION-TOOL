@@ -165,7 +165,7 @@ const DICT = {
 
     // Editor view
     fileNotLoaded: 'Файл не завантажено',
-    brand: 'Створено GuidingHeart · Перенесено на Electron',
+    brand: 'Dmytro Bidlov «Little Bit» Team',
 
     // Translate toolbar
     settings: 'Налаштування',
@@ -441,7 +441,7 @@ const DICT = {
 
     dirsTitle: 'Теки локалізації',
     engDirLabel: 'Тека ENG (оригінал):',
-    rusDirLabel: 'Тека MYFILES (опційно — референсний переклад, напр. RUS):',
+    refDirLabel: 'Тека MYFILES (опційно — референсний переклад):',
     tsvDirLabel: 'Тека TSV (прогрес перекладу):',
     outDirLabel: 'Тека UA (вихідні файли):',
     notSelected: 'не вибрано',
@@ -482,7 +482,7 @@ const DICT = {
     toastExported: 'Експортовано: {file}',
     toastAboutLoadFail: 'Не вдалося завантажити інформацію',
     toastSavedKv: 'Збережено: {key} = {dir}',
-    toastReadRusFail: 'Не вдалося прочитати RUS-теку: {msg}',
+    toastReadRefFail: 'Не вдалося прочитати теку еталона: {msg}',
     toastConfigEng: 'Спершу виберіть ENG-теку в налаштуваннях',
     toastExtractError: 'Помилка extract: {msg}',
     toastConfigTsv: 'Налаштуйте TSV-теку',
@@ -494,10 +494,10 @@ const DICT = {
     toastImportSummary: 'Імпорт: {applied} застосовано',
     toastImportSummaryRest: ', {skipped} пропущено (порожнє/=EN)',
     toastImportSummaryNotFound: ', {n} не знайдено за offset',
-    toastConfigEngRus: 'Спершу налаштуйте ENG та RUS теки',
+    toastConfigEngRef: 'Спершу налаштуйте теки ENG та MYFILES',
     toastEmptyFilesReload: 'Список файлів порожній — натисніть ↻ на вкладці Файли',
     toastGlossarySaved: 'Глосарій збережено · {n} записів',
-    toastConfigEngRusUa: 'Налаштуйте ENG, RUS, UA теки',
+    toastConfigEngRefUa: 'Налаштуйте теки ENG, MYFILES, UA',
     toastEmptyFiles: 'Список файлів порожній',
     toastEmptyGlossary: 'Глосарій порожній — нічого не вставимо',
     toastReplaceCount: 'Замінено в {n} записах глосарія',
@@ -795,7 +795,7 @@ const DICT = {
     bfNoSelection: 'Pick a glyph on the atlas or from the list below',
 
     fileNotLoaded: 'No file loaded',
-    brand: 'Created by GuidingHeart · Ported to Electron',
+    brand: 'Dmytro Bidlov «Little Bit» Team',
 
     settings: 'Settings',
     settingsBtnTitle: 'Configure localization folders',
@@ -1063,7 +1063,7 @@ const DICT = {
 
     dirsTitle: 'Localization folders',
     engDirLabel: 'ENG folder (original):',
-    rusDirLabel: 'MYFILES folder (optional — a reference translation, e.g. RUS):',
+    refDirLabel: 'MYFILES folder (optional — a reference translation):',
     tsvDirLabel: 'TSV folder (translation progress):',
     outDirLabel: 'UA folder (output):',
     notSelected: 'not selected',
@@ -1100,7 +1100,7 @@ const DICT = {
     toastExported: 'Exported: {file}',
     toastAboutLoadFail: 'Failed to load info',
     toastSavedKv: 'Saved: {key} = {dir}',
-    toastReadRusFail: 'Failed to read RUS folder: {msg}',
+    toastReadRefFail: 'Failed to read the reference folder: {msg}',
     toastConfigEng: 'Pick the ENG folder in settings first',
     toastExtractError: 'Extract error: {msg}',
     toastConfigTsv: 'Configure the TSV folder',
@@ -1112,10 +1112,10 @@ const DICT = {
     toastImportSummary: 'Import: {applied} applied',
     toastImportSummaryRest: ', {skipped} skipped (empty/=EN)',
     toastImportSummaryNotFound: ', {n} not matched by offset',
-    toastConfigEngRus: 'Configure ENG and RUS folders first',
+    toastConfigEngRef: 'Configure the ENG and MYFILES folders first',
     toastEmptyFilesReload: 'File list empty — click ↻ on Files tab',
     toastGlossarySaved: 'Glossary saved · {n} entries',
-    toastConfigEngRusUa: 'Configure ENG, RUS, UA folders',
+    toastConfigEngRefUa: 'Configure the ENG, MYFILES, UA folders',
     toastEmptyFiles: 'File list is empty',
     toastEmptyGlossary: 'Glossary is empty — nothing to apply',
     toastReplaceCount: 'Replaced in {n} glossary entries',

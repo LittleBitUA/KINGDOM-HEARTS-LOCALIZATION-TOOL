@@ -8,7 +8,7 @@ export const state = {
 // Translate-режим: налаштування гри, список файлів (для індексу глосарію та
 // збірки), safe-режим (лише підтримувані формати).
 export const tState = {
-  settings: { engDir: '', rusDir: '', tsvDir: '', outDir: '' },
+  settings: { engDir: '', refDir: '', tsvDir: '', outDir: '' },
   files: [],
   safeMode: true
 };

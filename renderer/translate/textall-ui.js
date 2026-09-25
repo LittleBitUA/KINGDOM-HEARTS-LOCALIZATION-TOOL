@@ -15,7 +15,7 @@ function needDirs() {
   if (!tState.files || !tState.files.length) { toast(t('toastEmptyFilesReload'), 'error'); return null; }
   return {
     engDir: tState.settings.engDir,
-    rusDir: (game && game.dirs.includes('rusDir')) ? (tState.settings.rusDir || null) : null,
+    refDir: (game && game.dirs.includes('refDir')) ? (tState.settings.refDir || null) : null,
     tsvDir: tState.settings.tsvDir || null,
     files: tState.files.map(f => f.rel),
     safeMode: tState.safeMode

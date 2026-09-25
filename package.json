@@ -1,12 +1,13 @@
 {
-  "name": "kh1-text-editor",
-  "productName": "KH1 Text Editor",
-  "version": "2.24.1",
-  "description": "Інструмент локалізації Kingdom Hearts (KH1 FM .bin/.binl/.ard/.ev/_mes_ofs, BBS FM .ctd + font editor, Re:CoM .ctdl) на Electron",
+  "name": "kingdom-hearts-localization-tool",
+  "productName": "KINGDOM HEARTS LOCALIZATION TOOL",
+  "version": "1.0.0",
+  "description": "Набір інструментів для локалізації ігор серії Kingdom Hearts: текст, шрифти й текстури",
   "main": "main.js",
   "private": true,
   "author": {
-    "name": "GuidingHeart"
+    "name": "Dmytro Bidlov",
+    "url": "https://github.com/LittleBitUA"
   },
   "license": "MIT",
   "scripts": {
@@ -35,14 +36,14 @@
     "iconv-lite": "^0.7.2"
   },
   "build": {
-    "appId": "com.guidingheart.kh1-text-editor",
-    "productName": "KH1 Text Editor",
-    "copyright": "Copyright © 2026 GuidingHeart",
+    "appId": "com.littlebit.kingdom-hearts-localization-tool",
+    "productName": "KINGDOM HEARTS LOCALIZATION TOOL",
+    "copyright": "Copyright © 2026 Dmytro Bidlov «Little Bit» Team",
     "publish": [
       {
         "provider": "github",
         "owner": "LittleBitUA",
-        "repo": "KH1-Localization-tool"
+        "repo": "KINGDOM-HEARTS-LOCALIZATION-TOOL"
       }
     ],
     "directories": {
@@ -85,10 +86,10 @@
           ]
         }
       ],
-      "artifactName": "KH1-Text-Editor-${version}-${arch}-${target}.${ext}"
+      "artifactName": "KingdomHearts-Localization-Tool-${version}-${arch}-${target}.${ext}"
     },
     "portable": {
-      "artifactName": "KH1-Text-Editor-${version}-portable.exe"
+      "artifactName": "KingdomHearts-Localization-Tool-${version}-portable.exe"
     },
     "nsis": {
       "oneClick": false,
@@ -96,13 +97,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "KH1 Text Editor",
+      "shortcutName": "KINGDOM HEARTS LOCALIZATION TOOL",
       "installerLanguages": [
         "uk_UA",
         "en_US"
       ],
       "language": "1058",
-      "artifactName": "KH1-Text-Editor-${version}-setup.exe"
+      "artifactName": "KingdomHearts-Localization-Tool-${version}-setup.exe"
     },
     "asarUnpack": [
       "tools/py/**/*",

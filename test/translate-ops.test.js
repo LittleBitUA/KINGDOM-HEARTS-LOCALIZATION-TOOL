@@ -16,34 +16,34 @@ const { parseEv } = require('../tools/lib/ev-format');
 const { extract } = require('../tools/lib/extract');
 const synth = require('./helpers/synth');
 
-let root, engDir, rusDir, outDir, tsvDir;
+let root, engDir, refDir, outDir, tsvDir;
 
 before(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-ops-'));
-  engDir = path.join(root, 'ENG'); rusDir = path.join(root, 'RUS');
+  engDir = path.join(root, 'ENG'); refDir = path.join(root, 'MYFILES');
   outDir = path.join(root, 'DONE'); tsvDir = path.join(root, 'PROGRESS');
-  for (const d of [engDir, rusDir, outDir, tsvDir]) fs.mkdirSync(path.join(d, 'sub'), { recursive: true });
+  for (const d of [engDir, refDir, outDir, tsvDir]) fs.mkdirSync(path.join(d, 'sub'), { recursive: true });
 
-  // binl: 'Potion' preserved (in RUS), 'Attack' translatable
+  // binl: 'Potion' preserved (є в еталоні), 'Attack' translatable
   fs.writeFileSync(path.join(engDir, 'sub', 'a.binl'), synth.buildBinl(['Potion', 'Attack', 'Traverse Town']));
-  fs.writeFileSync(path.join(rusDir, 'sub', 'a.binl'), synth.buildBinl(['Potion']));
+  fs.writeFileSync(path.join(refDir, 'sub', 'a.binl'), synth.buildBinl(['Potion']));
   // mes_ofs pair
   const mo = synth.buildMesOfs(['Potion', 'Ether'], [0, 1, 1], { pad: 16 });
   fs.writeFileSync(path.join(engDir, 'g_mes_ofs.bin'), mo.ofs);
   fs.writeFileSync(path.join(engDir, 'g_mes_data.bin'), mo.data);
-  fs.writeFileSync(path.join(rusDir, 'g_mes_ofs.bin'), mo.ofs);
-  fs.writeFileSync(path.join(rusDir, 'g_mes_data.bin'), mo.data);
+  fs.writeFileSync(path.join(refDir, 'g_mes_ofs.bin'), mo.ofs);
+  fs.writeFileSync(path.join(refDir, 'g_mes_data.bin'), mo.data);
   // ev
   fs.writeFileSync(path.join(engDir, 'e.evdl'), synth.buildEv(['Hello there', 'Bye']).buf);
-  fs.writeFileSync(path.join(rusDir, 'e.evdl'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(refDir, 'e.evdl'), Buffer.alloc(1));
   // ctd + ctdl
   fs.writeFileSync(path.join(engDir, 'b.ctd'), synth.buildCtd([{ id: 7, text: 'Press {icon triangle} now' }, { id: 8, text: 'Yes' }], 1));
-  fs.writeFileSync(path.join(rusDir, 'b.ctd'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(refDir, 'b.ctd'), Buffer.alloc(1));
   fs.writeFileSync(path.join(engDir, 'c.ctdl'), synth.buildCtdl(['Hello', 'Yes']));
-  fs.writeFileSync(path.join(rusDir, 'c.ctdl'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(refDir, 'c.ctdl'), Buffer.alloc(1));
   // unknown junk
   fs.writeFileSync(path.join(engDir, 'junk.bin'), Buffer.from('KGR\0' + 'x'.repeat(100)));
-  fs.writeFileSync(path.join(rusDir, 'junk.bin'), Buffer.alloc(1));
+  fs.writeFileSync(path.join(refDir, 'junk.bin'), Buffer.alloc(1));
 });
 
 after(() => { fs.rmSync(root, { recursive: true, force: true }); });
@@ -61,7 +61,7 @@ test('classifyFile detects every synthetic format and caches by mtime', () => {
 });
 
 test('extractFile returns UI slots for each format', async () => {
-  const binl = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { rusPath: path.join(rusDir, 'sub', 'a.binl') });
+  const binl = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { refPath: path.join(refDir, 'sub', 'a.binl') });
   assert.deepEqual(binl.slots.map(s => s.english), ['Attack', 'Traverse Town']);
   const mes = await ops.extractFile(path.join(engDir, 'g_mes_ofs.bin'), {});
   assert.equal(mes.slots.length, 2);
@@ -90,7 +90,7 @@ test('composeFile: ctd encodes Cyrillic to katakana codes; mesofs writes both fi
 });
 
 test('buildGlossaryIndex aggregates keys across formats, safe mode skips unknown', async () => {
-  const r = await ops.buildGlossaryIndex(FILES, { engDir, rusDir, safeMode: true, withOccurrences: false });
+  const r = await ops.buildGlossaryIndex(FILES, { engDir, refDir, safeMode: true, withOccurrences: false });
   assert.equal(r.skippedUnsafe, 1);
   assert.equal(r.processed, 6);
   const keys = r.entries.map(e => e.english);
@@ -113,7 +113,7 @@ test('glossaryLookup bridges keys with and without trailing {eol}', () => {
 
 test('composeAll: TSV override (legacy useTsvOverrides) beats glossary; whitespace preserved; unsafe skipped', async () => {
   // per-file override for binl 'Attack'
-  const binlSlots = extract(fs.readFileSync(path.join(engDir, 'sub', 'a.binl')), fs.readFileSync(path.join(rusDir, 'sub', 'a.binl')), { header: 11, footer: 5 }).slots;
+  const binlSlots = extract(fs.readFileSync(path.join(engDir, 'sub', 'a.binl')), fs.readFileSync(path.join(refDir, 'sub', 'a.binl')), { header: 11, footer: 5 }).slots;
   const attack = binlSlots.find(s => s.english === 'Attack');
   fs.mkdirSync(path.join(tsvDir, 'sub'), { recursive: true });
   fs.writeFileSync(path.join(tsvDir, 'sub', 'a.binl.tsv'), tsv.build([{ index: 0, offset: attack.offset, byteLen: attack.byteLen, english: 'Attack', ukText: 'Удар' }]));
@@ -128,7 +128,7 @@ test('composeAll: TSV override (legacy useTsvOverrides) beats glossary; whitespa
   };
   const progress = [];
   // Типово глосарій — єдине джерело; per-file TSV враховуються лише з useTsvOverrides.
-  const r = await ops.composeAll(FILES, { engDir, rusDir, outDir, tsvDir, useTsvOverrides: true, glossary, safeMode: true, concurrency: 3, onProgress: p => progress.push(p) });
+  const r = await ops.composeAll(FILES, { engDir, refDir, outDir, tsvDir, useTsvOverrides: true, glossary, safeMode: true, concurrency: 3, onProgress: p => progress.push(p) });
   assert.equal(r.skippedUnsafe, 1);
   assert.equal(r.written, 5);
   assert.deepEqual(r.errors, []);
@@ -154,18 +154,18 @@ test('composeAll: TSV override (legacy useTsvOverrides) beats glossary; whitespa
 test('structural guard: KH1 compose keeps EN when a translation drops a command token or adds a structural one', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-guard-'));
   try {
-    const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS'), out = path.join(dir, 'DONE');
-    for (const d of [eng, rus, out]) fs.mkdirSync(d);
+    const eng = path.join(dir, 'ENG'), ref = path.join(dir, 'MYFILES'), out = path.join(dir, 'DONE');
+    for (const d of [eng, ref, out]) fs.mkdirSync(d);
     // «Wake up!{0x06,0x2C,0x01}now» — команда з u16-параметром 0x012C УСЕРЕДИНІ
     // рядка (на краю вона була б службовою обгорткою і до перекладача не дійшла б).
     fs.writeFileSync(path.join(eng, 'g.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}now', 'Run', 'Jump']));
-    fs.writeFileSync(path.join(rus, 'g.binl'), synth.buildBinl(['Nope']));
+    fs.writeFileSync(path.join(ref, 'g.binl'), synth.buildBinl(['Nope']));
     assert.equal(ops.structuralIssue('Wake up!{0x06,0x2C,0x01}', 'Прокинься!'), 'втрачено токени: {0x06,0x2C,0x01}');
     assert.equal(ops.structuralIssue('Run', 'Біжи{0x0A,0x00}'), 'додано структурні команди: {0x0A,0x00}');
     assert.equal(ops.structuralIssue('Run{lf}fast', 'Біжи швидко{ColorRed}'), null);   // {lf} вільний, колір — не структурний
 
     const glossary = { 'Wake up!{0x06,0x2C,0x01}now': 'Прокинься!', 'Run': 'Біжи{0x0A,0x00}', 'Jump': 'Стрибай' };
-    const r = await ops.composeAll(['g.binl'], { engDir: eng, rusDir: rus, outDir: out, glossary, safeMode: true });
+    const r = await ops.composeAll(['g.binl'], { engDir: eng, refDir: ref, outDir: out, glossary, safeMode: true });
     assert.equal(r.written, 1);
     assert.equal(r.errors.length, 1);
     assert.equal(r.errors[0].count, 2);
@@ -175,12 +175,12 @@ test('structural guard: KH1 compose keeps EN when a translation drops a command 
     assert.doesNotMatch(codec.decode(outBuf), /Біжи/);
 
     // composeFile (редактор одного файла) — той самий guard, strictTokens:false вимикає.
-    const slots = extract(fs.readFileSync(path.join(eng, 'g.binl')), fs.readFileSync(path.join(rus, 'g.binl')), { header: 11, footer: 5 }).slots;
+    const slots = extract(fs.readFileSync(path.join(eng, 'g.binl')), fs.readFileSync(path.join(ref, 'g.binl')), { header: 11, footer: 5 }).slots;
     const wake = slots.find(s => s.english.startsWith('Wake'));
-    const one = await ops.composeFile(path.join(eng, 'g.binl'), [{ offset: wake.offset, ukText: 'Прокинься!' }], path.join(out, 'g2.binl'), { rusPath: path.join(rus, 'g.binl') });
+    const one = await ops.composeFile(path.join(eng, 'g.binl'), [{ offset: wake.offset, ukText: 'Прокинься!' }], path.join(out, 'g2.binl'), { refPath: path.join(ref, 'g.binl') });
     assert.equal(one.applied, 0);
     assert.match(one.errors[0].message, /втрачено токени/);
-    const two = await ops.composeFile(path.join(eng, 'g.binl'), [{ offset: wake.offset, ukText: 'Прокинься!' }], path.join(out, 'g3.binl'), { rusPath: path.join(rus, 'g.binl'), strictTokens: false });
+    const two = await ops.composeFile(path.join(eng, 'g.binl'), [{ offset: wake.offset, ukText: 'Прокинься!' }], path.join(out, 'g3.binl'), { refPath: path.join(ref, 'g.binl'), strictTokens: false });
     assert.equal(two.applied, 1);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -190,11 +190,11 @@ test('structural guard: KH1 compose keeps EN when a translation drops a command 
 test('legacy keys: index exposes legacyKey and lookup bridges old 2-byte 05/06/07 tokens', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-legacy-'));
   try {
-    const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS');
-    fs.mkdirSync(eng); fs.mkdirSync(rus);
+    const eng = path.join(dir, 'ENG'), ref = path.join(dir, 'MYFILES');
+    fs.mkdirSync(eng); fs.mkdirSync(ref);
     fs.writeFileSync(path.join(eng, 'l.binl'), synth.buildBinl(['Wake up!{0x06,0x2C,0x01}now', 'Plain']));
-    fs.writeFileSync(path.join(rus, 'l.binl'), synth.buildBinl(['Nope']));
-    const idx = await ops.buildGlossaryIndex(['l.binl'], { engDir: eng, rusDir: rus, safeMode: true });
+    fs.writeFileSync(path.join(ref, 'l.binl'), synth.buildBinl(['Nope']));
+    const idx = await ops.buildGlossaryIndex(['l.binl'], { engDir: eng, refDir: ref, safeMode: true });
     const wake = idx.entries.find(e => e.english.startsWith('Wake'));
     assert.equal(wake.english, 'Wake up!{wait2 300}now');   // токени з іменами
     assert.equal(wake.legacyKey, 'Wake up!{0x06,0x2C} now');
@@ -231,13 +231,13 @@ test('classify: X_offset.bin + X_data.bin pair (wsysmsg/wname) is mesofs/mesdata
 test('composeAll writes native 19 NN codes for KH1 binl and sysmsg uses hybrid', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-native-'));
   try {
-    const eng = path.join(dir, 'ENG'), rus = path.join(dir, 'RUS'), out = path.join(dir, 'DONE');
-    for (const d of [eng, rus, out]) fs.mkdirSync(d);
+    const eng = path.join(dir, 'ENG'), ref = path.join(dir, 'MYFILES'), out = path.join(dir, 'DONE');
+    for (const d of [eng, ref, out]) fs.mkdirSync(d);
     fs.writeFileSync(path.join(eng, 'n.binl'), synth.buildBinl(['Wake up!', 'Run']));
-    fs.writeFileSync(path.join(rus, 'n.binl'), synth.buildBinl(['Nope']));
+    fs.writeFileSync(path.join(ref, 'n.binl'), synth.buildBinl(['Nope']));
     fs.writeFileSync(path.join(eng, 'UK_sysmsg.binl'), synth.buildMsgV361(['Load this game?', 'Form your party.']));
     {
-      const r = await ops.composeAll(['n.binl', 'UK_sysmsg.binl'], { engDir: eng, rusDir: rus, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Run': 'Біжи', 'Load this game?': 'Завантажити цю гру?' }, safeMode: true });
+      const r = await ops.composeAll(['n.binl', 'UK_sysmsg.binl'], { engDir: eng, refDir: ref, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Run': 'Біжи', 'Load this game?': 'Завантажити цю гру?' }, safeMode: true });
       assert.equal(r.written, 2);
       assert.deepEqual(r.errors, []);
       const binl = fs.readFileSync(path.join(out, 'n.binl'));
@@ -265,13 +265,13 @@ test('text-quality: bytecode fragments are not translatable slots', () => {
 test('composeAll outLayout kh1-hedout writes DONE per archive (kh1_first/remastered/, kh1_second/original/exchange/)', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-layout-'));
   try {
-    const eng = path.join(dir, 'ENG'), out = path.join(dir, 'DONE'), rus = path.join(dir, 'RUS');
+    const eng = path.join(dir, 'ENG'), out = path.join(dir, 'DONE'), ref = path.join(dir, 'MYFILES');
     // старий плоский шлях (kh1_first без префікса) + новий з префіксом архіву
     fs.mkdirSync(path.join(eng, 'dh01.ard'), { recursive: true });
     fs.mkdirSync(path.join(eng, 'kh1_second', 'exchange'), { recursive: true });
     fs.writeFileSync(path.join(eng, 'dh01.ard', 'UK_a.binl'), synth.buildBinl(['Wake up!']));
     fs.writeFileSync(path.join(eng, 'kh1_second', 'exchange', 'UK_x.bin'), synth.buildBinl(['Potion', 'Ether', 'Elixir'], { header: 0, footer: 0 }));
-    const r = await ops.composeAll(['dh01.ard/UK_a.binl', 'kh1_second/exchange/UK_x.bin'], { engDir: eng, rusDir: rus, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Potion': 'Зілля' }, safeMode: true, outLayout: 'kh1-hedout' });
+    const r = await ops.composeAll(['dh01.ard/UK_a.binl', 'kh1_second/exchange/UK_x.bin'], { engDir: eng, refDir: ref, outDir: out, glossary: { 'Wake up!': 'Прокинься!', 'Potion': 'Зілля' }, safeMode: true, outLayout: 'kh1-hedout' });
     assert.equal(r.written, 2);
     assert.ok(fs.existsSync(path.join(out, 'kh1_first', 'remastered', 'dh01.ard', 'UK_a.binl')));
     assert.ok(fs.existsSync(path.join(out, 'kh1_second', 'original', 'exchange', 'UK_x.bin')));
@@ -282,28 +282,28 @@ test('composeAll outLayout kh1-hedout writes DONE per archive (kh1_first/remaste
     assert.equal(kh1OutRel('kh1_fourth/worldmap/challe.dat/UK_ChallengeMsg.bin'), 'kh1_fourth/remastered/worldmap/challe.dat/UK_ChallengeMsg.bin');
     assert.deepEqual(kh1SplitRel('kh1_second/al01.ard/UK_al01_ard0.binl'), { archive: 'kh1_second', rest: 'al01.ard/UK_al01_ard0.binl' });
     assert.equal(kh1StripArchive('dc01.ard/UK_dc01_ard0.evdl'), 'dc01.ard/UK_dc01_ard0.evdl');
-    // RUS: стара плоска тека покриває kh1_first і з префіксом, і без
-    fs.mkdirSync(path.join(rus, 'dh01.ard'), { recursive: true });
-    fs.writeFileSync(path.join(rus, 'dh01.ard', 'UK_a.binl'), Buffer.alloc(1));
-    assert.equal(ops.rusPathFor(rus, 'kh1_first/dh01.ard/UK_a.binl'), path.join(rus, 'dh01.ard', 'UK_a.binl'));
-    assert.equal(ops.rusPathFor(rus, 'dh01.ard/UK_a.binl'), path.join(rus, 'dh01.ard', 'UK_a.binl'));
-    assert.equal(ops.rusPathFor(rus, 'kh1_second/al01.ard/UK_b.binl'), undefined);
+    // Еталон: стара плоска тека покриває kh1_first і з префіксом, і без
+    fs.mkdirSync(path.join(ref, 'dh01.ard'), { recursive: true });
+    fs.writeFileSync(path.join(ref, 'dh01.ard', 'UK_a.binl'), Buffer.alloc(1));
+    assert.equal(ops.refPathFor(ref, 'kh1_first/dh01.ard/UK_a.binl'), path.join(ref, 'dh01.ard', 'UK_a.binl'));
+    assert.equal(ops.refPathFor(ref, 'dh01.ard/UK_a.binl'), path.join(ref, 'dh01.ard', 'UK_a.binl'));
+    assert.equal(ops.refPathFor(ref, 'kh1_second/al01.ard/UK_b.binl'), undefined);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('built-in KH1 oracle: preservedSegs replace the RUS reference; data file covers real KH1 names', async () => {
+test('built-in KH1 oracle: preservedSegs replace the external reference; data file covers real KH1 names', async () => {
   const oracle = require('../tools/lib/kh1-oracle');
   // Еталон зберігає сирі (закодовані) байти сегмента як latin1-рядок.
   const raw = (t) => Buffer.from(codec.encode(t)).toString('latin1');
-  // Без RUS усі рядки стали б слотами; еталон вилучає 'Potion' так само, як RUS-файл.
+  // Без еталона усі рядки стали б слотами; вбудований вилучає 'Potion' так само, як зовнішній.
   const noRef = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), {});
   assert.deepEqual(noRef.slots.map(s => s.english), ['Potion', 'Attack', 'Traverse Town']);
   const withOracle = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { preservedSegs: [raw('Potion')] });
   assert.deepEqual(withOracle.slots.map(s => s.english), ['Attack', 'Traverse Town']);
-  // RUS і еталон об'єднуються.
-  const both = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { rusPath: path.join(rusDir, 'sub', 'a.binl'), preservedSegs: [raw('Attack')] });
+  // Зовнішній і вбудований еталони об'єднуються.
+  const both = await ops.extractFile(path.join(engDir, 'sub', 'a.binl'), { refPath: path.join(refDir, 'sub', 'a.binl'), preservedSegs: [raw('Attack')] });
   assert.deepEqual(both.slots.map(s => s.english), ['Traverse Town']);
   // data/kh1_oracle.json: ключ — basename без урахування регістру; лише байти з ENG (нема кирилиці).
   const real = oracle.preservedFor('remastered/tw01.ard/UK_TW01_ARD3E8.binl');

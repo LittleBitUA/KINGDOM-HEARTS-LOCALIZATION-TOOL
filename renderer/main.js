@@ -190,7 +190,7 @@ if (tbHomeBtn) tbHomeBtn.addEventListener('click', goHome);
 
 // Sidebar головного екрана → наявні handlers (settings-модал, about-діалог,
 // README на GitHub через shell.openExternal).
-export const HELP_URL = 'https://github.com/LittleBitUA/KH1-Localization-tool#readme';
+export const HELP_URL = 'https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL#readme';
 initHomeNav({
   onSettings: openSettings,
   onAbout: showAbout,
@@ -252,7 +252,7 @@ export async function maybeFirstRunSettings() {
   try {
     // Перевіряємо щодо ПОТОЧНОЇ гри — якщо її dirs ще не вказані, відкриваємо settings.
     const s = await window.kh1.translate.getSettings(getCurrentGameId());
-    const everConfigured = s && (s.language || s.engDir || s.rusDir || s.tsvDir || s.outDir);
+    const everConfigured = s && (s.language || s.engDir || s.refDir || s.tsvDir || s.outDir);
     if (!everConfigured) openSettings();
   } catch (_) {}
 }

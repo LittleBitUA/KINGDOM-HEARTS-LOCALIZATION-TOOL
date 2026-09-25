@@ -32,7 +32,7 @@ function setupAutoUpdater() {
     releaseDate: info && info.releaseDate,
     releaseNotes: info && info.releaseNotes,
     portable: isPortable,
-    repo: 'https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest'
+    repo: 'https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest'
   }));
   autoUpdater.on('update-not-available', () => sendUpdate('update:none'));
   autoUpdater.on('error', (err) => sendUpdate('update:error', { message: (err && err.message) || String(err) }));

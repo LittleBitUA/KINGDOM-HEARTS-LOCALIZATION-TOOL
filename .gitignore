@@ -25,3 +25,6 @@ _scratch/
 # Settings/cache локального юзера (electron user data можуть випадково потрапити)
 *.local.json
 electron-builder.env
+
+# Робочі матеріали перекладача (не частина інструмента)
+Edited_Subs/

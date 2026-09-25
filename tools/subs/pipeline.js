@@ -23,7 +23,7 @@ const path = require('path');
 const { readSrt, feat, sim } = require('./subs-align.js');
 const { norm, load } = require('./gameidx.js');
 const SUBS = 'E:/Localization/Kingdom Hearts Final Mix/Edited_Subs';
-const GLOS = 'E:/RUS_KH/PROGRESS/_glossary.json';
+const GLOS = require('../lib/user-paths').glossaryPath();
 const CYR = /[А-Яа-яЇїІіЄєҐґ]/;
 
 const GAP = Number(process.env.GAP || 800);

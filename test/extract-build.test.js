@@ -25,8 +25,8 @@ test('containsExactSegment: whole-segment match only (Log vs Catalog regression)
 
 test('extract: strings present verbatim in reference file are preserved, others translatable', () => {
   const eng = buildBinl(['Potion', 'Attack', 'Traverse Town', 'ab']);
-  const rus = buildBinl(['Potion', 'XXXX', 'Traverse Town']); // Attack відсутній → translatable
-  const r = extract(eng, rus, { header: 11, footer: 5 });
+  const ref = buildBinl(['Potion', 'XXXX', 'Traverse Town']); // Attack відсутній → translatable
+  const r = extract(eng, ref, { header: 11, footer: 5 });
   // Обхід байткоду не вигадує порожнього хвостового сегмента після останнього 0x00.
   assert.equal(r.stats.engStrings, 4);
   assert.equal(r.stats.skippedEmpty, 0);

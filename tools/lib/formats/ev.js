@@ -35,7 +35,7 @@ async function parse(engPath, env) {
       fileSize: parsed.fileSize
     },
     engSize: buf.length,
-    rusSize: 0,
+    refSize: 0,
     async compose(ukByOffset) {
       // ukText лише там, де переклад справді є: решта слотів копіюється
       // байт-у-байт з оригіналу (composeEv), без зайвого перекодування.

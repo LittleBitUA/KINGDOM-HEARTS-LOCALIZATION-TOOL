@@ -181,3 +181,23 @@ test('native map: a custom map (generator output with extra letters) overrides t
   }
   assert.equal(codec.loadNative().source, 'static');
 });
+
+// Системний шрифт: меню бою, назви вмінь і предметів (сирі .bin з btltbl)
+// малюються НЕ шрифтом діалогів. Його малювальник двобайтового екрана
+// `19 NN` не розуміє — байти < 0x20 для нього службові, і рядок зникає.
+// Тому там кирилиця — однобайтові коди з data/kh1sys_ua.json.
+test('sysfont: кирилиця одним байтом, латиниця не змінюється', () => {
+  const ua = codec.encode('Предмети', { sysfont: true });
+  assert.ok(!ua.includes(0x19), 'екрана 19 NN у системному тексті бути не може');
+  assert.equal(ua.length, 8, 'по одному байту на літеру');
+  assert.equal(codec.decode(ua, { sysfont: true }), 'Предмети');
+
+  // Без прапорця — як і раніше, шрифт діалогів.
+  const dlg = codec.encode('Предмети');
+  assert.equal(dlg.length, 16);
+  assert.equal(dlg[0], 0x19);
+
+  // Англійська однакова в обох режимах — її байти ми не чіпаємо.
+  assert.deepEqual([...codec.encode('Hello', { sysfont: true })], [...codec.encode('Hello')]);
+  assert.deepEqual([...codec.encode('Hello', { sysfont: true })], [0x32, 0x49, 0x50, 0x50, 0x53]);
+});

@@ -1,7 +1,8 @@
 'use strict';
 const f = require('./lib/bbs-font');
+const { unpackDir } = require('./lib/user-paths');
 
-const data = f.loadFont(f.discoverFonts('E:\\RUS_KH\\unpack').find(x => x.name === 'mesfont'));
+const data = f.loadFont(f.discoverFonts(unpackDir()).find(x => x.name === 'mesfont'));
 
 // OpenKh mapping для декоду charID → видимий char
 const m81 = " ｡｡,.·:;?!_____^¯_________–-_/\\~-|…‥|||\"\"()__[]{}⟨⟩⟪⟫「」『』__+-±×·÷=≠<>≤≥∞∴♂♀°′″_¥$¢£%#&*@§☆★○●◇◆□■△▲▽▼※〒→←↑↓________________________________________________________________________♪†‡¶________";

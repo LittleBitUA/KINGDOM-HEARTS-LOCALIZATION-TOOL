@@ -8,7 +8,11 @@ const { encode } = require('../../shared/codec');
  * @param {Array<{offset:number, oldLen:number, ukText:string}>} replacements
  * @returns {{buffer: Buffer, errors: Array, applied: number, skipped: number}}
  */
-function compose(eng, replacements) {
+// opts.sysfont — текст малюється СИСТЕМНИМ шрифтом (меню, назви вмінь,
+// команди бою): кирилиця туди йде однобайтовими кодами, бо малювальник
+// меню двобайтового екрана `19 NN` не розуміє — байти < 0x20 для нього
+// службові, і рядок просто зникає.
+function compose(eng, replacements, opts) {
   const sorted = [...replacements]
     .filter(r => r && typeof r.ukText === 'string' && r.ukText.length > 0)
     .sort((a, b) => a.offset - b.offset);
@@ -37,7 +41,7 @@ function compose(eng, replacements) {
 
     let bytes;
     try {
-      bytes = encode(r.ukText);
+      bytes = encode(r.ukText, { sysfont: !!(opts && opts.sysfont) });
     } catch (e) {
       errors.push({ offset: r.offset, message: (e && e.message) || String(e) });
       out.push(eng.subarray(r.offset, r.offset + r.oldLen));

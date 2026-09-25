@@ -17,6 +17,33 @@
 //   ipc-app.js       — updater, мова, about, openExternal
 
 const { app, BrowserWindow } = require('electron');
+
+// Тека даних користувача (налаштування, глосарій-кеш, карта шрифту) береться
+// з productName. Коли програму перейменували на KINGDOM HEARTS LOCALIZATION
+// TOOL, вона почала б дивитися в порожню теку, і всі налаштування зникли б.
+// Тому один раз переносимо вміст старої теки в нову.
+migrateUserData();
+function migrateUserData() {
+  const fs = require('fs');
+  const path = require('path');
+  try {
+    const dst = app.getPath('userData');
+    const dstFile = path.join(dst, 'translate-settings.json');
+    // Порожній файл програма могла створити сама при першому запуску — це не
+    // привід вважати перенесення зайвим. Орієнтуємось на наявність тек ігор.
+    let hasOwn = false;
+    try {
+      const own = JSON.parse(fs.readFileSync(dstFile, 'utf8'));
+      hasOwn = !!(own && own.games && Object.keys(own.games).length);
+    } catch (_) { hasOwn = false; }
+    if (hasOwn) return;
+    const src = path.join(path.dirname(dst), 'KH1 Text Editor');
+    if (!fs.existsSync(path.join(src, 'translate-settings.json'))) return;
+    fs.mkdirSync(dst, { recursive: true });
+    fs.cpSync(src, dst, { recursive: true, force: true });
+  } catch (_) { /* перенесення не критичне — програма просто стартує з чистими налаштуваннями */ }
+}
+
 const win = require('./main/window');
 const menu = require('./main/menu');
 const workerPool = require('./main/worker-pool');

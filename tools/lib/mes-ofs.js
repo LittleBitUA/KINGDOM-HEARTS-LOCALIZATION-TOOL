@@ -99,7 +99,7 @@ function parsePair(ofsBuf, dataBuf, codec, opts) {
   };
 }
 
-function composePair(slots, originalInfo, codec) {
+function composePair(slots, originalInfo, codec, opts) {
   // slots: масив { offset, english, ukText? }
   // originalInfo: { ofsLength, dataLength, cellLengthByOffset?: Map<oldOffset, byteCellLength> }
   //

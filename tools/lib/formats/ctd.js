@@ -32,7 +32,7 @@ async function parse(engPath) {
       fileSize: buf.length
     },
     engSize: buf.length,
-    rusSize: 0,
+    refSize: 0,
     async compose(ukByOffset) {
       let applied = 0;
       const errors = [];

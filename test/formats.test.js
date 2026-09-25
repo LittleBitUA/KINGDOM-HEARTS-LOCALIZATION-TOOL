@@ -100,7 +100,7 @@ test('ev: growing text relocates footer pointers by sizeDiff and keeps footer by
   assert.equal(c.relocCount, 2);
   assert.equal(c.buf.readUInt32LE(16), footerOffset + c.sizeDiff);
   assert.deepEqual([...c.buf.subarray(c.buf.length - 8)], [...buf.subarray(buf.length - 8)]);
-  // Усі оригінальні ENG/RUS .ev/.evdl мають текстову секцію кратну 16.
+  // Усі оригінальні .ev/.evdl мають текстову секцію кратну 16.
   assert.equal(c.newTextLength % 16, 0);
 });
 
@@ -171,4 +171,32 @@ test('ctdl-format: rejects truncated / bad headers', () => {
   const bad = buildCtdl();
   bad.writeUInt32LE(0xDEADBEEF, 0);
   assert.throws(() => ctdlFmt.parseCtdl(bad), /bad magic/);
+});
+
+// Частина файлів KH1 містить двійкові дані там, де розбирач шукає текст
+// (найгірший — di03a.ev: усі 188 слотів сміття). Такі «рядки» не повинні
+// потрапляти перекладачеві, але справжній текст із сирим байтом поруч —
+// повинен.
+test('isBinaryJunk: відсіює двійкове, лишає текст', () => {
+  const { isBinaryJunk } = require('../tools/lib/kh1-files');
+
+  // сміття: є сирий {0xNN} і жодного справжнього слова
+  assert.equal(isBinaryJunk('îЕiвáґ{0xA8}{0x19,0x7E}{icon_gummi_0}{roman_3}{0xA4}▼®'), true);
+  assert.equal(isBinaryJunk('{0x1A,0x33}{0xB6}{0xA4}▼{0x1A,0x23}¿{icon_gummi_6}'), true);
+  // великі літери всередині — ознака шуму, а не слова
+  assert.equal(isBinaryJunk('еЙО{0xA3}вqЧжï{icon_gummi_1}{0xB6}ґЗТЙôd'), true);
+
+  // справжній текст поруч із сирими байтами — лишаємо
+  assert.equal(isBinaryJunk('{0xC2}Phil Cup{0xC3}'), false);
+  assert.equal(isBinaryJunk('{rgba E6E6E680}Strength{abs_x2 56}'), false);
+  assert.equal(isBinaryJunk('DUMBO{lf}A baby circus elephant.'), false);
+  // короткі написи статусу: слово з 2 великих літер теж рятує рядок
+  assert.equal(isBinaryJunk('{rgba 39CF5980}HP{scale 18}{dy 2}{abs_x2 78}{0xBC}'), false);
+  assert.equal(isBinaryJunk('{rgba 7F7F7F80}STR{scale 18}{dy 2}{0xBC}'), false);
+  assert.equal(isBinaryJunk('{0xB2}Отримано ключ-клинок.'), false);
+
+  // без сирих байтів не чіпаємо взагалі
+  assert.equal(isBinaryJunk('{icon_gummi_0}▼{text_dx 4}——'), false);
+  assert.equal(isBinaryJunk(''), false);
+  assert.equal(isBinaryJunk(null), false);
 });

@@ -9,6 +9,50 @@ const { cmdLen: dialogCmdLen } = require('./kh1-message');
 const BASE_PATH = path.join(__dirname, '..', 'data', 'kh1sys_text.json');
 const MULTI_PATH = path.join(__dirname, '..', 'data', 'kh1sys_multi.json');
 const NATIVE_PATH = path.join(__dirname, '..', 'data', 'kh1_native.json');
+const SYSFONT_PATH = path.join(__dirname, '..', 'data', 'kh1sys_ua.json');
+
+// =====================================================================
+// Два шрифти — два способи писати кирилицю.
+//
+//   * ДІАЛОГИ (`.evdl`, `.ev`, EvMsg-`.binl`) малюються шрифтом `kanji.knj`.
+//     Його малювальник розуміє двобайтовий екран `19 NN` — комірки 224+.
+//     Це нижче, у loadNative().
+//   * МЕНЮ, підписи, сітка введення назви малюються СИСТЕМНИМ шрифтом
+//     (`sysfont.bin`). Його малювальник екрана `19 NN` НЕ розуміє: байт 0x19
+//     для нього звичайний гліф, тож такий текст перетворюється на сміття.
+//     Там адресація однобайтова: байт 0x01 — пробіл, а від 0x20
+//     номер запису в `US_font_data_tbl.bin` = байт − 0x20.
+//
+// Українську абетку в системний шрифт малює tools/py/kh1/kh1sysfont.py —
+// 66 записів підряд 0x8A..0xCB, тобто байти 0xAA..0xEB. Карту він же й пише
+// (data/kh1sys_ua.json). Ці байти в оригіналі були акцентованою латиницею,
+// яка в українському атласі не потрібна; латиниця, цифри й символи цілі.
+//
+// Вмикається через opts.sysfont, або автоматично для діалекту cmd='sysmsg'.
+// =====================================================================
+let sysFontCache = null;
+
+function loadSysFont() {
+  if (sysFontCache) return sysFontCache;
+  const raw = readJsonOptional(SYSFONT_PATH) || { map: {} };
+  const encodeMap = new Map();
+  const decodeMap = new Map();
+  for (const [ch, b] of Object.entries(raw.map || {})) {
+    if (typeof b !== 'number' || b < 0 || b > 0xFF) continue;
+    encodeMap.set(ch, b & 0xFF);
+    decodeMap.set(b & 0xFF, ch);
+  }
+  sysFontCache = { encodeMap, decodeMap, font: raw.font || '' };
+  return sysFontCache;
+}
+
+// Увага: діалект opts.cmd='sysmsg' — це НАБІР КОМАНД файла, а не шрифт.
+// `UK_sysmsg.binl` гра малює шрифтом ДІАЛОГІВ (перевірено на живому екрані
+// вибору складності), тому прапорець вмикається лише явно — для сирих .bin
+// (btltbl: команди бою, назви вмінь і предметів), які йдуть системним.
+function isSysFont(opts) {
+  return !!(opts && opts.sysfont);
+}
 
 // =====================================================================
 // Кирилиця у KH1 — лише нативно: власні гліфи у вільних комірках 224+ шрифту
@@ -218,6 +262,7 @@ function decode(bytes, opts) {
   const { singleMap, multiMap } = load();
   const nat = loadNative();
   const sysmsg = !!(opts && opts.cmd === 'sysmsg');
+  const sysFont = isSysFont(opts) ? loadSysFont() : null;
   const NL = '\n';
   const len = bytes.length;
   let out = '';
@@ -225,6 +270,14 @@ function decode(bytes, opts) {
 
   while (i < len) {
     const b = bytes[i];
+
+    // Системний шрифт: українська літера — один байт із нашої карти.
+    // Перевіряємо ПЕРЕД базовою таблицею, бо ці коди в оригіналі
+    // належали акцентованій латиниці, яку ми перемалювали.
+    if (sysFont) {
+      const ua = sysFont.decodeMap.get(b);
+      if (ua !== undefined) { out += ua; i++; continue; }
+    }
 
     if (b >= 0x19 && b <= 0x1F && i + 1 < len) {
       const ch = nat.decodeMap.get((b << 8) | bytes[i + 1]);
@@ -343,6 +396,7 @@ function parseRawHexToken(s, i) {
 // першого), щоб composeAll міг показати перекладачу, що саме виправляти.
 function encodeDetailed(text, opts) {
   const hybrid = !!(opts && opts.hybrid);
+  const sysFont = isSysFont(opts) ? loadSysFont() : null;
   const { byFirstChar } = load();
   const nat = loadNative();
   const lenient = !!(opts && opts.lenient);
@@ -376,6 +430,13 @@ function encodeDetailed(text, opts) {
     let matched = false;
     {
       const ch = s[i];
+      // Системний шрифт: своя однобайтова комірка. Йде першим — інакше
+      // hybrid підмінив би літеру латинською, а native написав би `19 NN`,
+      // якого малювальник меню не розуміє.
+      if (sysFont) {
+        const b = sysFont.encodeMap.get(ch);
+        if (b !== undefined) { bytes.push(b); i++; continue; }
+      }
       if (hybrid && nat.lookalike.has(ch)) {
         const latin = byFirstChar.get(nat.lookalike.get(ch).charCodeAt(0));
         const hit = latin && latin.find(e => e[0].length === 1);

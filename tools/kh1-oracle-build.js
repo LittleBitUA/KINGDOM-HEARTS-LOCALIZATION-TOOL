@@ -2,16 +2,16 @@
 
 // Будує вбудований еталон «неперекладних» рядків KH1 (data/kh1_oracle.json).
 //
-// Раніше для цього потрібна була тека RUS (інший переклад): рядок з ENG, який
-// дослівно є у RUS-файлі, вважається неперекладним (службові ідентифікатори,
+// Раніше для цього потрібна була тека еталона (інший переклад): рядок з ENG, який
+// дослівно є в еталонному файлі, вважається неперекладним (службові ідентифікатори,
 // {ColorGreen}{Key}{VarItem}…, debug-тексти). Щоб не залежати від чужих
 // файлів, тут один раз обчислюємо ці рядки й зберігаємо їх у data/ — це
-// оригінальні англійські/токенні байти з гри, жодного тексту з RUS.
+// оригінальні англійські/токенні байти з гри, жодного стороннього тексту.
 //
-//   node tools/kh1-oracle-build.js --eng <ENG dir> --rus <RUS dir> [--rus <ще одна>] [--out data/kh1_oracle.json]
+//   node tools/kh1-oracle-build.js --eng <ENG dir> --ref <тека еталона> [--ref <ще одна>] [--out data/kh1_oracle.json]
 //
 // ENG — робоча розкладка (<archive>/<шлях> або плоска kh1_first). Reference для
-// кожного файла шукається у кожній --rus теці як: <rel>, <kh1OutRel(rel)>
+// кожного файла шукається у кожній --ref теці як: <rel>, <kh1OutRel(rel)>
 // (розкладка гри: kh1_second/remastered/al01.ard/…), <rel без префікса архіву>.
 // Ключ — basename файла; якщо однакові імена є у кількох архівах (US_allarea.nam),
 // множини сегментів об'єднуються.
@@ -31,8 +31,8 @@ function args(name) {
   for (let i = 0; i < process.argv.length; i++) if (process.argv[i] === name && process.argv[i + 1]) out.push(process.argv[i + 1]);
   return out;
 }
-function findReference(rusDirs, rel) {
-  for (const d of rusDirs) {
+function findReference(refDirs, rel) {
+  for (const d of refDirs) {
     for (const cand of [rel, kh1OutRel(rel), kh1StripArchive(rel)]) {
       const p = path.join(d, cand);
       if (fs.existsSync(p)) return p;
@@ -56,10 +56,10 @@ function hasTextContent(bytes) {
 }
 
 async function main() {
-  const eng = arg('--eng'), rusDirs = args('--rus');
+  const eng = arg('--eng'), refDirs = args('--ref');
   const out = arg('--out', path.join(__dirname, '..', 'data', 'kh1_oracle.json'));
-  if (!eng || !rusDirs.length) {
-    console.error('usage: node tools/kh1-oracle-build.js --eng <dir> --rus <dir> [--rus <dir>] [--out file]');
+  if (!eng || !refDirs.length) {
+    console.error('usage: node tools/kh1-oracle-build.js --eng <dir> --ref <dir> [--ref <dir>] [--out file]');
     process.exit(2);
   }
   const files = {};
@@ -68,13 +68,13 @@ async function main() {
     const engPath = path.join(eng, rel);
     const cls = await classifyFile(engPath);
     if (!cls || (cls.kind !== 'binl' && cls.kind !== 'rawbin')) continue;
-    const rusPath = findReference(rusDirs, rel);
-    if (!rusPath) { noRef++; continue; }
+    const refPath = findReference(refDirs, rel);
+    if (!refPath) { noRef++; continue; }
     const base = path.basename(rel).toLowerCase();
     const o = cls.extractOpts || {};
     const segs = splitStrings(fs.readFileSync(engPath),
       o.header != null ? o.header : 11, o.footer != null ? o.footer : 5);
-    const refSegs = segmentSet(fs.readFileSync(rusPath));
+    const refSegs = segmentSet(fs.readFileSync(refPath));
     const minLen = o.minLen != null ? o.minLen : 3;
     const preserved = new Set();
     for (const s of segs) {

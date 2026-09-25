@@ -34,15 +34,15 @@ parentPort.on('message', (msg) => {
 
     if (op === 'extract') {
       const eng = Buffer.from(msg.eng);
-      const rus = Buffer.from(msg.rus);
-      const r = extract(eng, rus, msg.opts || {});
+      const ref = Buffer.from(msg.ref);
+      const r = extract(eng, ref, msg.opts || {});
       parentPort.postMessage({ id, ok: true, slots: r.slots, stats: r.stats });
       return;
     }
 
     if (op === 'compose') {
       const eng = Buffer.from(msg.eng);
-      const r = compose(eng, msg.replacements || []);
+      const r = compose(eng, msg.replacements || [], msg.opts || {});
       const ab = arrayBufferOf(r.buffer);
       parentPort.postMessage(
         { id, ok: true, bytes: ab, errors: r.errors, applied: r.applied, skipped: r.skipped },

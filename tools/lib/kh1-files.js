@@ -28,4 +28,56 @@ function isKh1TextFile(rel) {
   return false;
 }
 
-module.exports = { isKh1TextFile, KH1_UI_LAYOUT };
+// ---- Слоти, які насправді не текст ----
+//
+// Частина файлів KH1 містить двійкові дані там, де розбирач шукає текст
+// (найгірший приклад — `kh1_first/di03.ard/di03a.ev`: усі 188 слотів сміття,
+// схоже на розкладку деталей ґаммі-корабля). Декодер чесно перетворює байти
+// на символи, а двобайтові пари — на імена токенів, тож у глосарій сипалися
+// сотні записів на кшталт `îЕiвáґ{0xA8}{icon_gummi_0}{roman_3}▼®`.
+//
+// Ознака: є сирий токен `{0xNN}` (декодер не знайшов байту імені) І немає
+// жодного справжнього слова. Справжнім словом вважаємо:
+//   * латиницю з 4+ літер;
+//   * АБО суцільно велику латиницю з 2+ літер — це короткі написи інтерфейсу
+//     `HP`, `MP`, `AP`, `STR`, `DEF`, які інакше відсіклися б разом із
+//     перекладом (ОЗ, ОМ, ОВ, СИЛ., ЗАХ.);
+//   * АБО кирилицю з 4+ літер, де велика може бути ЛИШЕ перша — у сміттєвих
+//     рядках великі стоять усередині («ґЗТЙ», «еЙО», «РїЙМЖ»).
+//
+// Умова про слово обов'язкова: інакше відсіклися б `{0xC2}Phil Cup{0xC3}`,
+// `{rgba …}Strength…` і щоденникові статті DUMBO/MUSHU/SIMBA — там сирі байти
+// сусідять зі справжнім текстом. Правило свідомо поблажливе: із 895 рядків із
+// сирими байтами воно лишає 22, з яких 7 усе-таки сміття (містять «PS» або
+// «SRVW»). Краще кілька зайвих записів, ніж загублений переклад.
+const RAW_BYTE = /\{0x[0-9A-Fa-f]{2}/;
+const LATIN_WORD = /[A-Za-z]{4,}/;
+const LATIN_CAPS = /\b[A-Z]{2,}\b/;
+const CYR_LOWER = 'абвгґдеєжзиіїйклмнопрстуфхцчшщьюя';
+const CYR_WORD = new RegExp('[' + CYR_LOWER + CYR_LOWER.toUpperCase() + ']{4,}', 'g');
+
+function hasRealWord(text) {
+  const bare = String(text).replace(/\{[^}]*\}/g, ' ');
+  if (LATIN_WORD.test(bare) || LATIN_CAPS.test(bare)) return true;
+  CYR_WORD.lastIndex = 0;
+  let m;
+  while ((m = CYR_WORD.exec(bare)) !== null) {
+    const w = m[0];
+    let ok = true;
+    for (let i = 1; i < w.length; i++) if (CYR_LOWER.indexOf(w[i]) < 0) { ok = false; break; }
+    if (ok) return true;
+  }
+  return false;
+}
+
+// isBinaryJunk(text) → true, якщо цей «рядок» не варто показувати перекладачеві.
+function isBinaryJunk(text) {
+  if (!text) return false;
+  return RAW_BYTE.test(text) && !hasRealWord(text);
+}
+
+// Формати KH1, до яких правило застосовне. BBS/Re:CoM/DDD мають свої кодеки,
+// де `{0x..}` — нормальна частина розмітки, тож їх не чіпаємо.
+const KH1_KINDS = new Set(['ev', 'binl', 'binl-v361', 'rawbin', 'mesofs', 'kmb']);
+
+module.exports = { isKh1TextFile, KH1_UI_LAYOUT, isBinaryJunk, hasRealWord, KH1_KINDS };

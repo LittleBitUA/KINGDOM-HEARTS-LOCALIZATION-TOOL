@@ -1,7 +1,7 @@
 'use strict';
 
 // Вбудований еталон неперекладних рядків KH1 (data/kh1_oracle.json, див.
-// tools/kh1-oracle-build.js). Замінює теку RUS: extract() вважає ці
+// tools/kh1-oracle-build.js). Замінює зовнішній еталон: extract() вважає ці
 // 0x00-розмежені сегменти службовими й не робить з них слотів.
 
 const fs = require('fs');

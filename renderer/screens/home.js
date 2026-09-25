@@ -37,9 +37,9 @@ export const gamesConfig = [
     enabled: true,
     status: 'ready',
     formats: ['binl', 'binl-v361', 'rawbin', 'ev', 'mesofs', 'kmb'],
-    // KH1: список файлів — з ENG (розпакована гра); RUS — опційний оракул
-    // (російський переклад): рядки, ідентичні в RUS, вважаються неперекладними.
-    dirs: ['engDir', 'rusDir', 'tsvDir', 'outDir'],
+    // KH1: список файлів — з ENG (розпакована гра); еталон — опційний оракул
+    // (сторонній переклад): рядки, ідентичні в ньому, вважаються неперекладними.
+    dirs: ['engDir', 'refDir', 'tsvDir', 'outDir'],
     sourceDirKey: 'engDir',
     onSelect: () => enterEditor('kh1-final-mix')
   }),
@@ -58,7 +58,7 @@ export const gamesConfig = [
     status: 'ready',
     formats: ['ctdl'],
     // Re:CoM: ENG = і джерело тексту і список файлів; UA = вихід; TSV = прогрес.
-    // Без RUS-оракула (як у BBS).
+    // Без зовнішнього оракула (як у BBS).
     dirs: ['engDir', 'tsvDir', 'outDir'],
     sourceDirKey: 'engDir',
     onSelect: () => enterEditor('kh-re-com')
@@ -99,7 +99,7 @@ export const gamesConfig = [
     // bbs-arc ці файли не потрапляли у список і тому ніколи не збиралися.
     formats: ['ctd', 'bbs-arc'],
     // BBS: ENG = і джерело тексту і список файлів; UA = вихід; TSV = прогрес.
-    // Без RUS-оракула.
+    // Без зовнішнього оракула.
     dirs: ['engDir', 'tsvDir', 'outDir'],
     sourceDirKey: 'engDir',
     onSelect: () => enterEditor('kh-bbs-final-mix')
@@ -592,9 +592,6 @@ function wireToolbar() {
 // Sidebar navigation. Handlers (settings/about/help) живуть у main.js —
 // передаються сюди, щоб не тягнути editor.js/settings-modal.js у home.js.
 // ---------------------------------------------------------------------
-let REPO_URL = 'https://github.com/LittleBitUA';
-const DISCORD_URL = 'https://discord.gg/';
-
 export function initHomeNav(handlers) {
   const h = handlers || {};
   const wire = (id, fn) => { const el = $(id); if (el && typeof fn === 'function') el.addEventListener('click', fn); };
@@ -603,14 +600,10 @@ export function initHomeNav(handlers) {
   wire('hub-nav-about', h.onAbout);
   wire('hub-nav-help', h.onHelp);
   wire('hub-check-updates', h.onCheckUpdates);
-  const open = (url) => { if (window.kh1 && window.kh1.app && window.kh1.app.openExternal) window.kh1.app.openExternal(url); };
-  wire('hub-link-github', () => open(REPO_URL));
-  wire('hub-link-discord', () => open(DISCORD_URL));
   const vers = ['hub-version', 'hub-version-foot'].map($).filter(Boolean);
   if (vers.length && window.kh1 && window.kh1.about) {
     window.kh1.about().then((info) => {
       if (info && info.version) for (const v of vers) v.textContent = 'v' + info.version;
-      if (info && info.repo) REPO_URL = info.repo;
     }).catch(() => {});
   }
 }

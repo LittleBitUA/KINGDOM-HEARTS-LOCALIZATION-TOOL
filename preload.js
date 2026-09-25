@@ -68,7 +68,7 @@ contextBridge.exposeInMainWorld('kh1', {
     getSettings: (gameId) => ipcRenderer.invoke('translate:getSettings', gameId),
     saveSettings: (s, gameId) => ipcRenderer.invoke('translate:saveSettings', s, gameId),
     pickDirectory: (title) => ipcRenderer.invoke('translate:pickDirectory', title),
-    listFiles: (rusDir) => ipcRenderer.invoke('translate:listFiles', rusDir),
+    listFiles: (refDir) => ipcRenderer.invoke('translate:listFiles', refDir),
     extract: (payload) => ipcRenderer.invoke('translate:extract', payload),
     compose: (payload) => ipcRenderer.invoke('translate:compose', payload),
     saveTsv: (payload) => ipcRenderer.invoke('translate:saveTsv', payload),

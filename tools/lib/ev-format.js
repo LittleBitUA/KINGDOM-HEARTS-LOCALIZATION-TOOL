@@ -21,7 +21,7 @@
 // Compose algorithm:
 //   1) Encode each UK slot + 0x00 terminator. Concatenate sequentially.
 //   2) Pad with 0x00 so total newText.length % 16 == 0 (усі оригінальні ENG
-//      і RUS-файли мають текстову секцію кратну 16; OpenKh теж тримає 16).
+//      і еталонні файли мають текстову секцію кратну 16; OpenKh теж тримає 16).
 //   3) sizeDiff = newText.length - oldTextLength.
 //   4) For each header pointer >= oldFooterOffset → +sizeDiff.
 //   5) Final = updatedHeader + newText + originalFooter.
@@ -119,7 +119,7 @@ function composeEv(origBuf, slots, codec, opts) {
   const { textOffset, footerOffset } = parsed;
   const oldTextLength = footerOffset - textOffset;
   // DEFAULT режим — COMPACT (з header pointer relocation). Підтверджено
-  // байт-у-байт порівнянням ENG/RUS .ev файлів: footer/bytecode position-
+  // байт-у-байт порівнянням ENG і еталонних .ev файлів: footer/bytecode position-
   // independent, треба оновлювати ЛИШЕ header pointer table при зростанні
   // тексту. Cell-preserving (opts.cellPreserving) — опційно для випадків
   // коли треба гарантувати що байт-довжина не змінилась взагалі.

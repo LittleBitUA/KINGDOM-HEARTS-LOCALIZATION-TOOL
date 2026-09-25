@@ -18,9 +18,9 @@ export async function initTranslateMode() {
 
   applyModuleTitle();
 
-  // Source dir для списку файлів — для KH1 це rusDir, для BBS це engDir.
+  // Source dir для списку файлів — для KH1 це refDir, для BBS це engDir.
   const game = getCurrentGame();
-  const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
+  const sourceDirKey = (game && game.sourceDirKey) || 'refDir';
   if (!tState.settings[sourceDirKey]) {
     tStatus.textContent = window.i18n.t('tStatusConfigure');
     openSettings();
@@ -73,7 +73,7 @@ export function describeFile(rel) {
 // (а) safe-mode → лише isTranslatable, (б) game-formats → лише kind'и обраної гри.
 export async function loadFileList() {
   const game = getCurrentGame();
-  const sourceDirKey = (game && game.sourceDirKey) || 'rusDir';
+  const sourceDirKey = (game && game.sourceDirKey) || 'refDir';
   const sourceDir = tState.settings[sourceDirKey];
   if (!sourceDir) return;
   try {
@@ -84,7 +84,7 @@ export async function loadFileList() {
     tState.files = files;
   } catch (e) {
     tState.files = [];
-    toast(window.i18n.t('toastReadRusFail', {msg: e.message}), 'error');
+    toast(window.i18n.t('toastReadRefFail', {msg: e.message}), 'error');
   }
   const allCount = tState.files.length;
   const safeCount = tState.files.filter(f => f.isTranslatable).length;

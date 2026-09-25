@@ -1,7 +1,7 @@
 'use strict';
 
 // KH1 «Message v361» .binl (sysmsg). Слот = повідомлення; offset = абсолютний
-// зсув байтів тексту (стабільний у межах файлу). Без RUS-оракула: усі записи
+// зсув байтів тексту (стабільний у межах файлу). Без оракула: усі записи
 // з літерами вважаються перекладними. Compose — строгий: запис із символами
 // без коду або з {eol} лишається англійським + error.
 
@@ -41,7 +41,7 @@ async function parse(engPath) {
       fileSize: buf.length
     },
     engSize: buf.length,
-    rusSize: 0,
+    refSize: 0,
     async compose(ukByOffset) {
       const rep = new Map();
       const errors = [];

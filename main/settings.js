@@ -11,7 +11,7 @@ const { writeFileAtomicSync } = require('../shared/safe-fs');
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'translate-settings.json');
 
 // Per-game ключі: теки (різні для KH1 та BBS) і параметри генератора шрифту.
-const GAME_DIR_KEYS = ['engDir', 'rusDir', 'outDir', 'tsvDir', 'lastFile', 'extraLetters', 'extraFont'];
+const GAME_DIR_KEYS = ['engDir', 'refDir', 'outDir', 'tsvDir', 'lastFile', 'extraLetters', 'extraFont'];
 
 // === Стандартна структура воркспейса ===
 // При старті створюємо ці теки (якщо не існують) і пропонуємо як defaults
@@ -21,7 +21,7 @@ const GAME_DIR_KEYS = ['engDir', 'rusDir', 'outDir', 'tsvDir', 'lastFile', 'extr
 //   KH-Localization/
 //     KH1/
 //       ENG/        — engDir
-//       MYFILES/    — rusDir (історична назва "RUS"; тепер це reference-файли користувача)
+//       MYFILES/    — refDir (референсні файли користувача)
 //       PROGRESS/   — tsvDir
 //       DONE/       — outDir (готові перекладені файли)
 //     BBS/
@@ -32,7 +32,7 @@ const DEFAULT_LOC_ROOT = path.join(app.getPath('documents'), 'KH-Localization');
 const GAME_DIR_LAYOUT = {
   'kh1-final-mix': {
     base: 'KH1',
-    dirs: { engDir: 'ENG', rusDir: 'MYFILES', tsvDir: 'PROGRESS', outDir: 'DONE' }
+    dirs: { engDir: 'ENG', refDir: 'MYFILES', tsvDir: 'PROGRESS', outDir: 'DONE' }
   },
   'kh-bbs-final-mix': {
     base: 'BBS',

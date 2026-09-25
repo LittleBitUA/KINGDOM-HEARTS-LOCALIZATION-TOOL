@@ -76,7 +76,8 @@ test('msg-v361: classify + format handler round-trip through the registry', asyn
     assert.equal(r.errors.length, 1);
     assert.match(r.errors[0].message, /\{eol\}/);
     const q = msg.parseMessageV361(r.outputs[0].buf);
-    // sysmsg збирається гібридно: схожі на латиницю а/р/у — 1 байт латинського гліфа
+    // sysmsg гра малює шрифтом ДІАЛОГІВ, тому кирилиця — екран `19 NN`,
+    // а схожі на латиницю а/р/у у гібридному режимі йдуть 1 байтом.
     assert.equal(codec.decode(q.entries[0].bytes), 'Зaвaнтaжити цю гpy?');
     assert.equal(codec.decode(q.entries[1].bytes), 'Ability equipped.{lf}Nice.');
   } finally {

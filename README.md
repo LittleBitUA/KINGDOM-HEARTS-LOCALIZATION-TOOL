@@ -1,282 +1,174 @@
 <div align="center">
 
-# 👑 KH1 Localization Tool
+# KINGDOM HEARTS LOCALIZATION TOOL
 
-[![Latest](https://img.shields.io/github/v/release/LittleBitUA/KH1-Localization-tool?style=for-the-badge&color=ffd700&labelColor=0f1730)](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest)
-[![License](https://img.shields.io/badge/license-MIT-38bdf8?style=for-the-badge&labelColor=0f1730)](LICENSE)
-[![Electron](https://img.shields.io/badge/electron-44.x-47848f?style=for-the-badge&labelColor=0f1730)](https://electronjs.org)
+**Translate the Kingdom Hearts games — text, fonts and textures — in one desktop app.**
 
-**Інструмент для локалізації Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs), Birth by Sleep (CTD), Re:Chain of Memories (CTDL), Dream Drop Distance (CTD UTF-16) + генерація українських шрифтів.**
-*A localization toolkit for Kingdom Hearts — KH1 (BIN/BINL/ARD/EV/mes_ofs), Birth by Sleep (CTD), Re:Chain of Memories (CTDL), Dream Drop Distance (UTF-16 CTD) + Ukrainian font generation.*
+[![Release](https://img.shields.io/github/v/release/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL?style=for-the-badge&color=ffd700&labelColor=0f1730)](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/total?style=for-the-badge&color=6ea8ff&labelColor=0f1730)](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge&labelColor=0f1730)](LICENSE)
+[![Platform](https://img.shields.io/badge/Windows-x64-0f1730?style=for-the-badge&labelColor=0f1730)](#download)
 
-[🇺🇦 Українська](#-українська) · [🇬🇧 English](#-english) · [📥 Download](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest)
+[English](#english) · [Українська](#українська) · [**Download**](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest) · [Formats](docs/formats/)
 
-</div>
-
----
-
-## 🇺🇦 Українська
-
-### Що це
-
-Редактор для перекладу тексту ігор **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: Birth by Sleep — Final Mix HD** та **Kingdom Hearts Re:Chain of Memories** (PC). Збірки — для Windows; setup-майстер (OpenKH, KHPCPatchManager, Expand-Archive) — Windows-only, сам редактор працює на будь-якій ОС з Electron. Підтримує основні текстові формати обох ігор, має словник із автоматичним підхопленням повторень, валідатор токенів, візуальний редактор кернінгу (KH1) та редактор шрифту (BBS), збірку patch-файлу.
-
-### ✨ Можливості
-
-| Категорія | Що працює |
-|---|---|
-| **Ігри** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game ізольовані налаштування і теки) |
-| **Кодек KH1** | Двобайтові команди (`{0x05/06/07,0xXX}`), нативна кирилиця кодами `19 NN` (латиниця недоторкана), lossless round-trip |
-| **Формати KH1** | `.bin` (raw text), `.binl` (з EvMsg-заголовком), `.binl` **«Message v361»** (`sysmsg`, `md_memo_sysmsg`), `.ard` (KGR контейнер), пари таблиця-зсувів + дані (`_mes_ofs`/`_mes_data`, `_offset`/`_data`, `SAW*OMSG`/`SAW*MSG`, `SASAOMSG`/`SASAMSG`, `ChallengeOfs`/`ChallengeMsg`), `.kmb` (словник, Jiminy, синопсис, гімн), `.ev`/`.evdl` (event-скрипти) — усі п'ять архівів `kh1_first…fifth` |
-| **Формати Re:CoM** | `.ctdl` (порт `comtext.py`/`comctd.py`, звірено на всіх 30 503 повідомленнях; `{color xx}` `{icon xx}`, **кирилиця на кодах хіраґани `0x829F–0x82E0`**; round-trip 426/426) |
-| **Формати DDD** | `.ctd` v0x1F7 UTF-16LE (порт `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, сторінкова адресація до 1 МіБ; round-trip 37/37) |
-| **Шрифти UA** | Вкладка «Шрифти UA» для KH1 / BBS / Re:CoM / DDD (KH1: нативна кирилиця у вільних комірках 224+ шрифту діалогів, коди `19 NN`, `tools/py/kh1/kh1font.py`): растеризує 66 українських літер (ComicHearts для діалогів, KHMenu для інтерфейсу) у вільні комірки ігрових шрифтів еталонними Python-інструментами (`tools/py`), «Встановити у гру» з бекапом оригіналів |
-| **text_all.txt** | Експорт/імпорт формату обміну Python-наборів (`### шлях` / `#N` / текст) — переклад лягає у per-file прогрес і глосарій; пара `text_uniq.txt`+`text_ua.txt` (Re:CoM) → глосарій |
-| **Кодек BBS** | Порт еталонного `bbstext.py`: повні таблиці `0x81`/`0x99`, вставки `{icon triangle}` `{color white}` `{sjis xxxx}`, **кирилиця на кодах катакани `0x83xx`** (узгоджено зі згенерованим шрифтом), перевірка наявності гліфа у `FontEn.arc`; byte-identical round-trip 116/116 файлів гри |
-| **Формати BBS** | `.ctd` (event/menu/HUD), HD-PNG атлас фонтів, `mesfont/menufont/cmdfont/helpfont/numeral` шрифти |
-| **Редактор шрифту BBS** | Atlas viewer (HD PNG 1024×512), COD overlay з квадратними клітинами, правка X/Y/palette/width гліфів, експорт overlay-PNG як guide-шар, зум (−/+/Fit, Ctrl+wheel), збереження `.cod` |
-| **Глосарій** | 📊 Dashboard з прогрес-баром, фільтри, сортування, 🩹 авто-фікс структури, 🔄 bulk Find/Replace (regex/whole-word), ↶ Undo масових операцій, 5 ротаційних бекапів `_glossary.json` |
-| **Імпорт** | HTML / CSV / TSV / TXT — з token-guard'ом проти втрати керівних байтів. HTML-імпорт сумісний з output OpenKh CTD Editor (`{:unk XX}`) |
-| **Auto-wrap** | Адаптивне розставляння `{lf}` за EN-структурою з кернінг-метриками з `.knj` |
-| **Патч в один клік** | «Зібрати патч» — DONE (+ збірка шрифтів UA) → `.kh1pcpatch/.compcpatch/.bbspcpatch/.dddpcpatch` через KHPCPatchManager (файл для поширення); «Застосувати до гри» — партійний патч `.pkg` архів за архівом з бекапом у `Image/dt/backup` |
-| **Ширина рядка** | У кожному рядку глосарію KH1 — `UK/EN px` за метриками шрифту діалогів `.knj` (з нативними літерами); червоне — переклад ширший за оригінал |
-| **Кернінг Re:CoM** | Вкладка «Кернінг CoM»: шрифт FFMW (`UK_sysfont.binl` / `UK_evtfont.binl`) + HD-атлас `_fo240.png` зі збірки «Шрифти UA» або з гри; сітка гліфів з drag-лінією ширини, auto-fit за α-каналом, live-preview кирилицею, збереження `.binl` |
-| **Хмаринки Re:CoM** | Вкладка «Хмаринки»: гра бере розмір діалогового вікна з макета у `.ctdl` (X/Y/W/H у px PS2) і не підганяє його під текст — довший переклад вилазить за край. Скан усіх `UK_*.ctdl` показує, де український рядок ширший за хмаринку; «Підібрати» / «Підібрати всі» розширює її із запасом як в оригіналі, є ручні X/Y/W/H і drag у preview з текстом з атласу. Правки — `PROGRESS/_bubbles.json`, застосовуються при «Зібрати ВСІ» і в патчі |
-| **Текстури Re:CoM** | Вкладка «Текстури»: написи інтерфейсу (FRIENDS, CARDS, LEVEL UP!, BONUS, підказки меню…) — це картинки у `remastered/FORM/<n>/FOxxxx.RTM/UK_*.imz` (контейнер IMGZ з IMGD-текстурами). Сітка мініатюр усіх 266 текстур, перегляд із зумом, «Замінити PNG…» для конкретної текстури (той самий розмір) — перезібраний `.imz` одразу пишеться у `DONE/Recom/…` і потрапляє у патч; «Експортувати всі у PNG» та «Імпортувати теку PNG» для роботи в редакторі. Облік замін — `PROGRESS/_textures.json` + `PROGRESS/textures/` |
-| **Текстури BBS** | Та сама вкладка «Текстури» для Birth by Sleep: HD-текстури інтерфейсу лежать готовими файлами `bbs_first/remastered/arc_en/<група>/<name>.arc/US_<name>_arcN.dds` (нестиснені A8R8G8B8, `tools/lib/dds.js`) та `.png`. Сітка 93 текстур (меню camp, підказки help*, заставки title_txt, commonGame…), заміна PNG того самого розміру → `DONE/bbs_first/remastered/…/*.dds` із заголовком оригіналу; експорт/імпорт теки (`<name>.dds.png`). Облік — той самий `PROGRESS/_textures.json` у теці BBS |
-| **Кернінг (KH1)** | Візуальний редактор `.knj` з DDS-атласом (drag для зміни ширини, auto-fit за α-каналом) |
-| **Auto-layout** | Авто-створення тек на запуск (KH1: `MYFILES/PROGRESS/DONE`; BBS: `ENG/PROGRESS/DONE`) |
-| **Auto-update** | Через GitHub Releases (electron-updater) |
-| **i18n** | UI українською + англійською (`/Налаштування → Мова`) |
-
-### 📚 Підтримка форматів
-
-#### `.binl` (структуровані діалоги)
-Сигнатура `EvMsg`, header 11 байт + footer 5 байт. Усередині — sequence of null-terminated strings з offset-based індексацією. Керівні команди `05/06/07` мають **u16-параметр** — коли старший байт ≠ 0, він входить у токен (`{0x06,0x2C,0x01}` = 300), щоб не показуватись як «пробіл» і не губитись при перекладі; старі ключі глосарія з 2-байтовою формою переносяться автоматично. При збірці діє структурний guard: переклад, що губить токени EN або додає `05/06/0A/0B`, лишає оригінал і потрапляє у звіт помилок.
-
-#### `.binl` «Message v361» (системні повідомлення)
-`remastered/menu/<lang>/sysmsg.bin/XX_sysmsg.binl`: header `0x20` (count, offsetTable @`0x10`, textOffset @`0x14`, довжини), таблиця `u16`-зсувів (count або count+1 із sentinel), текст із `00`-термінаторами, `02` = перенос, padding `0xCD` до кратного 16. Власний діалект команд (`0D/0E/13/14` = i16, `08` = RGB, `0B` = 3 параметри) — декодується сирими токенами. Звірено з OpenKh PR #1275.
-
-#### `.bin` (raw text)
-Без сигнатури, plain KH1-encoded byte stream. Розпізнається евристично за відсотком printable байтів.
-
-#### `.ard` (карти/контейнери)
-Сигнатура `KGR\0`. Підтримка читання та модифікації internal text region.
-
-#### `_mes_ofs.bin` + `_mes_data.bin` (парний формат)
-Меню/UI listings (gummi blocks, item names тощо).
-- `.ofs`: масив `int16 LE` pointers у `.data`
-- `.data`: концатеновані null-terminated strings, KH1 codec
-- Cell-preserving compose: кожен рядок займає той самий cell-size, що дозволяє точну byte-identical перебудову.
-
-#### `.ev` / `.evdl` (event scripts, KH1)
-Парсер/композер ([tools/lib/ev-format.js](tools/lib/ev-format.js)) увімкнений: text-блок перебудовується compact-режимом з релокацією header-pointer'ів у footer (підтверджено byte-by-byte порівнянням ENG/RUS файлів). Є cell-preserving режим (`opts.cellPreserving`), що гарантує незмінний розмір файлу.
-
-#### `.ctd` (Birth by Sleep — event/menu/HUD)
-Власна clean-room реалізація ([tools/lib/ctd-codec.js](tools/lib/ctd-codec.js), [tools/lib/ctd-format.js](tools/lib/ctd-format.js)). Структура:
-- 32-byte header: `count`, `messageTableOff`, `layoutTableOff`, `textBlockOff`, `textBlockSize`
-- N × 12-byte message entries (id + offset у text-block + len)
-- N × 32-byte layout entries (X/Y/font/scale/color)
-- Text-block: послідовність KH-encoded байт-стрічок з padding `0xCD`
-- Підтримка prefix-байтів `0x81`/`0x99` (CJK punctuation, latin extended) і кнопкових пар `F1/F2/F5/F9 + XX` (геймпадні гліфи).
-- **Byte-identical round-trip**: оригінальні `.ctd` файли парсяться, перетворюються в TSV, повертаються назад у `.ctd` без жодного відхилення (152/152).
-
-#### `.ctd` (Dream Drop Distance HD — KH 2.8)
-`@CTD` версії `0x1F7`, UTF-16LE. Entry 8 байт: `messageId`, `textOffsetLow`, `(layoutIndex<<4)|page` → адреса = low + page·0x10000. Шрифти `.bcfnt` (Nintendo 3DS BCFNT: CFNT/FINF/TGLP/CWDH/CMAP, A4-текстура зі swizzle) доповнюються кирилицею у вільні комірки, коди — нативний Unicode. Детально — [docs/formats/](docs/formats/).
-
-#### Шрифти BBS (`mesfont`/`menufont`/`cmdfont`/`helpfont`/`numeral`)
-Парсер ([tools/lib/bbs-font.js](tools/lib/bbs-font.js)) розпізнає bundle з `.inf` (метадані: count, texture WxH, cell WxH) + `.cod` (8 байт/гліф: charID, posX, posY, palette, width) + `.mtx` (4-bit indexed swizzled SD атлас) + `.clu` (1024-byte RGBA палітра). Опційно — HD-PNG remastered атлас (1024×512 для mesfont, складається з двох 512×512 блоків side-by-side по `palette`).
-
-### 🚀 Як користуватися
-
-1. **Завантаж** останній `.exe` з [Releases](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest).
-2. **Налаштуй теки** (через ⚙ Налаштування):
-   - **Eng dir** — папка з оригінальним англійським текстом гри
-   - **Out dir** — куди писати перекладений вихід
-   - **TSV dir** — папка для прогресу/глосарію
-3. **Глосарій** → 🔨 **Побудувати/Оновити** — сканує всі файли в Eng dir.
-4. Перекладай. Натисни 📐 **Auto-wrap (за EN)** для розставляння `{lf}`.
-5. **⚡ Зібрати ВСІ файли** → готовий patch у Out dir.
-
-### ⌨ Гарячі клавіші
-
-- `Ctrl+S` — зберегти
-- `Ctrl+F` — пошук
-- `Ctrl+E` / `Ctrl+I` — експорт / імпорт TXT (Глосарій)
-- `Ctrl+H` — Find/Replace
-- `Ctrl+→` / `Ctrl+←` — наступний / попередній файл
-- `Esc` — закрити модалі
-
-### 🛠 Збірка з джерел
-
-```bash
-git clone https://github.com/LittleBitUA/KH1-Localization-tool.git
-cd KH1-Localization-tool
-npm install
-npm start               # dev-режим
-npm test                # unit-тести (node:test, синтетичні фікстури — файли гри не потрібні)
-npm run lint            # ESLint
-npm run test:smoke      # headless e2e: справжній Electron + IPC на синтетичних файлах
-npm run check           # lint + test + smoke
-npm run build           # портабельний .exe
-npm run build:installer # NSIS installer
-```
-
-Шрифти UA потребують **Python 3** з `pillow numpy fonttools scipy` (вкладка «Шрифти UA» сама перевірить і запропонує встановити через pip). Еталонні Python-інструменти й розбори форматів: [tools/py/](tools/py/), [docs/formats/](docs/formats/).
-
-Корисне для розробки:
-- `KH_DEBUG=1 npm start` — дзеркалить console renderer'а у термінал і відкриває DevTools.
-- Якщо запускаєш з терміналу VS Code і бачиш `ipcMain undefined` — зніми змінну `ELECTRON_RUN_AS_NODE` (VS Code передає її дочірнім процесам).
-- CI (GitHub Actions) ганяє lint + тести на кожен push; тег `vX.Y.Z` збирає portable + NSIS і публікує реліз.
-
-Структура коду:
-- `main.js` + `main/*.js` — main-процес (вікно, settings, IPC за доменами, worker-pool, setup).
-- `renderer/` — ESM-модулі UI (`main.js` — вхід; `core/`, `screens/`, `translate/`, `kerning/`, `bbsfont/`).
-- `shared/` — чисті модулі, спільні для main і renderer (codec KH1, TSV-формат, структура токенів, атомарний запис).
-- `tools/lib/formats/` — один handler на формат (`parse`/`compose`); `tools/lib/translate-ops.js` — generic extract/compose/glossary/composeAll/text_all поверх реєстру.
-- `tools/lib/{bbs-codec,recom-ctdl-codec,ddd-ctd}.js` — порти еталонних Python-кодеків; `data/{bbs,recom,ddd}/` — таблиці, витягнуті з тих самих .py; `test/fixtures/` — вектори, згенеровані Python-кодом (`test/codecs-reference.test.js` звіряє байт-у-байт).
-- `tools/py/` — самі Python-інструменти (шрифти + CLI для тексту), `assets/fonts/` — ComicHearts/KHMenu OTF.
-- `test/` — тести; `test/helpers/synth.js` будує синтетичні .binl/.ev/mes_ofs/.ctd/.ctdl/Message v361; `test/msg-v361.test.js` додатково ганяє справжній `UK_sysmsg.binl`, якщо гра розпакована.
-
----
-
-## 🇬🇧 English
-
-### What is this
-
-Editor for translating **Kingdom Hearts 1 — Final Mix HD**, **Kingdom Hearts: Birth by Sleep — Final Mix HD** and **Kingdom Hearts Re:Chain of Memories** (PC) text. Builds target Windows; the setup wizard (OpenKH, KHPCPatchManager, Expand-Archive) is Windows-only, the editor itself runs anywhere Electron does. Supports the main text formats of both games, has a glossary with auto-deduplication, token validator, visual kerning editor (KH1) and font editor (BBS), and patch builder.
-
-### ✨ Features
-
-| Category | What works |
-|---|---|
-| **Games** | KH1 Final Mix HD · Birth by Sleep Final Mix HD · Re:Chain of Memories · **Dream Drop Distance HD** (per-game isolated settings and folders) |
-| **KH1 codec** | Two-byte commands (`{0x05/06/07,0xXX}`), native Cyrillic via `19 NN` codes (Latin untouched), lossless round-trip |
-| **KH1 formats** | `.bin` (raw text), `.binl` (EvMsg header), `.binl` **“Message v361”** (`sysmsg`, `md_memo_sysmsg`), `.ard` (KGR container), offset-table + data pairs (`_mes_ofs`/`_mes_data`, `_offset`/`_data`, `SAW*OMSG`/`SAW*MSG`, `SASAOMSG`/`SASAMSG`, `ChallengeOfs`/`ChallengeMsg`), `.kmb` (dictionary, Jiminy, synopsis, anthem), `.ev`/`.evdl` (event scripts) — all five `kh1_first…fifth` archives |
-| **Re:CoM formats** | `.ctdl` (port of `comtext.py`/`comctd.py`, verified on all 30 503 messages; `{color xx}` `{icon xx}`, **Ukrainian on hiragana codes `0x829F–0x82E0`**; round-trip 426/426) |
-| **DDD formats** | `.ctd` v0x1F7 UTF-16LE (port of `khctd.py`; `{PLAYER}` `{BTN_A}` `{U+XXXX}`, paged addressing up to 1 MiB; round-trip 37/37) |
-| **UA fonts** | "UA fonts" tab for KH1 / BBS / Re:CoM / DDD (KH1: native Cyrillic in the free dialog-font cells 224+, `19 NN` codes, `tools/py/kh1/kh1font.py`): rasterizes the 66 Ukrainian letters (ComicHearts for dialogue, KHMenu for UI) into free cells of the game fonts using the reference Python tools (`tools/py`); "Install into game" with backups |
-| **text_all.txt** | Export/import of the Python toolkits' interchange format (`### path` / `#N` / text) — translations land in per-file progress and the glossary; a `text_uniq.txt`+`text_ua.txt` pair (Re:CoM) → glossary |
-| **BBS codec** | Port of the reference `bbstext.py`: full `0x81`/`0x99` tables, `{icon triangle}` `{color white}` `{sjis xxxx}` tags, **Ukrainian on katakana codes `0x83xx`** (in sync with the generated font), FontEn.arc glyph check; byte-identical round-trip on 116/116 game files |
-| **BBS formats** | `.ctd` (event/menu/HUD), HD-PNG font atlases, `mesfont/menufont/cmdfont/helpfont/numeral` fonts |
-| **BBS font editor** | Atlas viewer (HD PNG 1024×512), COD overlay with square cells, edit X/Y/palette/width per glyph, export overlay PNG as guide layer, zoom (−/+/Fit, Ctrl+wheel), save `.cod` |
-| **Glossary** | 📊 Dashboard with progress bar, filters, sorting, 🩹 auto-fix structure, 🔄 bulk Find/Replace (regex/whole-word), ↶ Undo for bulk operations, 5 rotating `_glossary.json` backups |
-| **Import** | HTML / CSV / TSV / TXT — with token-guard against losing control bytes. HTML import compatible with OpenKh CTD Editor output (`{:unk XX}`) |
-| **Auto-wrap** | Adaptive `{lf}` placement by EN structure using kerning metrics from `.knj` |
-| **One-click patch** | “Build patch” — DONE (+ UA fonts build) → `.kh1pcpatch/.compcpatch/.bbspcpatch/.dddpcpatch` via KHPCPatchManager (shareable file); “Apply to game” — partial `.pkg` patch archive by archive with backups in `Image/dt/backup` |
-| **Line width** | Every KH1 glossary row shows `UK/EN px` from the dialog font `.knj` metrics (native letters included); red = translation wider than the original |
-| **Re:CoM kerning** | “CoM kerning” tab: FFMW font (`UK_sysfont.binl` / `UK_evtfont.binl`) + HD atlas `_fo240.png` from the UA fonts build or the game; glyph grid with a draggable advance line, alpha-based auto-fit, live Cyrillic preview, `.binl` save |
-| **Re:CoM bubbles** | “Bubbles” tab: the game takes the dialog-box size from the `.ctdl` layout (X/Y/W/H in PS2 px) and never fits it to the text, so a longer translation overflows. A scan of every `UK_*.ctdl` lists lines whose Ukrainian text is wider than its bubble; “Fit” / “Fit all” widens them keeping the original padding, with manual X/Y/W/H and drag in a preview rendered from the atlas. Edits live in `PROGRESS/_bubbles.json` and are applied by “Build ALL” and the patch |
-| **Re:CoM textures** | “Textures” tab: UI captions (FRIENDS, CARDS, LEVEL UP!, BONUS, menu hints…) are images in `remastered/FORM/<n>/FOxxxx.RTM/UK_*.imz` (IMGZ containers of IMGD textures). A thumbnail grid of all 266 textures, zoomable preview, “Replace with PNG…” for one texture (same size) — the rebuilt `.imz` is written to `DONE/Recom/…` right away and goes into the patch; “Export all to PNG” / “Import PNG folder” for editing outside. Replacements are tracked in `PROGRESS/_textures.json` + `PROGRESS/textures/` |
-| **BBS textures** | The same “Textures” tab for Birth by Sleep: HD UI textures are plain files `bbs_first/remastered/arc_en/<group>/<name>.arc/US_<name>_arcN.dds` (uncompressed A8R8G8B8, `tools/lib/dds.js`) and `.png`. A grid of 93 textures (camp menu, help* hints, title_txt splash screens, commonGame…), replace with a same-size PNG → `DONE/bbs_first/remastered/…/*.dds` keeping the original header; export/import folder (`<name>.dds.png`). Tracked in the same `PROGRESS/_textures.json` of the BBS workspace |
-| **Kerning (KH1)** | Visual `.knj` editor with DDS atlas (drag-to-resize widths, auto-fit by α-channel) |
-| **Auto-layout** | Auto-creates folder layout on launch (KH1: `MYFILES/PROGRESS/DONE`; BBS: `ENG/PROGRESS/DONE`) |
-| **Auto-update** | Via GitHub Releases (electron-updater) |
-| **i18n** | UK + EN UI (`Settings → Language`) |
-
-### 📚 Format support
-
-#### `.binl` (structured dialogs)
-`EvMsg` signature, 11-byte header + 5-byte footer. Contains a sequence of null-terminated strings with offset-based indexing. Commands `05/06/07` carry a **u16 parameter** — a non-zero high byte joins the token (`{0x06,0x2C,0x01}` = 300) instead of showing up as a “space” that a translator could drop; glossary keys in the old 2-byte form migrate automatically. Compose runs a structural guard: a translation that loses EN tokens or adds `05/06/0A/0B` keeps the original and is reported.
-
-#### `.binl` “Message v361” (system messages)
-`remastered/menu/<lang>/sysmsg.bin/XX_sysmsg.binl`: `0x20` header (count, offsetTable @`0x10`, textOffset @`0x14`, lengths), `u16` offset table (count or count+1 with sentinel), `00`-terminated text, `02` = line break, `0xCD` padding to 16. Own command dialect (`0D/0E/13/14` = i16, `08` = RGB, `0B` = 3 params) decoded as raw tokens. Verified against OpenKh PR #1275.
-
-#### `.bin` (raw text)
-No signature, plain KH1-encoded byte stream. Detected heuristically by printable-byte ratio.
-
-#### `.ard` (maps / containers)
-`KGR\0` signature. Read & modify internal text region.
-
-#### `_mes_ofs.bin` + `_mes_data.bin` (paired format)
-Menu / UI listings (gummi blocks, item names, etc.).
-- `.ofs`: array of `int16 LE` pointers into `.data`
-- `.data`: concatenated null-terminated strings, KH1 codec
-- Cell-preserving compose: each string occupies the same cell-size, enabling byte-identical rebuild.
-
-#### `.ev` / `.evdl` (event scripts, KH1)
-Parser/composer ([tools/lib/ev-format.js](tools/lib/ev-format.js)) is enabled: the text block is rebuilt in compact mode with relocation of footer pointers in the header (confirmed by byte-by-byte ENG/RUS comparison). A cell-preserving mode (`opts.cellPreserving`) keeps the file size unchanged.
-
-#### `.ctd` (Birth by Sleep — event/menu/HUD)
-Custom clean-room implementation ([tools/lib/ctd-codec.js](tools/lib/ctd-codec.js), [tools/lib/ctd-format.js](tools/lib/ctd-format.js)). Layout:
-- 32-byte header: `count`, `messageTableOff`, `layoutTableOff`, `textBlockOff`, `textBlockSize`
-- N × 12-byte message entries (id + offset into text-block + len)
-- N × 32-byte layout entries (X/Y/font/scale/color)
-- Text-block: sequence of KH-encoded byte strings padded with `0xCD`
-- Supports prefix bytes `0x81`/`0x99` (CJK punctuation, latin-extended) and gamepad-button pairs `F1/F2/F5/F9 + XX`.
-- **Byte-identical round-trip**: original `.ctd` files parse → TSV → back to `.ctd` with zero deviation (152/152).
-
-#### BBS fonts (`mesfont`/`menufont`/`cmdfont`/`helpfont`/`numeral`)
-Parser ([tools/lib/bbs-font.js](tools/lib/bbs-font.js)) reads a bundle of `.inf` (metadata: count, texture WxH, cell WxH) + `.cod` (8 bytes/glyph: charID, posX, posY, palette, width) + `.mtx` (4-bit indexed swizzled SD atlas) + `.clu` (1024-byte RGBA palette). Optional HD remastered PNG atlas (1024×512 for mesfont, two 512×512 blocks side-by-side keyed by `palette`).
-
-### 🚀 Usage
-
-1. **Download** the latest `.exe` from [Releases](https://github.com/LittleBitUA/KH1-Localization-tool/releases/latest).
-2. **Configure folders** (via ⚙ Settings):
-   - **Eng dir** — folder with original English game text
-   - **Out dir** — where to write translated output
-   - **TSV dir** — folder for progress / glossary
-3. **Glossary** → 🔨 **Build / Refresh** — scans all files in Eng dir.
-4. Translate. Press 📐 **Auto-wrap (by EN)** to place `{lf}`.
-5. **⚡ Compose ALL files** → ready patch in Out dir.
-
-### ⌨ Hotkeys
-
-- `Ctrl+S` — save
-- `Ctrl+F` — search
-- `Ctrl+E` / `Ctrl+I` — TXT export / import (Glossary)
-- `Ctrl+H` — Find/Replace
-- `Ctrl+→` / `Ctrl+←` — next / previous file
-- `Esc` — close modals
-
-### 🛠 Build from source
-
-```bash
-git clone https://github.com/LittleBitUA/KH1-Localization-tool.git
-cd KH1-Localization-tool
-npm install
-npm start               # dev mode
-npm test                # unit tests (node:test, synthetic fixtures — no game files needed)
-npm run lint            # ESLint
-npm run test:smoke      # headless e2e: real Electron + IPC on synthetic files
-npm run check           # lint + test + smoke
-npm run build           # portable .exe
-npm run build:installer # NSIS installer
-```
-
-UA fonts need **Python 3** with `pillow numpy fonttools scipy` (the "UA fonts" tab checks and offers a pip install). Reference Python tools and format write-ups: [tools/py/](tools/py/), [docs/formats/](docs/formats/).
-
-Development notes:
-- `KH_DEBUG=1 npm start` mirrors the renderer console to the terminal and opens DevTools.
-- Running from the VS Code terminal and seeing `ipcMain undefined`? Unset `ELECTRON_RUN_AS_NODE` (VS Code passes it to child processes).
-- CI (GitHub Actions) runs lint + tests on every push; a `vX.Y.Z` tag builds portable + NSIS and publishes the release.
-
-Code layout: `main/` (main process by domain), `renderer/` (ESM UI modules), `shared/` (pure modules used by both), `tools/lib/formats/` (one handler per format) + `tools/lib/translate-ops.js`, `test/`.
-
----
-
-## 🙏 Credits / Подяки
-
-Спираємось на роботи спільноти KH-modding'у:
-*Built upon the work of the KH-modding community:*
-
-- **pro100luk** — original codec research, glyph mapping
-- **GuidingHeart** — KH1 binary structure analysis
-- **EMP-UA** — Ukrainian localization team
-- **Giza** — translation contributions
-- **gg3502** — [KH1-EVDL-ARD-EDITOR](https://github.com/gg3502/KH1-EVDL-ARD-EDITOR), syscall/opcode docs
-- **gaithern** — format research
-
-## 📜 License
-
-MIT — see [LICENSE](LICENSE).
-
-KH1, Kingdom Hearts, and related trademarks are property of Square Enix / Disney. This tool does not include any copyrighted assets.
-
----
-
-<div align="center">
-
-Made with 💙💛 for Ukrainian gamers
+*May your heart be your guiding key.*
 
 </div>
+
+---
+
+## English
+
+A desktop toolkit for translating the **Kingdom Hearts** PC releases into any language. It reads the game's own text containers, shows the strings in a normal editor, and writes them back byte-exactly — respecting the buffer limits, control bytes and layout data the games are full of.
+
+It is not a generic hex editor. Every format below was reverse-engineered specifically, so the tool knows what it is allowed to move and what must stay where it is.
+
+### Supported games
+
+| Game | Platform | Text formats | Status |
+|---|---|---|---|
+| Kingdom Hearts Final Mix | PC (Steam / Epic) | `.binl` (EvMsg + Message v361), raw `.bin`, `.ev` / `.evdl`, `*_mes_ofs` pairs, `.kmb` | ✅ ready |
+| Kingdom Hearts Re:Chain of Memories | PC (Steam / Epic) | `.ctdl` | ✅ ready |
+| Kingdom Hearts: Birth by Sleep Final Mix | PC (Steam / Epic) | `.ctd`, `.arc` layouts (`.l2d`) | ✅ ready |
+| Kingdom Hearts 3D: Dream Drop Distance HD | PC (KH HD 2.8) | `.ctd` v0x1F7 (UTF‑16LE) | ✅ ready |
+| Kingdom Hearts 358/2 Days (HD cutscenes) | PC (KH HD 1.5+2.5) | `.ctd` v0x1F7 | ✅ ready |
+| Kingdom Hearts Re:coded (HD cutscenes) | PC (KH HD 1.5+2.5) | `.ctd` v0x1F7 | ✅ ready |
+| Kingdom Hearts Theater (KH1 cutscenes) | PC (KH HD 1.5+2.5) | `.ctd` v0x1F7 | ✅ ready |
+| Kingdom Hearts 0.2 Birth by Sleep | PC (KH HD 2.8) · Unreal Engine 4 | archives readable, text lives in textures | 🚧 planned |
+| Kingdom Hearts χ Back Cover | PC (KH HD 2.8) | movie — subtitles only | 🚧 planned |
+
+### What is inside
+
+| Module | What it does |
+|---|---|
+| **Translate** | Extract → edit → compose. A glossary keyed by the English string, so the same line translated once is reused everywhere it appears. Token validation, structural guards, per-file progress. |
+| **Kerning** | Per-glyph advance widths for the KH1 dialogue font. |
+| **CoM kerning** | The same for Re:Chain of Memories, including its bubble layout records. |
+| **Bubbles** | Re:CoM text windows: position, size, alignment and type of every dialogue box. |
+| **Textures** | Import/export of in-game textures (DDS/PNG), with the game-specific atlas rules. |
+| **BBS font** | Glyph atlas and metrics editor for Birth by Sleep. |
+| **UA fonts** | Generates a full Cyrillic set into a game's font, drawing into free cells so the Latin alphabet stays byte-identical. |
+
+### Download
+
+Grab the latest `.exe` from **[Releases](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest)**. Windows x64, portable — no installer needed. The app checks for updates on its own and can download a new version in place.
+
+### Quick start
+
+1. **Unpack the game.** Use [KHPCPatchManager](https://github.com/Noxalus/KHPCPatchManager) on the `.pkg` archives; you get a `*.hed_out` folder.
+2. **Point the app at the folders.** `ENG` — the unpacked game; `PROGRESS` — where the glossary lives; `DONE` — where finished files are written. An optional reference folder can hold another language's files: lines identical to the source are then treated as untranslatable.
+3. **Translate.** Pick a file, edit rows, save. The glossary fills in repeats automatically.
+4. **Compose all files** and copy `DONE` over your patch folder.
+5. **Repack** with KHPCPatchManager and apply the patch.
+
+### Build from source
+
+```bash
+git clone https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL.git
+cd KINGDOM-HEARTS-LOCALIZATION-TOOL
+npm install
+npm start            # run
+npm run check        # lint + tests + headless smoke test
+npm run build        # portable .exe into dist/
+```
+
+Node 20+ and Windows are expected. Python 3.10+ with `pillow`, `numpy`, `fonttools` and `scipy` is only needed for the font generators.
+
+### Format documentation
+
+Everything the project learned about the games' text is written down in **[docs/formats/](docs/formats/)** — container layouts, control bytes, encoding tables, buffer limits and the traps that cost the most time. It is meant to be useful even if you never run this app.
+
+### Contributing
+
+Issues and pull requests are welcome, especially:
+
+- new games or containers of the series;
+- corrections to the format documentation;
+- translations of the interface (it already ships Ukrainian and English).
+
+### Credits
+
+Built by **Dmytro Bidlov** — *«Little Bit» Team*.
+
+Thanks to the [OpenKh](https://github.com/Xeeynamo/OpenKh) project and to [KHPCPatchManager](https://github.com/Noxalus/KHPCPatchManager), without which unpacking the PC releases would be far harder.
+
+Released under the [MIT licence](LICENSE). Kingdom Hearts is a trademark of Square Enix and Disney; this is an unofficial fan tool, not affiliated with either.
+
+---
+
+## Українська
+
+Настільний інструмент для перекладу ПК-версій **Kingdom Hearts** будь-якою мовою. Він читає власні текстові контейнери гри, показує рядки у звичайному редакторі й записує їх назад побайтово — з повагою до буферів, керуючих байтів і розкладок, яких у цих іграх дуже багато.
+
+Це не універсальний hex-редактор. Кожен формат нижче розібрано окремо, тому програма знає, що можна рухати, а що мусить лишитися на місці.
+
+### Які ігри підтримано
+
+| Гра | Платформа | Формати тексту | Стан |
+|---|---|---|---|
+| Kingdom Hearts Final Mix | PC (Steam / Epic) | `.binl` (EvMsg і Message v361), сирі `.bin`, `.ev` / `.evdl`, пари `*_mes_ofs`, `.kmb` | ✅ готово |
+| Kingdom Hearts Re:Chain of Memories | PC (Steam / Epic) | `.ctdl` | ✅ готово |
+| Kingdom Hearts: Birth by Sleep Final Mix | PC (Steam / Epic) | `.ctd`, розкладки `.l2d` в `.arc` | ✅ готово |
+| Kingdom Hearts 3D: Dream Drop Distance HD | PC (KH HD 2.8) | `.ctd` v0x1F7 (UTF‑16LE) | ✅ готово |
+| Kingdom Hearts 358/2 Days (ролики HD) | PC (KH HD 1.5+2.5) | `.ctd` v0x1F7 | ✅ готово |
+| Kingdom Hearts Re:coded (ролики HD) | PC (KH HD 1.5+2.5) | `.ctd` v0x1F7 | ✅ готово |
+| Kingdom Hearts Theater (ролики KH1) | PC (KH HD 1.5+2.5) | `.ctd` v0x1F7 | ✅ готово |
+| Kingdom Hearts 0.2 Birth by Sleep | PC (KH HD 2.8) · Unreal Engine 4 | архіви читаються, текст лежить у текстурах | 🚧 у планах |
+| Kingdom Hearts χ Back Cover | PC (KH HD 2.8) | фільм — лише субтитри | 🚧 у планах |
+
+### Що всередині
+
+| Розділ | Для чого |
+|---|---|
+| **Переклад** | Витяг → редагування → збирання. Глосарій за англійським рядком: перекладене один раз підставляється скрізь, де трапляється. Перевірка токенів, структурні запобіжники, поступ по кожному файлу. |
+| **Кернінг** | Ширини символів шрифту діалогів KH1. |
+| **Кернінг CoM** | Те саме для Re:Chain of Memories разом із записами розкладки хмаринок. |
+| **Хмаринки** | Текстові вікна Re:CoM: положення, розмір, вирівнювання й тип кожного. |
+| **Текстури** | Імпорт і експорт ігрових текстур (DDS/PNG) за правилами атласів кожної гри. |
+| **Шрифт BBS** | Редактор атласа й метрик для Birth by Sleep. |
+| **Шрифти UA** | Малює повну кирилицю у шрифт гри — у вільні комірки, щоб латиниця лишилася побайтово тією самою. |
+
+### Завантажити
+
+Останній `.exe` — у **[Releases](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest)**. Windows x64, портативний, встановлювати не треба. Програма сама перевіряє оновлення й може завантажити нову версію на місці.
+
+### З чого почати
+
+1. **Розпакуй гру** через [KHPCPatchManager](https://github.com/Noxalus/KHPCPatchManager) — отримаєш теку `*.hed_out`.
+2. **Вкажи теки:** `ENG` — розпакована гра, `PROGRESS` — де лежить глосарій, `DONE` — куди складати готове. Додатково можна дати теку еталона з файлами іншої мови: рядки, ідентичні до джерела, вважатимуться неперекладними.
+3. **Перекладай.** Вибери файл, редагуй рядки, зберігай. Повтори глосарій підставить сам.
+4. **«Зібрати всі файли»** і скопіюй `DONE` поверх теки патча.
+5. **Запакуй** назад через KHPCPatchManager і накоти патч.
+
+### Збірка з коду
+
+```bash
+git clone https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL.git
+cd KINGDOM-HEARTS-LOCALIZATION-TOOL
+npm install
+npm start            # запуск
+npm run check        # лінт + тести + headless smoke
+npm run build        # портативний .exe у dist/
+```
+
+Потрібні Node 20+ і Windows. Python 3.10+ з `pillow`, `numpy`, `fonttools` і `scipy` — лише для генераторів шрифтів.
+
+### Документація форматів
+
+Усе, що вдалося з'ясувати про текст цих ігор, записано в **[docs/formats/](docs/formats/)**: будова контейнерів, керуючі байти, таблиці кодування, межі буферів і пастки, які коштували найбільше часу. Воно корисне, навіть якщо цією програмою ти не користуєшся.
+
+### Долучитися
+
+Issues і pull request'и вітаються — особливо:
+
+- нові ігри чи контейнери серії;
+- виправлення в документації форматів;
+- переклади інтерфейсу (зараз є українська й англійська).
+
+### Автор
+
+**Dmytro Bidlov** — *«Little Bit» Team*.
+
+Дякую проєкту [OpenKh](https://github.com/Xeeynamo/OpenKh) і [KHPCPatchManager](https://github.com/Noxalus/KHPCPatchManager) — без них розпакувати ПК-версії було б значно важче.
+
+Ліцензія [MIT](LICENSE). Kingdom Hearts — торгова марка Square Enix і Disney; це неофіційний фанатський інструмент, не пов'язаний із ними.

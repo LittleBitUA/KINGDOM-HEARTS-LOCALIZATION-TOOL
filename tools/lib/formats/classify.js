@@ -88,7 +88,7 @@ function classifyUncached(absPath, ext) {
     return { kind: 'kmb', magic: 'kmb', extractOpts: null, isTranslatable: true };
   }
   // .ev/.evdl: footer/bytecode позиційно-незалежний (підтверджено byte-by-byte
-  // порівнянням ENG vs RUS), оновлюється лише header pointer table.
+  // порівнянням ENG з еталоном), оновлюється лише header pointer table.
   if (isEvName(baseName)) {
     return { kind: 'ev', magic: 'ev_evdl', extractOpts: null, isTranslatable: true };
   }

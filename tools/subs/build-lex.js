@@ -4,7 +4,7 @@ const WORK = require('path').join(__dirname, 'work');
 // Якщо слово heart і слово серц регулярно трапляються в одних і тих самих парах
 // і рідко поодинці — це переклад. Міра Дайса, без жодних зовнішніх даних.
 const fs = require('fs');
-const GLOS = 'E:/RUS_KH/PROGRESS/_glossary.json';
+const GLOS = require('../lib/user-paths').glossaryPath();
 const CYR = /[А-Яа-яЇїІіЄєҐґ]/;
 
 const STOP_EN = new Set('the a an and or but of to in on at is are was were be been it its this that for with you your i me my we our they he she his her him them do does did not no so if as from all what who how why when there here just now get got can could will would have has had am re ve ll s t'.split(' '));

@@ -44,7 +44,7 @@ async function parse(engPath, env) {
       dataPadding: parsed.dataPadding
     },
     engSize: ofsBuf.length + dataBuf.length,
-    rusSize: 0,
+    refSize: 0,
     async compose(ukByOffset) {
       const slotsForCompose = parsed.slots.map(s => ({
         offset: s.offset,

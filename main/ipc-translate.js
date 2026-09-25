@@ -40,11 +40,11 @@ ipcMain.handle('translate:pickDirectory', async (_e, title) => {
   return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
 });
 
-ipcMain.handle('translate:listFiles', async (_e, rusDir) => {
-  if (!rusDir) return { files: [] };
+ipcMain.handle('translate:listFiles', async (_e, refDir) => {
+  if (!refDir) return { files: [] };
   try {
     // Обхід + класифікація 2000+ файлів — у воркері формату, щоб не блокувати main.
-    const r = await runFormat({ op: 'listFiles', dir: rusDir });
+    const r = await runFormat({ op: 'listFiles', dir: refDir });
     return { files: r.result || [] };
   } catch (e) {
     return { files: [], error: (e && e.message) || String(e) };
@@ -53,13 +53,13 @@ ipcMain.handle('translate:listFiles', async (_e, rusDir) => {
 
 ipcMain.handle('translate:extract', async (_e, payload) => {
   const engPath = payload && payload.engPath;
-  // rusPath опційний: без нього працює вбудований еталон (data/kh1_oracle.json).
-  // Стара плоска RUS-тека (kh1_first без префікса) — пробуємо обидві розкладки.
-  let rusPath = (payload && payload.rusPath) || undefined;
-  if (rusPath && !fsSync.existsSync(rusPath) && payload.rusDir && payload.rel) rusPath = ops.rusPathFor(payload.rusDir, payload.rel);
+  // refPath опційний: без нього працює вбудований еталон (data/kh1_oracle.json).
+  // Стара плоска тека еталона (kh1_first без префікса) — пробуємо обидві розкладки.
+  let refPath = (payload && payload.refPath) || undefined;
+  if (refPath && !fsSync.existsSync(refPath) && payload.refDir && payload.rel) refPath = ops.refPathFor(payload.refDir, payload.rel);
   if (!engPath) return { error: 'Не вказано шляхи' };
   try {
-    return await ops.extractFile(engPath, { rusPath, opts: payload.opts || {}, runWorker });
+    return await ops.extractFile(engPath, { refPath, opts: payload.opts || {}, runWorker });
   } catch (e) {
     return { error: (e && e.message) || String(e) };
   }
@@ -145,7 +145,7 @@ ipcMain.handle('translate:buildGlossary', async (_e, payload) => {
   try {
     const r = await ops.buildGlossaryIndex(files, {
       engDir,
-      rusDir: (payload && payload.rusDir) || null,
+      refDir: (payload && payload.refDir) || null,
       safeMode,
       opts: payload.opts || {},
       runFormat,
@@ -173,7 +173,7 @@ ipcMain.handle('translate:exportTextAll', async (_e, payload) => {
   if (!p.engDir || !Array.isArray(p.files)) return { error: 'Не задано теки/файли' };
   try {
     return await ops.exportTextAll(p.files, {
-      engDir: p.engDir, rusDir: p.rusDir || null, tsvDir: p.tsvDir || null,
+      engDir: p.engDir, refDir: p.refDir || null, tsvDir: p.tsvDir || null,
       glossary: p.glossary || {}, safeMode: p.safeMode !== false, all: !!p.all, runWorker, onProgress: sendProgress
     });
   } catch (e) { return { error: (e && e.message) || String(e) }; }
@@ -184,7 +184,7 @@ ipcMain.handle('translate:importTextAll', async (_e, payload) => {
   if (!p.engDir || !Array.isArray(p.files) || typeof p.content !== 'string') return { error: 'Не задано теки/файли/вміст' };
   try {
     return await ops.importTextAll(p.content, p.files, {
-      engDir: p.engDir, rusDir: p.rusDir || null, tsvDir: p.tsvDir || null,
+      engDir: p.engDir, refDir: p.refDir || null, tsvDir: p.tsvDir || null,
       safeMode: p.safeMode !== false, toGlossary: p.toGlossary !== false, runWorker, onProgress: sendProgress
     });
   } catch (e) { return { error: (e && e.message) || String(e) }; }
@@ -233,7 +233,7 @@ ipcMain.handle('translate:composeAll', async (_e, payload) => {
     return await ops.composeAll(files, {
       layouts,
       engDir,
-      rusDir: (payload && payload.rusDir) || null,
+      refDir: (payload && payload.refDir) || null,
       outDir,
       tsvDir: payload.tsvDir || null,
       useTsvOverrides: !!payload.useTsvOverrides,

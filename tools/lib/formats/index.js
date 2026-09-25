@@ -11,14 +11,14 @@
 //   structuralGuard: bool      — при compose відкидати переклад, що губить керівні
 //                                токени EN або додає структурні команди EvMsg (KH1)
 //   parse(engPath, env) → Promise<Parsed>
-//     env: { cls, rusPath?, opts?, runWorker? }
+//     env: { cls, refPath?, opts?, runWorker? }
 //   prepareUk?(slot, uk) → uk'  — hook перед compose (CTD: відновити 2-і байти)
 //
 // Parsed:
 //   kind, slots: [{ index, offset, byteLen, english, key, absOffset?, linkedCount?, _full? }]
 //     offset — стабільний ключ слота в межах файлу (per-file TSV override key)
 //     key    — ключ глосарія (канонічна форма english)
-//   stats, engSize, rusSize
+//   stats, engSize, refSize
 //   compose(ukByOffset: Map<offset, ukText>) → Promise<ComposeResult>
 //
 // ComposeResult:
@@ -28,6 +28,7 @@
 const path = require('path');
 const { classifyFile, clearCache } = require('./classify');
 const kh1Oracle = require('../kh1-oracle');
+const { isBinaryJunk, KH1_KINDS } = require('../kh1-files');
 
 const handlers = {
   binl:   require('./binl'),
@@ -46,7 +47,7 @@ function getHandler(kind) {
   return handlers[kind] || null;
 }
 
-// parseFile(engPath, env) — класифікує і парсить. env.rusPath/opts/runWorker
+// parseFile(engPath, env) — класифікує і парсить. env.refPath/opts/runWorker
 // прокидаються у handler. Кидає, якщо формат не підтримується.
 async function parseFile(engPath, env) {
   const e = env || {};
@@ -57,13 +58,23 @@ async function parseFile(engPath, env) {
     err.kind = cls.kind;
     throw err;
   }
-  // Вбудований еталон неперекладних рядків KH1 (замість теки RUS); handler'и,
+  // Вбудований еталон неперекладних рядків KH1 (замість зовнішнього еталона); handler'и,
   // яким він не потрібен, просто ігнорують opts.preservedSegs.
   const preservedSegs = e.preservedSegs || kh1Oracle.preservedFor(engPath);
   const opts = preservedSegs.length ? Object.assign({}, e.opts || {}, { preservedSegs }) : e.opts;
   const parsed = await h.parse(engPath, Object.assign({}, e, { cls, opts }));
   parsed.kind = cls.kind;
   parsed.handler = h;
+  // Слоти, що насправді є двійковими даними, перекладачеві не показуємо
+  // (див. isBinaryJunk). Compose від цього не страждає: він підставляє лише
+  // ті зсуви, для яких є переклад, а решта лишається оригінальними байтами.
+  if (KH1_KINDS.has(cls.kind) && Array.isArray(parsed.slots)) {
+    const kept = parsed.slots.filter(s => !isBinaryJunk(s.english));
+    if (kept.length !== parsed.slots.length) {
+      parsed.junkSlots = parsed.slots.length - kept.length;
+      parsed.slots = kept;
+    }
+  }
   return parsed;
 }
 

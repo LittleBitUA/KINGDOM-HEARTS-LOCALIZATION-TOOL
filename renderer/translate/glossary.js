@@ -27,11 +27,11 @@ export async function loadGlossaryFromDisk() {
 // force — перебудувати, ігноруючи кеш індексу (кнопка «Побудувати / оновити»).
 export async function buildGlossary(force) {
   if (gState.busy) return;
-  // Обов'язкова лише ENG-тека; MYFILES (rusDir) для KH1 опційна — є вбудований еталон.
+  // Обов'язкова лише ENG-тека; MYFILES (refDir) для KH1 опційна — є вбудований еталон.
   const requiredDirs = ['engDir'];
   for (const k of requiredDirs) {
     if (!tState.settings[k]) {
-      toast(window.i18n.t('toastConfigEngRus'), 'error');
+      toast(window.i18n.t('toastConfigEngRef'), 'error');
       openSettings();
       return;
     }
@@ -49,7 +49,7 @@ export async function buildGlossary(force) {
   try {
     const r = await window.kh1.translate.buildGlossary({
       engDir: tState.settings.engDir,
-      rusDir: tState.settings.rusDir,
+      refDir: tState.settings.refDir,
       files: tState.files.map(f => f.rel),
       // сигнатура для кешу індексу (rel + розмір + mtime): без змін у ENG — миттєво
       filesMeta: tState.files.map(f => ({ rel: f.rel, size: f.size, mtimeMs: f.mtimeMs })),
@@ -482,9 +482,9 @@ export async function saveGlossary(silent) {
 
 export async function composeAllFiles() {
   if (gState.busy) return;
-  // Потрібні engDir + outDir; MYFILES (rusDir) опційна.
+  // Потрібні engDir + outDir; MYFILES (refDir) опційна.
   if (!tState.settings.engDir || !tState.settings.outDir) {
-    toast(window.i18n.t('toastConfigEngRusUa'), 'error');
+    toast(window.i18n.t('toastConfigEngRefUa'), 'error');
     openSettings();
     return;
   }
@@ -509,7 +509,7 @@ export async function composeAllFiles() {
   try {
     const r = await window.kh1.translate.composeAll({
       engDir: tState.settings.engDir,
-      rusDir: tState.settings.rusDir,
+      refDir: tState.settings.refDir,
       outDir: tState.settings.outDir,
       tsvDir: tState.settings.tsvDir,            // Re:CoM: PROGRESS/_bubbles.json (хмаринки)
       files: tState.files.map(f => f.rel),

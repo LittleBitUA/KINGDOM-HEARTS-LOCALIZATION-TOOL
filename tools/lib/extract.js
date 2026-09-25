@@ -89,7 +89,7 @@ function pageSegments(eng, header, footer) {
   return null;
 }
 
-function extract(eng, rus, opts = {}) {
+function extract(eng, ref, opts = {}) {
   const HEADER = opts.header != null ? opts.header : 11;
   const FOOTER = opts.footer != null ? opts.footer : 5;
   const MIN_LEN = opts.minLen != null ? opts.minLen : 3;
@@ -97,9 +97,9 @@ function extract(eng, rus, opts = {}) {
   const paged = opts.pages === false ? null : pageSegments(eng, HEADER, FOOTER);
   const engStrs = paged || splitStrings(eng, HEADER, FOOTER);
   // Неперекладні сегменти: з reference-файла (якщо є) + вбудований еталон
-  // (opts.preservedSegs, data/kh1_oracle.json) — тека RUS більше не потрібна.
-  const rusSegs = segmentSet(rus || Buffer.alloc(0));
-  for (const str of (opts.preservedSegs || [])) rusSegs.add(str);
+  // (opts.preservedSegs, data/kh1_oracle.json) — зовнішній еталон більше не потрібен.
+  const refSegs = segmentSet(ref || Buffer.alloc(0));
+  for (const str of (opts.preservedSegs || [])) refSegs.add(str);
 
   const stats = {
     engStrings: engStrs.length,
@@ -118,8 +118,8 @@ function extract(eng, rus, opts = {}) {
     if (s.bytes.length < MIN_LEN) { stats.skippedShort++; continue; }
     if (!hasTextContent(s.bytes)) { stats.skippedNoText++; continue; }
 
-    const inRus = rusSegs.has(s.bytes.toString('latin1'));
-    if (inRus) { stats.preserved++; continue; }
+    const inRef = refSegs.has(s.bytes.toString('latin1'));
+    if (inRef) { stats.preserved++; continue; }
 
     // Без оракула сюди потрапляють і байти параметрів команд — відсіюємо те,
     // що не схоже на текст (`{0x19}`, `H`, `Bö ìoèy`).

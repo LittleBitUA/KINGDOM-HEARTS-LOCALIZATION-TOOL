@@ -45,7 +45,7 @@ async function parse(engPath) {
     slots,
     stats: { arc: true, entries: arc.count, layouts: layouts.length, fileSize: buf.length },
     engSize: buf.length,
-    rusSize: 0,
+    refSize: 0,
     async compose(ukByOffset) {
       let applied = 0;
       const errors = [];

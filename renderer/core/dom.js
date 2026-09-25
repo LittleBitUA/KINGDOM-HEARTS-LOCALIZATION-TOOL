@@ -63,7 +63,7 @@ export const importCancelBtn = document.getElementById('import-cancel');
 export const settingsOverlay = document.getElementById('settings-overlay');
 export const settingsClose = document.getElementById('settings-close');
 export const setEngDir = document.getElementById('set-eng-dir');
-export const setRusDir = document.getElementById('set-rus-dir');
+export const setRefDir = document.getElementById('set-ref-dir');
 export const setTsvDir = document.getElementById('set-tsv-dir');
 export const setOutDir = document.getElementById('set-out-dir');
 

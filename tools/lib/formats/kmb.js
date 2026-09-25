@@ -28,7 +28,7 @@ async function parse(engPath) {
     slots,
     stats: { kmb: true, engStrings: parsed.count, translatable: slots.length, skippedNoText, fileSize: buf.length },
     engSize: buf.length,
-    rusSize: 0,
+    refSize: 0,
     async compose(ukByOffset) {
       const rep = new Map();
       const errors = [];

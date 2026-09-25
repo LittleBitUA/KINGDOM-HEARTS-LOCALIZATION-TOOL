@@ -47,7 +47,7 @@ const DIALOG_DICT = {
     loadKnj: 'Завантажити .knj', loadDds: 'Завантажити .dds atlas', saveKnj: 'Зберегти .knj',
     importTranslations: 'Виберіть один або кілька файлів з готовими перекладами',
     exportTxt: 'Експортувати переклад у .txt', importTxt: 'Імпортувати переклад з .txt',
-    appName: 'KH Localization Tool — редактор тексту Kingdom Hearts'
+    appName: 'KINGDOM HEARTS LOCALIZATION TOOL'
   },
   en: {
     allFiles: 'All files', supported: 'Supported files', binFiles: 'BIN files', binlFiles: 'BINL files',
@@ -58,7 +58,7 @@ const DIALOG_DICT = {
     loadKnj: 'Load .knj', loadDds: 'Load .dds atlas', saveKnj: 'Save .knj',
     importTranslations: 'Select one or more files with ready translations',
     exportTxt: 'Export translation to .txt', importTxt: 'Import translation from .txt',
-    appName: 'KH Localization Tool — Kingdom Hearts text editor'
+    appName: 'KINGDOM HEARTS LOCALIZATION TOOL'
   }
 };
 function dl(key) { return (DIALOG_DICT[appLang] && DIALOG_DICT[appLang][key]) || DIALOG_DICT.uk[key] || key; }

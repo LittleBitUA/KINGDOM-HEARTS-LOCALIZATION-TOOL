@@ -112,28 +112,51 @@ function composeMessageV361(parsed, replacements) {
     if (!r) return e.bytes;
     return r;   // 0x00 усередині допустимий (байти параметрів команд, як в оригіналі)
   });
-  const entriesLength = encoded.reduce((n, b) => n + b.length + 1, 0);
-  const textLength = entriesLength + (parsed.hasTrailingSentinel ? 1 : 0);
+  // Спокуса скласти однакові рядки в одну комірку пулу (427 записів на 376
+  // унікальних рядків — заощадило б 1.6 КБ) НЕ реалізована свідомо: у жодному
+  // з 1077 англійських .binl гри два записи не вказують на той самий зсув,
+  // тож немає доказів, що малювальник таке приймає. Якщо колись знадобиться —
+  // спершу перевірити на живій грі одним записом.
+  const out = buildV361(parsed, encoded, false);
+  if (out.length > MAX_FILE_SIZE) {
+    throw new Error('Message v361: файл ' + out.length + ' байт перевищує буфер гри ' + MAX_FILE_SIZE + ' (0x4800) — скороти переклади на ' + (out.length - MAX_FILE_SIZE) + ' байт');
+  }
+  return out;
+}
+
+// buildV361(parsed, encoded, dedup) → Buffer. dedup=true складає однакові
+// рядки в одну комірку пулу (кілька записів на один зсув).
+function buildV361(parsed, encoded, dedup) {
+  const offsets = new Array(encoded.length);
+  const pool = [];
+  const seen = dedup ? new Map() : null;
+  let cur = 0;
+  for (let i = 0; i < encoded.length; i++) {
+    const b = encoded[i];
+    if (dedup) {
+      const key = b.toString('latin1');
+      const hit = seen.get(key);
+      if (hit !== undefined) { offsets[i] = hit; continue; }
+      seen.set(key, cur);
+    }
+    offsets[i] = cur;
+    pool.push(b);
+    cur += b.length + 1;
+  }
+  const textLength = cur + (parsed.hasTrailingSentinel ? 1 : 0);
   if (textLength > 0xFFFF) throw new Error('Message v361: текст-блок перевищує 65535 байт (' + textLength + ')');
 
   const header = Buffer.from(parsed.raw.subarray(0, parsed.textOffset));
   header.writeUInt32LE(textLength, 0x1C);
-  let cur = 0;
-  for (let i = 0; i < encoded.length; i++) {
-    header.writeUInt16LE(cur, parsed.offsetTableOffset + i * 2);
-    cur += encoded[i].length + 1;
-  }
+  for (let i = 0; i < offsets.length; i++) header.writeUInt16LE(offsets[i], parsed.offsetTableOffset + i * 2);
   if (parsed.offsetCount > encoded.length) header.writeUInt16LE(cur, parsed.offsetTableOffset + encoded.length * 2);
 
   const parts = [header];
-  for (const b of encoded) { parts.push(b); parts.push(Buffer.from([0x00])); }
+  for (const b of pool) { parts.push(b); parts.push(Buffer.from([0x00])); }
   if (parsed.hasTrailingSentinel) parts.push(Buffer.from([0x00]));
   let out = Buffer.concat(parts);
-  const target = Math.max(parsed.raw.length, (out.length + 0x0F) & ~0x0F);
+  const target = Math.max(dedup ? 0 : parsed.raw.length, (out.length + 0x0F) & ~0x0F);
   if (out.length < target) out = Buffer.concat([out, Buffer.alloc(target - out.length, parsed.usesCdPadding ? 0xCD : 0x00)]);
-  if (out.length > MAX_FILE_SIZE) {
-    throw new Error('Message v361: файл ' + out.length + ' байт перевищує буфер гри ' + MAX_FILE_SIZE + ' (0x4800) — скороти переклади на ' + (out.length - MAX_FILE_SIZE) + ' байт');
-  }
   return out;
 }
 

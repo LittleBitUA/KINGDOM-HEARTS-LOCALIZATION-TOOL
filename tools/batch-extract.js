@@ -2,12 +2,12 @@
 'use strict';
 
 /**
- * Рекурсивно обходить теку RUS_DIR, для кожного файлу шукає однойменний
+ * Рекурсивно обходить теку REF_DIR, для кожного файлу шукає однойменний
  * файл у ENG_DIR і витягує translatable-рядки. Видає по одному .tsv у
  * OUT_DIR + загальний summary.tsv.
  *
  * Використання:
- *   node tools/batch-extract.js <RUS_DIR> <ENG_DIR> <OUT_DIR>
+ *   node tools/batch-extract.js <REF_DIR> <ENG_DIR> <OUT_DIR>
  *
  * Опції через env:
  *   MIN_LEN=3 HEADER=11 FOOTER=5
@@ -20,11 +20,11 @@ const { extract, slotsToTsv } = require('./lib/extract');
 
 const args = process.argv.slice(2);
 if (args.length < 3) {
-  console.error('Використання: node tools/batch-extract.js <RUS_DIR> <ENG_DIR> <OUT_DIR>');
+  console.error('Використання: node tools/batch-extract.js <REF_DIR> <ENG_DIR> <OUT_DIR>');
   process.exit(1);
 }
 
-const RUS_DIR = path.resolve(args[0]);
+const REF_DIR = path.resolve(args[0]);
 const ENG_DIR = path.resolve(args[1]);
 const OUT_DIR = path.resolve(args[2]);
 
@@ -59,25 +59,25 @@ let skippedTooBig = 0;
 let skippedHeader = 0;
 let errors = 0;
 
-console.error('Сканую RUS:', RUS_DIR);
+console.error('Сканую еталон:', REF_DIR);
 console.error('Шукаю в  ENG:', ENG_DIR);
 console.error('Вихід в OUT:', OUT_DIR);
 console.error('---');
 
-for (const { rel, abs: rusPath } of walk(RUS_DIR)) {
+for (const { rel, abs: refPath } of walk(REF_DIR)) {
   const engPath = path.join(ENG_DIR, rel);
   if (!fs.existsSync(engPath)) {
     skippedNoEng++;
     continue;
   }
 
-  const rusStat = fs.statSync(rusPath);
+  const refStat = fs.statSync(refPath);
   const engStat = fs.statSync(engPath);
-  if (rusStat.size > MAX_BYTES || engStat.size > MAX_BYTES) {
+  if (refStat.size > MAX_BYTES || engStat.size > MAX_BYTES) {
     skippedTooBig++;
     continue;
   }
-  if (rusStat.size < opts.header + opts.footer || engStat.size < opts.header + opts.footer) {
+  if (refStat.size < opts.header + opts.footer || engStat.size < opts.header + opts.footer) {
     skippedHeader++;
     continue;
   }
@@ -85,8 +85,8 @@ for (const { rel, abs: rusPath } of walk(RUS_DIR)) {
   let result;
   try {
     const eng = fs.readFileSync(engPath);
-    const rus = fs.readFileSync(rusPath);
-    result = extract(eng, rus, opts);
+    const ref = fs.readFileSync(refPath);
+    result = extract(eng, ref, opts);
   } catch (e) {
     errors++;
     summary.push({ rel, error: e.message });
@@ -104,7 +104,7 @@ for (const { rel, abs: rusPath } of walk(RUS_DIR)) {
   summary.push({
     rel,
     engSize: engStat.size,
-    rusSize: rusStat.size,
+    refSize: refStat.size,
     engStrings: result.stats.engStrings,
     translatable: result.stats.translatable,
     preserved: result.stats.preserved
@@ -112,12 +112,12 @@ for (const { rel, abs: rusPath } of walk(RUS_DIR)) {
 }
 
 const sumPath = path.join(OUT_DIR, '_summary.tsv');
-const sumLines = ['file\teng_size\trus_size\teng_strings\ttranslatable\tpreserved\tnote'];
+const sumLines = ['file\teng_size\tref_size\teng_strings\ttranslatable\tpreserved\tnote'];
 for (const s of summary) {
   if (s.error) {
     sumLines.push([s.rel, '', '', '', '', '', 'error: ' + s.error].join('\t'));
   } else {
-    sumLines.push([s.rel, s.engSize, s.rusSize, s.engStrings, s.translatable, s.preserved, ''].join('\t'));
+    sumLines.push([s.rel, s.engSize, s.refSize, s.engStrings, s.translatable, s.preserved, ''].join('\t'));
   }
 }
 fs.writeFileSync(sumPath, sumLines.join('\n') + '\n', 'utf8');
