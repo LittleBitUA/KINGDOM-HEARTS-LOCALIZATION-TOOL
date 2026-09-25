@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge&labelColor=0f1730)](LICENSE)
 [![Platform](https://img.shields.io/badge/Windows-x64-0f1730?style=for-the-badge&labelColor=0f1730)](#download)
 
-[English](#english) · [Українська](#українська) · [**Download**](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest) · [Formats](docs/formats/)
+[English](#english) · [Українська](#українська) · [**Download**](https://github.com/LittleBitUA/KINGDOM-HEARTS-LOCALIZATION-TOOL/releases/latest)
 
 *May your heart be your guiding key.*
 
@@ -73,10 +73,6 @@ npm run build        # portable .exe into dist/
 ```
 
 Node 20+ and Windows are expected. Python 3.10+ with `pillow`, `numpy`, `fonttools` and `scipy` is only needed for the font generators.
-
-### Format documentation
-
-Everything the project learned about the games' text is written down in **[docs/formats/](docs/formats/)** — container layouts, control bytes, encoding tables, buffer limits and the traps that cost the most time. It is meant to be useful even if you never run this app.
 
 ### Contributing
 
@@ -152,10 +148,6 @@ npm run build        # портативний .exe у dist/
 ```
 
 Потрібні Node 20+ і Windows. Python 3.10+ з `pillow`, `numpy`, `fonttools` і `scipy` — лише для генераторів шрифтів.
-
-### Документація форматів
-
-Усе, що вдалося з'ясувати про текст цих ігор, записано в **[docs/formats/](docs/formats/)**: будова контейнерів, керуючі байти, таблиці кодування, межі буферів і пастки, які коштували найбільше часу. Воно корисне, навіть якщо цією програмою ти не користуєшся.
 
 ### Долучитися
 
