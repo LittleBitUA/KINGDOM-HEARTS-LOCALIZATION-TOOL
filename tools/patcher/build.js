@@ -453,17 +453,20 @@ async function assemble(rid, publishedDir, patchesDir) {
 function readme(win) {
   const runLine = win
     ? 'Запустіть «INSTALL.bat» — подвійний клік.'
-    : 'Відкрийте теку в терміналі й виконайте:  ./install.sh\n(на Steam Deck: Konsole → перетягніть install.sh у вікно й натисніть Enter)';
+    : 'Виконайте в терміналі:  ./install.sh\n   (на Steam Deck: режим робочого столу → Konsole → перетягніть\n   install.sh у вікно й натисніть Enter)';
   return [
-    'УКРАЇНІЗАТОР KINGDOM HEARTS',
+    'ВСТАНОВЛЮВАЧ ПАТЧІВ KINGDOM HEARTS',
     '',
-    runLine,
+    '1. Покладіть файл патчу (.kh1pcpatch, .compcpatch, .bbspcpatch або',
+    '   .dddpcpatch) у теку patches/.',
+    '2. Закрийте гру.',
+    '3. ' + runLine,
     '',
     'Програма сама знайде гру (Steam, Epic, Steam Deck, SD-картка), сама зробить',
     'резервні копії й сама застосує патч. Гру перед цим треба закрити.',
     '',
     'Що всередині:',
-    '  patches/     — файли патчу; можна покласти кілька для різних ігор',
+    '  patches/     — сюди кладуть патч; можна кілька, для різних ігор',
     '  resources/   — списки імен файлів гри, без них патч не застосується',
     '  backup       — створюється в теці гри (Image/dt/backup); там оригінали',
     '',

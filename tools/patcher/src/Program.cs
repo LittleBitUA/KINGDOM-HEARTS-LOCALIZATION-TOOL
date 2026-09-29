@@ -333,7 +333,9 @@ namespace KhUa
         static void Head()
         {
             Screen.WriteLine();
-            Screen.WriteLine("УКРАЇНІЗАТОР KINGDOM HEARTS   " + Version +
+            // Назва навмисне про інструмент, а не про конкретний переклад:
+            // сама програма перекладу не містить, його кладуть у patches/.
+            Screen.WriteLine("ВСТАНОВЛЮВАЧ ПАТЧІВ KINGDOM HEARTS   " + Version +
                              "   (" + (OperatingSystem.IsWindows() ? "Windows" : "Linux") + ")");
             Line();
         }

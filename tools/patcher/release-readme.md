@@ -1,8 +1,8 @@
 <div align="center">
 
-# УКРАЇНІЗАТОР KINGDOM HEARTS
+# ВСТАНОВЛЮВАЧ ПАТЧІВ KINGDOM HEARTS
 
-**Один файл. Сам знаходить гру, сам робить резервну копію, сам ставить переклад.**
+**Один файл. Сам знаходить гру, сам робить резервну копію, сам накочує патч.**
 
 Windows · Linux · Steam Deck
 
@@ -10,39 +10,40 @@ Windows · Linux · Steam Deck
 
 ---
 
-## Що завантажити
+## Що це
 
-| Ви граєте на | Файл |
+Програма для гравця, яка ставить у гру готовий патч — файл `.kh1pcpatch`,
+`.compcpatch`, `.bbspcpatch` або `.dddpcpatch`. Такі патчі роблять перекладачі
+й моддери; **сам патч сюди не входить**, його завантажують окремо в автора
+перекладу чи моду.
+
+Нічого встановлювати наперед не треба: ані .NET, ані mono, ані KHPCPatchManager.
+Усе вже всередині одного файла.
+
+| Ви граєте на | Завантажте |
 |---|---|
 | Windows | `KH-UA-Patcher-win-x64.zip` |
 | Linux, Steam Deck | `KH-UA-Patcher-linux-x64.tar.gz` |
 
-Нічого встановлювати наперед не треба: ані .NET, ані mono, ані KHPCPatchManager.
-Усе вже всередині.
+## Як поставити патч
 
-## Як поставити
-
-**Windows.** Розпакуйте архів **цілком** у будь-яку теку (наприклад, у
-«Завантаження») і запустіть **`INSTALL.bat`**.
-
-**Linux і Steam Deck.** Розпакуйте архів, відкрийте теку в терміналі й виконайте:
-
-```sh
-./install.sh
-```
+1. Розпакуйте архів **цілком** у будь-яку теку (наприклад, у «Завантаження»).
+2. Покладіть файл патчу в теку **`patches/`**.
+3. Закрийте гру й запустіть:
+   * **Windows** — `INSTALL.bat`, подвійний клік;
+   * **Linux, Steam Deck** — `./install.sh` у терміналі.
 
 На Steam Deck треба спершу перейти в **режим робочого столу**, далі Konsole →
 перетягніть `install.sh` у вікно → Enter.
 
 Далі програма все зробить сама: знайде гру, покаже, що знайшла, і спитає дозволу.
-**Гру перед цим закрийте.**
 
 ## Що воно робить із грою
 
-Гра зберігає текст, шрифти й текстури в кількох великих архівах `.pkg`. Щоб
-з'явилась українська, ці архіви треба перезібрати — тому перший запуск триває
-довго (вони важать кілька гігабайтів), а на диску має бути приблизно стільки ж
-вільного місця.
+Гра зберігає текст, шрифти й текстури в кількох великих архівах `.pkg`. Щоб патч
+подіяв, ці архіви треба перезібрати — тому перший запуск триває довго (вони
+важать кілька гігабайтів), а на диску має бути приблизно стільки ж вільного
+місця.
 
 Оригінали **нікуди не зникають**: вони лягають у теку `backup` поруч із самою
 грою. Звідти їх можна повернути будь-коли:
@@ -91,24 +92,34 @@ INSTALL.bat --відкотити          (Windows)
 
 Те саме, що `--гра`, робить змінна оточення `KH_GAME_DIR`.
 
-## Кілька ігор одразу
+У теці `patches/` може лежати скільки завгодно патчів для різних ігор — програма
+розбере їх за розширенням і накотить кожен у свою збірку за один запуск.
 
-У теці `patches/` може лежати скільки завгодно файлів патчу — `.kh1pcpatch`,
-`.compcpatch`, `.bbspcpatch`, `.dddpcpatch`. Програма розбере їх за розширенням і
-накотить кожен у свою збірку за один запуск.
+## Які ігри підтримано
+
+`KINGDOM HEARTS HD 1.5+2.5 ReMIX` (KH1 Final Mix, Re:Chain of Memories, KH2 Final
+Mix, Birth by Sleep Final Mix) і `KINGDOM HEARTS HD 2.8 Final Chapter Prologue`
+(Dream Drop Distance). Steam і Epic Games.
 
 ---
 
 ## What this is (English)
 
-A standalone console installer for Ukrainian translations of the **Kingdom Hearts**
-PC releases. It finds the game (Steam, Epic, Steam Deck, SD cards), backs up the
-original `.pkg` archives and applies a `.pcpatch` — with no .NET, mono or other
-tooling required on your machine.
+A standalone console installer for Kingdom Hearts PC patches (`.kh1pcpatch`,
+`.compcpatch`, `.bbspcpatch`, `.dddpcpatch`). It finds the game on its own —
+Steam, Epic, Steam Deck, SD cards — backs up the original `.pkg` archives and
+applies the patch, with no .NET, mono or other tooling required on your machine.
+**No patch is bundled**: drop your own into `patches/`.
 
 Windows: unpack and run `INSTALL.bat`. Linux / Steam Deck: unpack and run
 `./install.sh`. Use `--restore` to put the original files back, `--game <dir>` to
-point at the game yourself, `--list` to see what was detected.
+point at the game yourself, `--list` to see what was detected. The interface is
+in Ukrainian, but every switch also has an English spelling.
+
+Why a rebuild rather than the upstream release: KHPCPatchManager ships a
+Windows-only binary — despite `net5.0` in its project file, it is built through a
+custom `<Csc>` target against .NET Framework. This build is produced from source
+for both platforms and verified to rebuild the game archives byte-identically.
 
 ---
 
