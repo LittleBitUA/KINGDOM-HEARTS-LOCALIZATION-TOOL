@@ -12,11 +12,12 @@
 const { parentPort, workerData } = require('worker_threads');
 const path = require('path');
 const fs = require('fs');
-const { setNativeMapPath } = require('../shared/codec');
+const { setNativeMapPath, setSysFontMapPath } = require('../shared/codec');
 const ops = require('../tools/lib/translate-ops');
 const { classifyFile } = require('../tools/lib/formats');
 
 if (workerData && workerData.nativeMapPath) setNativeMapPath(workerData.nativeMapPath);
+if (workerData && workerData.sysFontMapPath) setSysFontMapPath(workerData.sysFontMapPath);
 let glossary = {};
 let layouts = null;   // хмаринки Re:CoM: { rel: { msgId: {x,y,w,h} } }
 

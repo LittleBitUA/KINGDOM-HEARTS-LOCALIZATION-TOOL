@@ -18,7 +18,7 @@ const fs = require('fs');
 const fsP = require('fs/promises');
 const { spawn } = require('child_process');
 const codec = require('../shared/codec');
-const { nativeMapPathFor } = require('./native-map');
+const { nativeMapPathFor, sysFontMapPathFor } = require('./native-map');
 const { kh1OutRel } = require('../shared/text-structure');
 const win = require('./window');
 
@@ -128,7 +128,7 @@ const PROFILES = {
       arc: path.join(hedOut, 'original', 'arc_en', 'system', 'FontEn.arc'),
       rem: path.join(hedOut, 'remastered', 'arc_en', 'system', 'FontEn.arc')
     }),
-    args: (inp, out) => ['--arc', inp.arc, '--rem', inp.rem, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'bbs_first')],
+    args: (inp, out, o) => ['--arc', inp.arc, '--rem', inp.rem, '--comic', o.comic, '--menu', o.menu, '--out', path.join(out, 'bbs_first')],
     outputs: 'bbs_first/{original,remastered}/arc_en/system/FontEn.arc'
   },
   'kh-re-com': {
@@ -138,7 +138,7 @@ const PROFILES = {
       bin: path.join(hedOut, 'remastered', 'SYS', '0001', 'SY0001.BIN'),
       vtm: path.join(hedOut, 'remastered', 'SYS', '0001', 'SY0001.VTM')
     }),
-    args: (inp, out) => ['--bin', inp.bin, '--vtm', inp.vtm, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'Recom', 'remastered', 'SYS', '0001')],
+    args: (inp, out, o) => ['--bin', inp.bin, '--vtm', inp.vtm, '--comic', o.comic, '--menu', o.menu, '--out', path.join(out, 'Recom', 'remastered', 'SYS', '0001')],
     outputs: 'Recom/remastered/SYS/0001/{SY0001.BIN,SY0001.VTM}/UK_{sys,evt}font*'
   },
   'kh1-final-mix': {
@@ -150,13 +150,31 @@ const PROFILES = {
     }),
     // opts.extraLetters — довільні символи (інші мови) у вільні комірки після
     // української абетки; генератор перевіряє, що вони є у TTF.
-    args: (inp, out, opts) => ['--knj', inp.knj, '--dds', inp.dds, '--font', FONT_COMIC, '--layout', 'game',
+    args: (inp, out, opts) => ['--knj', inp.knj, '--dds', inp.dds, '--font', opts.comic, '--layout', 'game',
       '--out', path.join(out, 'kh1_first'), '--preview', path.join(out, '_reports', 'preview.png')]
       .concat(opts && opts.extraLetters ? ['--extra', opts.extraLetters] : [])
       .concat(opts && opts.fallbackFont ? ['--fallback-font', opts.fallbackFont] : []),
     outputs: 'kh1_first/original/exchange/UK_kanji.knj + remastered/exchange/UK_kanji.knj/UK_kanji_knj0.dds (нативна кирилиця, коди 19 NN)',
     // після генерації карта літера→код стає активною для кодека
-    nativeMap: 'kh1-native-map.json'
+    nativeMap: 'kh1-native-map.json',
+    // У KH1 ДВА шрифти з різною адресацією, і обидва потрібні для повного
+    // перекладу: діалоговий (вище, коди `19 NN`) і СИСТЕМНИЙ — меню, sysmsg,
+    // підписи кнопок, сітка введення назви; там літера = один байт
+    // (байт = номер запису + 0x20). Тому «Згенерувати» робить обидва.
+    extra: [{
+      id: 'sysfont',
+      script: path.join('kh1', 'kh1sysfont.py'),
+      inputs: (hedOut) => ({
+        tbl: path.join(hedOut, 'original', 'exchange', 'US_font_data_tbl.bin'),
+        sysdds: path.join(hedOut, 'remastered', 'menu', 'uk', 'sysfont.bin', 'UK_sysfont_bin0.dds')
+      }),
+      args: (inp, out, o) => ['--tbl', inp.tbl, '--dds', inp.sysdds, '--font', o.menu, '--layout', 'game',
+        '--out', path.join(out, 'kh1_first'), '--preview', path.join(out, '_reports', 'sysfont-preview.png')],
+      outputs: 'kh1_first/original/exchange/US_font_data_tbl.bin + remastered/menu/uk/sysfont.bin/UK_sysfont_bin0.dds (системний шрифт, 1 байт на літеру)',
+      // карта «літера → байт» для кодека (sysmsg, btltbl)
+      map: 'kh1-sysfont-map.json',
+      report: 'ua_sysglyphs.json'
+    }]
   },
   'kh-ddd': {
     hedOut: 'kh3d_first.hed_out',
@@ -165,7 +183,7 @@ const PROFILES = {
       orig: path.join(hedOut, 'original', 'font', 'en', 'bin'),
       rem: path.join(hedOut, 'remastered', 'font', 'en', 'bin')
     }),
-    args: (inp, out) => ['--orig', inp.orig, '--rem', inp.rem, '--comic', FONT_COMIC, '--menu', FONT_MENU, '--out', path.join(out, 'kh3d_first')],
+    args: (inp, out, o) => ['--orig', inp.orig, '--rem', inp.rem, '--comic', o.comic, '--menu', o.menu, '--out', path.join(out, 'kh3d_first')],
     outputs: 'kh3d_first/{original,remastered}/font/en/bin/*.bcfnt'
   }
 };
@@ -177,8 +195,13 @@ function locate(gameId, gameDir) {
   const hedOut = findDirNamed(gameDir, prof.hedOut, 4);
   if (!hedOut) return { error: 'Не знайдено розпаковану теку ' + prof.hedOut + ' у ' + gameDir + ' — спершу розпакуй гру (Setup → KHPCPatchManager)' };
   const inputs = prof.inputs(hedOut);
+  const outputs = [prof.outputs];
+  for (const ex of prof.extra || []) {
+    Object.assign(inputs, ex.inputs(hedOut));
+    outputs.push(ex.outputs);
+  }
   const missing = Object.entries(inputs).filter(([, p]) => !fs.existsSync(p)).map(([k, p]) => k + ': ' + p);
-  return { hedOut, inputs, missing, outputs: prof.outputs, script: prof.script };
+  return { hedOut, inputs, missing, outputs: outputs.join('\n'), script: prof.script };
 }
 
 ipcMain.handle('uafonts:locate', async (_e, payload) => locate(payload && payload.gameId, payload && payload.gameDir));
@@ -204,7 +227,9 @@ ipcMain.handle('uafonts:generate', async (_e, payload) => {
   // Запасний шрифт для символів, яких нема у ComicHearts (лише коли є додаткові символи).
   let fallbackFont = String((payload && payload.fallbackFont) || '').trim() || defaultFallbackFont();
   if (fallbackFont && !fs.existsSync(fallbackFont)) fallbackFont = '';
-  const args = py.pre.concat([script]).concat(prof.args(loc.inputs, buildDir, { extraLetters, fallbackFont: extraLetters ? fallbackFont : '' }));
+  const fonts = pickFonts(payload);
+  const args = py.pre.concat([script]).concat(prof.args(loc.inputs, buildDir,
+    Object.assign({ extraLetters, fallbackFont: extraLetters ? fallbackFont : '' }, fonts)));
   sendProgress({ phase: 'generate', line: '> ' + [py.cmd].concat(args).map(a => (/\s/.test(a) ? '"' + a + '"' : a)).join(' ') + '\n' });
   const r = await run(py.cmd, args, { cwd: path.dirname(script), onLine: (l) => sendProgress({ phase: 'generate', line: l }) });
   // Звіти/карти/превʼю — у build/_reports: тека build має лишатися чистою для патча
@@ -216,6 +241,26 @@ ipcMain.handle('uafonts:generate', async (_e, payload) => {
     if (rp) report = JSON.parse(await fsP.readFile(rp, 'utf8'));
   } catch (_) {}
   if (r.code !== 0) return { ok: false, error: 'Генератор завершився з кодом ' + r.code, log: r.out + r.err };
+
+  // Додаткові генератори тієї самої гри (KH1: системний шрифт). Кожен пише у
+  // ту саму теку build — у свої файли гри, тому вони не заважають одне одному.
+  let log = r.out;
+  for (const ex of prof.extra || []) {
+    const exScript = path.join(PY_DIR, ex.script);
+    if (!fs.existsSync(exScript)) return { ok: false, error: 'Скрипт не знайдено: ' + exScript };
+    const exArgs = py.pre.concat([exScript]).concat(ex.args(loc.inputs, buildDir, fonts));
+    sendProgress({ phase: 'generate', line: '\n> ' + [py.cmd].concat(exArgs).map(a => (/\s/.test(a) ? '"' + a + '"' : a)).join(' ') + '\n' });
+    const er = await run(py.cmd, exArgs, { cwd: path.dirname(exScript), onLine: (l) => sendProgress({ phase: 'generate', line: l }) });
+    log += er.out;
+    if (er.code !== 0) return { ok: false, error: 'Генератор «' + ex.id + '» завершився з кодом ' + er.code, log: er.out + er.err };
+    // звіт додається до спільної таблиці вкладки
+    try {
+      const rp = findFileNamed(buildDir, ex.report);
+      if (rp) Object.assign(report || (report = {}), JSON.parse(await fsP.readFile(rp, 'utf8')));
+    } catch (_) {}
+  }
+  await moveReportsToReportsDir(buildDir);
+
   // KH1: карта літера→код 19 NN з цієї збірки стає активною (userData), щоб
   // компоновка кодувала додаткові символи саме так, як їх намальовано.
   let nativeMap = null;
@@ -230,8 +275,36 @@ ipcMain.handle('uafonts:generate', async (_e, payload) => {
       }
     } catch (e) { sendProgress({ phase: 'generate', line: 'native map: ' + (e.message || e) + '\n' }); }
   }
-  return { ok: true, buildDir, report, log: r.out, nativeMap };
+  // Те саме для карти СИСТЕМНОГО шрифту: без неї кодек писав би меню
+  // вбудованою картою, яка може не збігатися зі щойно намальованим атласом.
+  let sysFontMap = null;
+  for (const ex of prof.extra || []) {
+    if (!ex.map) continue;
+    try {
+      const src = findFileNamed(path.join(buildDir, '_reports'), ex.map) || findFileNamed(buildDir, ex.map);
+      if (!src) continue;
+      const dst = sysFontMapPathFor();
+      await fsP.copyFile(src, dst);
+      codec.setSysFontMapPath(dst);
+      sysFontMap = { path: dst, letters: Object.keys((JSON.parse(await fsP.readFile(dst, 'utf8')) || {}).map || {}).length };
+    } catch (e) { sendProgress({ phase: 'generate', line: ex.map + ': ' + (e.message || e) + '\n' }); }
+  }
+  return { ok: true, buildDir, report, log, nativeMap, sysFontMap };
 });
+
+// Свої TTF/OTF замість вбудованих. Порожнє чи неіснуюче значення — вбудований:
+// ComicHearts для реплік і субтитрів, KHMenu для інтерфейсу. Так перекладач
+// іншою мовою може взяти власний шрифт, не правлячи застосунок.
+function pickFonts(payload) {
+  const one = (v, fallback) => {
+    const p = String((payload && v) || '').trim();
+    return p && fs.existsSync(p) ? p : fallback;
+  };
+  return {
+    comic: one(payload && payload.dialogFont, FONT_COMIC),
+    menu: one(payload && payload.menuFont, FONT_MENU)
+  };
+}
 
 // Типовий запасний шрифт для додаткових символів: Comic Sans MS (є у Windows,
 // стилістично близький до ComicHearts і покриває кирилицю/латиницю розширену).
@@ -244,10 +317,10 @@ function defaultFallbackFont() {
   return '';
 }
 
-ipcMain.handle('uafonts:pickFont', async () => {
+ipcMain.handle('uafonts:pickFont', async (_e, title) => {
   const { dialog } = require('electron');
   const r = await dialog.showOpenDialog(win.get(), {
-    title: 'TTF/OTF для додаткових символів',
+    title: String(title || 'TTF/OTF для додаткових символів'),
     defaultPath: path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts'),
     properties: ['openFile'],
     filters: [{ name: 'Fonts', extensions: ['ttf', 'otf', 'ttc'] }]
@@ -256,7 +329,7 @@ ipcMain.handle('uafonts:pickFont', async () => {
 });
 
 // Службові файли генераторів, яким не місце у патчі.
-const REPORT_FILES = /^(ua_glyphs\.json|kh1-native-map\.json|preview\.png|ua_preview\.png)$/i;
+const REPORT_FILES = /^(ua_glyphs\.json|ua_sysglyphs\.json|kh1-native-map\.json|kh1-sysfont-map\.json|preview\.png|sysfont-preview\.png|ua_preview\.png)$/i;
 async function moveReportsToReportsDir(buildDir) {
   const reports = path.join(buildDir, '_reports');
   await fsP.mkdir(reports, { recursive: true });
@@ -419,7 +492,10 @@ ipcMain.handle('uafonts:defaults', async (_e, gameId) => ({
   buildDir: path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', String(gameId || 'game'), 'build'),
   backupDir: path.join(app.getPath('documents'), 'KH-Localization', 'FONTS', String(gameId || 'game'), 'backup'),
   // KH1: запасний шрифт для додаткових символів (типово Comic Sans MS)
-  fallbackFont: defaultFallbackFont()
+  fallbackFont: defaultFallbackFont(),
+  // вбудовані шрифти — показуємо їхні імена, коли свій не вибрано
+  dialogFontDefault: path.basename(FONT_COMIC),
+  menuFontDefault: path.basename(FONT_MENU)
 }));
 
 module.exports = { detectPython, checkDeps, locate, findDirNamed, PROFILES };

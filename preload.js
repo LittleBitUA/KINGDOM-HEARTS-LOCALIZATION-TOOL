@@ -156,7 +156,7 @@ contextBridge.exposeInMainWorld('kh1', {
     install:    (payload) => ipcRenderer.invoke('uafonts:install', payload),
     openDir:    (dir) => ipcRenderer.invoke('uafonts:openDir', dir),
     defaults:   (gameId) => ipcRenderer.invoke('uafonts:defaults', gameId),
-    pickFont:   () => ipcRenderer.invoke('uafonts:pickFont'),
+    pickFont:   (title) => ipcRenderer.invoke('uafonts:pickFont', title),
     onProgress: (callback) => {
       if (typeof callback !== 'function') return () => {};
       const listener = (_e, p) => callback(p);

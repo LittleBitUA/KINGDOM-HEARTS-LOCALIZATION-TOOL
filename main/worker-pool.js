@@ -30,8 +30,11 @@ function createPool(scriptPath) {
   }
 
   function makeWorkerSlot() {
-    // Користувацька карта нативних гліфів — та сама, що й у main (див. codec.setNativeMapPath).
-    const w = new Worker(scriptPath, { workerData: { nativeMapPath: codec.getNativeMapPath() } });
+    // Користувацькі карти гліфів — ті самі, що й у main: шрифт діалогів
+    // (codec.setNativeMapPath) і системний (codec.setSysFontMapPath).
+    const w = new Worker(scriptPath, {
+      workerData: { nativeMapPath: codec.getNativeMapPath(), sysFontMapPath: codec.getSysFontMapPath() }
+    });
     const slot = { worker: w, pending: new Map() };
     w.on('message', (msg) => {
       const id = msg && msg.id;

@@ -11,4 +11,10 @@ function nativeMapPathFor() {
   return path.join(app.getPath('userData'), 'kh1-native-map.json');
 }
 
-module.exports = { nativeMapPathFor };
+// Те саме для СИСТЕМНОГО шрифту (меню, sysmsg, btltbl): карта «літера → байт»
+// з tools/py/kh1/kh1sysfont.py. Без неї кодек бере вбудовану data/kh1sys_ua.json.
+function sysFontMapPathFor() {
+  return path.join(app.getPath('userData'), 'kh1-sysfont-map.json');
+}
+
+module.exports = { nativeMapPathFor, sysFontMapPathFor };

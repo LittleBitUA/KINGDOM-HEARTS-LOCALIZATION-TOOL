@@ -15,7 +15,7 @@ const { loadSettings, saveSettings } = require('./settings');
 const { writeFileAtomic } = require('../shared/safe-fs');
 const ops = require('../tools/lib/translate-ops');
 const codec = require('../shared/codec');
-const { nativeMapPathFor } = require('./native-map');
+const { nativeMapPathFor, sysFontMapPathFor } = require('./native-map');
 const { readGlossary, saveGlossaryAsync } = require('../tools/lib/glossary');
 const { importFile: importTranslationsFile } = require('../tools/lib/import-translations');
 const { dl } = require('./menu');
@@ -28,6 +28,7 @@ function sendProgress(payload) { win.send('translate:progress', payload); }
 // Карта нативних гліфів KH1, яку записав генератор шрифту (додаткові символи):
 // кодек у main і воркери беруть її замість data/kh1_native.json, якщо існує.
 codec.setNativeMapPath(nativeMapPathFor());
+codec.setSysFontMapPath(sysFontMapPathFor());
 
 ipcMain.handle('translate:getSettings', (_e, gameId) => loadSettings(gameId || null));
 ipcMain.handle('translate:saveSettings', (_e, payload, gameId) => saveSettings(payload || {}, gameId || null));

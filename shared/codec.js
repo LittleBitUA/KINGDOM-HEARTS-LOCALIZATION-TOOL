@@ -31,10 +31,33 @@ const SYSFONT_PATH = path.join(__dirname, '..', 'data', 'kh1sys_ua.json');
 // Вмикається через opts.sysfont, або автоматично для діалекту cmd='sysmsg'.
 // =====================================================================
 let sysFontCache = null;
+let sysFontMapPath = null;
+let sysFontCacheKey = '';
+let sysFontCheckedAt = 0;
+
+// Карта з генератора (kh1-sysfont-map.json у userData) має пріоритет над
+// вбудованою data/kh1sys_ua.json — так само, як з картою нативних гліфів.
+function setSysFontMapPath(p) {
+  sysFontMapPath = p ? String(p) : null;
+  sysFontCache = null;
+  sysFontCheckedAt = 0;
+  return sysFontMapPath;
+}
+function getSysFontMapPath() { return sysFontMapPath; }
 
 function loadSysFont() {
-  if (sysFontCache) return sysFontCache;
-  const raw = readJsonOptional(SYSFONT_PATH) || { map: {} };
+  const now = Date.now();
+  if (sysFontCache && now - sysFontCheckedAt < NATIVE_RECHECK_MS) return sysFontCache;
+  sysFontCheckedAt = now;
+  let key = 'static';
+  let custom = null;
+  if (sysFontMapPath) {
+    try { const st = fs.statSync(sysFontMapPath); key = sysFontMapPath + ':' + st.mtimeMs + ':' + st.size; custom = sysFontMapPath; }
+    catch (_) { /* користувацької карти нема — вбудована */ }
+  }
+  if (sysFontCache && sysFontCacheKey === key) return sysFontCache;
+  sysFontCacheKey = key;
+  const raw = (custom && readJsonOptional(custom)) || readJsonOptional(SYSFONT_PATH) || { map: {} };
   const encodeMap = new Map();
   const decodeMap = new Map();
   for (const [ch, b] of Object.entries(raw.map || {})) {
@@ -42,7 +65,7 @@ function loadSysFont() {
     encodeMap.set(ch, b & 0xFF);
     decodeMap.set(b & 0xFF, ch);
   }
-  sysFontCache = { encodeMap, decodeMap, font: raw.font || '' };
+  sysFontCache = { encodeMap, decodeMap, font: raw.font || '', source: custom ? 'custom' : 'static' };
   return sysFontCache;
 }
 
@@ -442,7 +465,11 @@ function encodeDetailed(text, opts) {
         const hit = latin && latin.find(e => e[0].length === 1);
         if (hit) { for (const b of hit[1]) bytes.push(b); i++; continue; }
       }
-      const pair = nat.encodeMap.get(ch);
+      // У системному шрифті двобайтовий `19 NN` НЕ діє — його малювальник
+      // читає 0x19 як звичайний гліф. Тому тут native-запас вимкнено: символ,
+      // якого нема в комірках системного шрифту, має впасти в «незакодовані»
+      // й дійти до перекладача помилкою, а не мовчки перетворитись на сміття.
+      const pair = sysFont ? null : nat.encodeMap.get(ch);
       if (pair) { bytes.push(pair[0], pair[1]); i++; continue; }
     }
     const bucket = byFirstChar.get(c0);
@@ -517,4 +544,4 @@ function loadMap() {
   return load().singleMap;
 }
 
-module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, loadNative, setNativeMapPath, getNativeMapPath, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };
+module.exports = { decode, encode, encodeDetailed, loadMap, load, legacyCommandKey, loadNative, setNativeMapPath, getNativeMapPath, loadSysFont, setSysFontMapPath, getSysFontMapPath, PREFIX_BYTES, SYSMSG_CMD_LEN, SYSMSG_MAX_FILE_SIZE };

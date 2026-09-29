@@ -88,7 +88,8 @@ def glyph_rgba(ch, font_path, size, radius, base, cell_w, cell_h, pad=16, xscale
     return out
 
 
-def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xscale=1.0):
+def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xscale=1.0,
+               off=(0, 0)):
     """White glyph, antialiased, no outline — the style cmdfont/helpfont use.
 
     Those sheets are pure white RGB with the shape carried entirely by the alpha
@@ -98,7 +99,10 @@ def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xs
     fnt = _font(font_path, size * SS)
     W, H = (cell_w + 2 * pad) * SS, (cell_h + 2 * pad) * SS
     m = Image.new('L', (W, H), 0)
-    ImageDraw.Draw(m).text((pad * SS, (pad + base) * SS), ch, 255, font=fnt, anchor='ls')
+    # off — зсув у НАДВИБІРКОВИХ пікселях (0..SS-1): ним ловимо фазу, за якої
+    # прямі штрихи лягають рівно на піксельну сітку, а не розмазуються по краях.
+    ImageDraw.Draw(m).text((pad * SS + off[0], (pad + base) * SS + off[1]), ch, 255,
+                           font=fnt, anchor='ls')
     a = _squeeze(np.asarray(m), xscale)
     if a.max() == 0:
         raise ValueError('font has no glyph for %r' % ch)
@@ -115,10 +119,10 @@ def plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad=16, thresh=110, xs
 
 
 def cell_image(ch, font_path, size, radius, base, cell_w, cell_h, pad=16, thr=32,
-               style='outline', thresh=110, xscale=1.0):
+               style='outline', thresh=110, xscale=1.0, off=(0, 0)):
     """RGBA cell with the ink left-aligned at x=0, plus its ink bbox."""
     if style == 'plain':
-        rgba = plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad, thresh, xscale)
+        rgba = plain_rgba(ch, font_path, size, base, cell_w, cell_h, pad, thresh, xscale, off)
     else:
         rgba = glyph_rgba(ch, font_path, size, radius, base, cell_w, cell_h, pad, xscale)
     A = rgba[..., 3]

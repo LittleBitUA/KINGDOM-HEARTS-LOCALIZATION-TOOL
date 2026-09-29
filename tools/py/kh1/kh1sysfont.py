@@ -32,7 +32,7 @@ from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'bbs'))
-from raster import cell_image  # noqa: E402  (спільний растеризатор)
+from raster import cell_image, SS  # noqa: E402  (спільний растеризатор)
 
 UPPER = 'АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ'
 LOWER = 'абвгґдеєжзиіїйклмнопрстуфхцчшщьюя'
@@ -40,7 +40,12 @@ UA = UPPER + LOWER
 
 ATLAS = 1024
 CELL_W, CELL_H = 36, 48
-PAGE_ORG = {0x00: (0, 0), 0x01: (504, 0), 0x10: (0, 480), 0x11: (504, 480)}
+# Атлас 1024×1024 — це чотири сторінки PS2 по 256×256, кожна збільшена вдвічі
+# до 512×512 і покладена у свою чверть. Крок саме 512, а не 14·36=504 і 10·48=480:
+# комірки займають лише 504×480 із 512×512, решта — поле. Помилка на ці 8 px
+# з'їдала ліву частину кожного гліфа на сторінках 0x01/0x10/0x11, бо гра бере
+# з атласа смужку [X, X + ширина·16] саме від X запису (FUN_1402e7060).
+PAGE_ORG = {0x00: (0, 0), 0x01: (512, 0), 0x10: (0, 512), 0x11: (512, 512)}
 REC_SIZE = 16
 N_RECORDS = 560
 FIRST_REC = 0x8A           # 66 записів підряд: 0x8A..0xCB -> байти 0xAA..0xEB
@@ -151,12 +156,99 @@ def fit_pad(bgra, tbl):
 
 # ─────────────────────────── малювання ───────────────────────────
 
-def render(ch, font_path, size, base, colour, thresh, xscale=1.0):
+def render(ch, font_path, size, base, colour, thresh, xscale=1.0, off=(0, 0)):
     cell, bb, clipped = cell_image(ch, font_path, size, 0, base, CELL_W, CELL_H,
-                                   style='plain', thr=32, thresh=thresh, xscale=xscale)
+                                   style='plain', thr=32, thresh=thresh, xscale=xscale, off=off)
     out = np.array(cell)
     out[..., 0] = out[..., 1] = out[..., 2] = colour
     return out, bb, clipped
+
+
+def orig_crispness(bgra, tbl):
+    """Та сама міра на ігровій латиниці — щоб було з чим порівняти."""
+    v = []
+    for r in LATIN_REC.values():
+        a = get_cell(bgra, tbl, r)[..., 3].astype(np.float32) / 255.0
+        solid = int((a >= 0.85).sum())
+        if solid > 20:
+            v.append(int(((a > 0.15) & (a < 0.85)).sum()) / solid)
+    return float(np.mean(v)) if v else 0.0
+
+
+def crispness(cell):
+    """Скільки напівпрозорих пікселів припадає на суцільні.
+
+    Ігровий шрифт намальовано по пікселях: прямий штрих — це рівно 4 суцільні
+    пікселі, край різкий. Коли гліф стоїть у дробовій фазі, кожен стовбур
+    дістає напівпрозорий край, а тонка перекладина взагалі розмазується між
+    рядками (ми бачили альфу 0.22 замість 1.00). Менше — чіткіше.
+    """
+    a = cell[..., 3].astype(np.float32) / 255.0
+    solid = int((a >= 0.85).sum())
+    mid = int(((a > 0.15) & (a < 0.85)).sum())
+    return mid / max(1, solid)
+
+
+def fit_phase_y(font_path, size, base, colour, thresh, xscale, letters):
+    """Одна вертикальна фаза на весь шрифт.
+
+    По вертикалі фаза мусить бути СПІЛЬНОЮ: інакше літери сядуть на базову
+    лінію з різницею до 3/4 пікселя і рядок почне стрибати. Беремо ту, що дає
+    найчіткіші гліфи в середньому.
+    """
+    best, best_sc = 0, None
+    for dy in range(SS):
+        sc = []
+        for ch in letters:
+            out, _, clipped = render(ch, font_path, size, base, colour, thresh, xscale, (0, dy))
+            if not clipped:
+                sc.append(crispness(out))
+        m = float(np.mean(sc)) if sc else 1e9
+        if best_sc is None or m < best_sc:
+            best, best_sc = dy, m
+    return best, best_sc
+
+
+def render_best(ch, font_path, size, base, colour, thresh, xscale, dy, stem_target):
+    """Фаза + вага штриха для кожної літери окремо.
+
+    Кегль і гамму підібрано по прямих штрихах («I»), але діагоналі («м», «ж»,
+    «ш») за тієї самої гамми виходять тоншими й м'якшими — діагональ не лягає
+    на піксельну сітку за визначенням. Тому для кожної літери дозволяємо
+    трохи знизити гамму (потовщити), поки це РОБИТЬ ЇЇ ЧІТКІШОЮ і не робить
+    штрих товщим за ігровий.
+    """
+    base_out = render_crisp(ch, font_path, size, base, colour, thresh, xscale, dy)
+    best = (crispness(base_out[0]), base_out, thresh)
+    for k in range(1, 7):
+        th = thresh - k * 5
+        out = render_crisp(ch, font_path, size, base, colour, th, xscale, dy)
+        if stem_width(out[0]) > stem_target + 1:      # не жирніше за ігровий шрифт
+            break
+        sc = crispness(out[0])
+        if sc < best[0] - 0.01:                        # лише відчутний виграш
+            best = (sc, out, th)
+    return best[1][0], best[1][1], best[1][2], best[2]
+
+
+def render_crisp(ch, font_path, size, base, colour, thresh, xscale=1.0, dy=0):
+    """Горизонтальну фазу підбираємо для кожної літери окремо.
+
+    По горизонталі це безпечно: комірку однаково обрізають по лівому краю
+    чорнила, тож зсув не рухає літеру на екрані — лише ловить фазу, за якої
+    стовбури лягають на піксельну сітку.
+    """
+    best = None
+    for dx in range(SS):
+        out, bb, clipped = render(ch, font_path, size, base, colour, thresh, xscale, (dx, dy))
+        if clipped:
+            continue
+        sc = crispness(out)
+        if best is None or sc < best[0]:
+            best = (sc, out, bb, clipped)
+    if best is None:
+        return render(ch, font_path, size, base, colour, thresh, xscale, (0, dy))
+    return best[1], best[2], best[3]
 
 
 def stem_width(cell):
@@ -240,6 +332,9 @@ def main():
     ap.add_argument('--thresh', type=float, help='гамма покриття: <100 товщає, >100 тоншає')
     ap.add_argument('--xscale', type=float, help='стиснення по горизонталі')
     ap.add_argument('--preview', help='PNG: нові літери поруч із оригінальною латиницею')
+    ap.add_argument('--layout', choices=['flat', 'game'], default='flat',
+                    help='game: писати у <out>/original/exchange/ і '
+                         '<out>/remastered/menu/<мова>/sysfont.bin/ (як у kh1_first.hed_out)')
     a = ap.parse_args()
 
     tbl = read_table(a.tbl)
@@ -279,9 +374,16 @@ def main():
     print('записи 0x%02X..0x%02X -> байти 0x%02X..0x%02X'
           % (recs[0], recs[-1], recs[0] + BYTE_BIAS, recs[-1] + BYTE_BIAS))
 
-    mapping, clipped_any, widths = {}, [], []
+    phase_y, phase_sc = fit_phase_y(a.font, size, meas['base'], meas['colour'], thresh, xscale, UA)
+    print('вертикальна фаза %d/%d -> напівпрозорих на суцільний %.3f '
+          '(в оригінальній латиниці %.3f)' % (phase_y, SS, phase_sc, orig_crispness(bgra, tbl)))
+
+    mapping, clipped_any, widths, fattened = {}, [], [], []
     for ch, i in zip(UA, recs):
-        cell, bb, clipped = render(ch, a.font, size, meas['base'], meas['colour'], thresh, xscale)
+        cell, bb, clipped, th_used = render_best(ch, a.font, size, meas['base'], meas['colour'],
+                                                 thresh, xscale, phase_y, meas['stem'])
+        if th_used != thresh:
+            fattened.append('%s:%g' % (ch, th_used))
         cell = shift_right(cell, meas['left'])
         if clipped:
             clipped_any.append(ch)
@@ -290,13 +392,27 @@ def main():
         tbl[i * REC_SIZE + 6] = w
         mapping[ch] = i + BYTE_BIAS
         widths.append(w)
+    if fattened:
+        print('потовщено діагональні літери (літера:гамма): %s' % ' '.join(fattened))
     print('намальовано %d літер, ширина від %d до %d%s'
           % (len(UA), min(widths), max(widths),
              (', ОБРІЗАНІ: ' + ''.join(clipped_any)) if clipped_any else ''))
 
+    # Розкладка гри: таблиця метрик лежить в original/exchange, а атлас — у
+    # remastered/menu/<мова>/sysfont.bin/. Назви теки мови й контейнера беремо
+    # з шляху вхідного DDS, щоб це працювало не лише для «uk».
+    if a.layout == 'game':
+        container = os.path.basename(os.path.dirname(a.dds))          # sysfont.bin
+        locale = os.path.basename(os.path.dirname(os.path.dirname(a.dds)))  # uk
+        tbl_dir = os.path.join(a.out, 'original', 'exchange')
+        dds_dir = os.path.join(a.out, 'remastered', 'menu', locale, container)
+    else:
+        tbl_dir = dds_dir = a.out
     os.makedirs(a.out, exist_ok=True)
-    open(os.path.join(a.out, os.path.basename(a.tbl)), 'wb').write(bytes(tbl))
-    write_dds(os.path.join(a.out, os.path.basename(a.dds)), header, bgra)
+    os.makedirs(tbl_dir, exist_ok=True)
+    os.makedirs(dds_dir, exist_ok=True)
+    open(os.path.join(tbl_dir, os.path.basename(a.tbl)), 'wb').write(bytes(tbl))
+    write_dds(os.path.join(dds_dir, os.path.basename(a.dds)), header, bgra)
     meta = {
         '_comment': ('KH1 системний шрифт: українська літера -> однобайтовий код. '
                      'байт = номер запису + 0x20; байт 0x01 — пробіл. '
@@ -307,6 +423,17 @@ def main():
     }
     open(os.path.join(a.out, 'kh1-sysfont-map.json'), 'w', encoding='utf-8').write(
         json.dumps(meta, ensure_ascii=False, indent=2) + '\n')
+    # звіт для вкладки «Шрифти UA» — окремим файлом, щоб не затерти ua_glyphs.json
+    # шрифту діалогів (обидва генератори пишуть в ту саму теку build)
+    report = {'sysfont': {
+        'count': len(UA), 'size': round(size, 2), 'xscale': round(xscale, 3),
+        'png': [ATLAS, ATLAS],
+        'squeezed': clipped_any,
+        'added': [{'ch': ch, 'rec': i, 'byte': '%02X' % (i + BYTE_BIAS), 'width': w}
+                  for ch, i, w in zip(UA, recs, widths)],
+    }}
+    open(os.path.join(a.out, 'ua_sysglyphs.json'), 'w', encoding='utf-8').write(
+        json.dumps(report, ensure_ascii=False, indent=1) + '\n')
 
     if a.preview:
         make_preview(a.preview, bgra, tbl, recs)

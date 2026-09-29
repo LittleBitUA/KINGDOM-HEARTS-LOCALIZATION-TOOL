@@ -7,7 +7,10 @@ import { getCurrentGameId } from '../app-shell.js';
 const el = (id) => document.getElementById(id);
 const t = (k, v) => (window.i18n ? window.i18n.t(k, v) : k);
 
-const ufState = { py: null, gameDir: '', buildDir: '', backupDir: '', located: null, busy: false, generated: false, extraLetters: '', extraFont: '', defaultExtraFont: '' };
+const ufState = { py: null, gameDir: '', buildDir: '', backupDir: '', located: null, busy: false, generated: false,
+  extraLetters: '', extraFont: '', defaultExtraFont: '',
+  // власні TTF/OTF замість вбудованих; порожнє — вбудований
+  dialogFont: '', menuFont: '', dialogFontDefault: '', menuFontDefault: '' };
 let _offProgress = null;
 
 // KH1: українська абетка (66) займає комірки 224+; решта вільних — під
@@ -44,6 +47,43 @@ function refreshExtraLetters() {
     el('uf-extra-font').textContent = cur || t('ufExtraFontNone');
     el('uf-extra-font-reset').hidden = !ufState.extraFont;
   }
+}
+
+// Два рядки вибору шрифту: показуємо ім'я файла або назву вбудованого.
+function refreshFontRows() {
+  for (const kind of ['dialog', 'menu']) {
+    const label = el('uf-' + kind + '-font');
+    if (!label) continue;
+    const own = ufState[kind + 'Font'];
+    label.textContent = own
+      ? own.split(/[\\/]/).pop()
+      : t('ufFontBuiltIn', { name: ufState[kind + 'FontDefault'] || '' });
+    label.title = own || '';
+    el('uf-' + kind + '-font-reset').hidden = !own;
+  }
+}
+
+function wireFontRow(kind, titleKey) {
+  const pick = el('uf-' + kind + '-font-pick');
+  if (!pick) return;
+  pick.addEventListener('click', async () => {
+    const f = await window.kh1.uafonts.pickFont(t(titleKey));
+    if (!f) return;
+    ufState[kind + 'Font'] = f;
+    await saveFont(kind, f);
+    refreshFontRows();
+  });
+  el('uf-' + kind + '-font-reset').addEventListener('click', async () => {
+    ufState[kind + 'Font'] = '';
+    await saveFont(kind, '');
+    refreshFontRows();
+  });
+}
+
+async function saveFont(kind, value) {
+  const patch = {};
+  patch[kind + 'Font'] = value;
+  try { await window.kh1.translate.saveSettings(patch, getCurrentGameId()); } catch (_) {}
 }
 
 function log(line, clear) {
@@ -83,6 +123,7 @@ async function refreshPaths() {
   try {
     const d = await window.kh1.uafonts.defaults(gameId);
     ufState.buildDir = d.buildDir; ufState.backupDir = d.backupDir; ufState.defaultExtraFont = d.fallbackFont || '';
+    ufState.dialogFontDefault = d.dialogFontDefault || ''; ufState.menuFontDefault = d.menuFontDefault || '';
   } catch (_) {}
   el('uf-build-dir').textContent = ufState.buildDir;
   el('uf-backup-dir').textContent = ufState.backupDir;
@@ -98,6 +139,13 @@ async function refreshPaths() {
     extraInput.value = saved;
     refreshExtraLetters();
   }
+  // Власні шрифти — теж на кожну гру окремо.
+  try {
+    const st = await window.kh1.translate.getSettings(gameId);
+    ufState.dialogFont = (st && st.dialogFont) || '';
+    ufState.menuFont = (st && st.menuFont) || '';
+  } catch (_) { ufState.dialogFont = ufState.menuFont = ''; }
+  refreshFontRows();
   ufState.located = gameDir ? await window.kh1.uafonts.locate({ gameId, gameDir }) : { error: t('ufNoGameDir') };
   const inp = el('uf-inputs');
   if (ufState.located.error) inp.textContent = '⚠ ' + ufState.located.error;
@@ -127,6 +175,8 @@ export async function initUaFonts() {
         try { window.kh1.translate.saveSettings({ extraLetters: ufState.extraLetters }, getCurrentGameId()); } catch (_) {}
       });
     }
+    wireFontRow('dialog', 'ufDialogFontPick');
+    wireFontRow('menu', 'ufMenuFontPick');
     const fontPick = el('uf-extra-font-pick');
     if (fontPick) {
       fontPick.addEventListener('click', async () => {
@@ -150,12 +200,18 @@ export async function initUaFonts() {
           refreshExtraLetters();
           try { await window.kh1.translate.saveSettings({ extraLetters: ufState.extraLetters }, gameId); } catch (_) {}
         }
-        const r = await window.kh1.uafonts.generate({ gameId, gameDir: ufState.gameDir, buildDir: ufState.buildDir, extraLetters: ufState.extraLetters, fallbackFont: ufState.extraFont || ufState.defaultExtraFont });
+        const r = await window.kh1.uafonts.generate({
+          gameId, gameDir: ufState.gameDir, buildDir: ufState.buildDir,
+          extraLetters: ufState.extraLetters,
+          fallbackFont: ufState.extraFont || ufState.defaultExtraFont,
+          dialogFont: ufState.dialogFont, menuFont: ufState.menuFont
+        });
         if (!r.ok) { toast(t('ufGenFail', { msg: r.error }), 'error', 9000); if (r.log) log(r.log); }
         else {
           ufState.generated = true;
           toast(t('ufGenDone', { dir: r.buildDir }), 'success', 7000);
           if (r.nativeMap) toast(t('ufNativeMapActive', { n: r.nativeMap.letters }), 'info', 6000);
+          if (r.sysFontMap) toast(t('ufSysFontMapActive', { n: r.sysFontMap.letters }), 'info', 6000);
           renderReport(r.report);
         }
       } finally { ufState.busy = false; refreshButtons(); }
@@ -173,6 +229,7 @@ export async function initUaFonts() {
   }
   await refreshPaths();
   await refreshPython();
+  refreshFontRows();
   refreshExtraLetters();
   refreshButtons();
 }

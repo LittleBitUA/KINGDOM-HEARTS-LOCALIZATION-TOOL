@@ -56,8 +56,8 @@ async function runSmoke(win) {
     const v3c = await call(`window.kh1.translate.compose(${J({ engPath: path.join(engDir, 'UK_sysmsg.binl'), outPath: path.join(outDir, 'UK_sysmsg.binl'), replacements: [{ offset: v3.slots[0].offset, ukText: 'Завантажити гру?' }] })})`);
     check('compose v361 applied', v3c.ok === true && v3c.applied === 1, v3c);
     const v3out = fs.readFileSync(path.join(outDir, 'UK_sysmsg.binl'));
-    // sysmsg збирається гібридно: а/у — латинські 1-байтові гліфи, решта — нативні 19 NN.
-    check('compose v361 bytes', v3out.subarray(0, 12).toString('ascii') === 'Message v361' && codec.decode(v3out.subarray(v3out.readUInt32LE(0x14)), { cmd: 'sysmsg' }).includes('Зaвaнтaжити гpy?'));
+    // sysmsg малює СИСТЕМНИЙ шрифт: кожна літера — один байт (запис + 0x20).
+    check('compose v361 bytes', v3out.subarray(0, 12).toString('ascii') === 'Message v361' && codec.decode(v3out.subarray(v3out.readUInt32LE(0x14)), { cmd: 'sysmsg', sysfont: true }).includes('Завантажити гру?'));
 
 
     const ex = await call(`window.kh1.translate.extract(${J({ engPath: path.join(engDir, 'a.binl'), refPath: path.join(refDir, 'a.binl') })})`);

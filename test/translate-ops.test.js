@@ -228,7 +228,7 @@ test('classify: X_offset.bin + X_data.bin pair (wsysmsg/wname) is mesofs/mesdata
   }
 });
 
-test('composeAll writes native 19 NN codes for KH1 binl and sysmsg uses hybrid', async () => {
+test('composeAll writes native 19 NN codes for KH1 binl and sysmsg uses the system font', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kh1-native-'));
   try {
     const eng = path.join(dir, 'ENG'), ref = path.join(dir, 'MYFILES'), out = path.join(dir, 'DONE');
@@ -244,8 +244,11 @@ test('composeAll writes native 19 NN codes for KH1 binl and sysmsg uses hybrid',
       assert.ok(binl.includes(Buffer.from([0x19, 0x13, 0x19, 0x35])), 'П р as 19 NN');
       assert.match(codec.decode(binl.subarray(11)), /Прокинься!/);
       const sys = require('../tools/lib/msg-v361').parseMessageV361(fs.readFileSync(path.join(out, 'UK_sysmsg.binl')));
-      const first = codec.decode(sys.entries[0].bytes, { cmd: 'sysmsg' });
-      assert.equal(first, 'Зaвaнтaжити цю гpy?');   // hybrid: а/р/у → латинські a/p/y (1 байт)
+      // sysmsg малюється системним шрифтом: кожна літера — один байт (запис + 0x20),
+      // жодного `19 NN`. Читаємо тим самим шрифтом — текст має вернутись цілим.
+      assert.ok(!sys.entries[0].bytes.includes(0x19), 'без двобайтових кодів діалогів');
+      const first = codec.decode(sys.entries[0].bytes, { cmd: 'sysmsg', sysfont: true });
+      assert.equal(first, 'Завантажити цю гру?');
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
