@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Один самодостатній файл на платформу: ані .NET, ані mono на машині
+       користувача не потрібні (Steam Deck своєї .NET не має взагалі).
+       Обрізання (PublishTrimmed) НЕ вмикаємо: Xe.BinaryMapper читає структури
+       через рефлексію, обрізач викине потрібні типи. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>KH-UA-Patcher</AssemblyName>
+    <RootNamespace>KhUa</RootNamespace>
+    <StartupObject>KhUa.Program</StartupObject>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- код KHPCPatchManager писано вільно; попередження не мають валити збірку -->
+    <NoWarn>$(NoWarn);CS0168;CS0219;CS0162;CS0414;CS0649;CS1998;SYSLIB0021;CS0618;MSB3277</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <ApplicationIcon>kh.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DotNetZip читає імена записів у .zip кодуванням IBM437, а в .NET
+         його немає без цього постачальника: без нього ZipFile.Read падає
+         з «Cannot read that as a ZipFile». (Реліз апстріму цього не потребує,
+         бо попри net5.0 у .csproj його збирають під .NET Framework.) -->
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- DotNetZip рівно той, з яким KHPCPatchManager зібраний в апстрімі -->
+    <Reference Include="DotNetZip">
+      <HintPath>upstream/packages/DotNetZip.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- UpdateResources() дістає списки імен файлів гри саме звідси -->
+    <EmbeddedResource Include="upstream/resources.zip" />
+  </ItemGroup>
+
+</Project>

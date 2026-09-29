@@ -61,6 +61,22 @@ Grab the latest `.exe` from **[Releases](https://github.com/LittleBitUA/KINGDOM-
 4. **Compose all files** and copy `DONE` over your patch folder.
 5. **Repack** with KHPCPatchManager and apply the patch.
 
+### Shipping your translation to players
+
+`tools/patcher/` builds a **standalone console installer** you hand out together
+with your `.pcpatch`. It finds the game on its own (Steam, Epic, Steam Deck, SD
+cards), backs up the original archives and applies the patch — with no .NET, mono
+or KHPCPatchManager needed on the player's machine.
+
+```bash
+npm run patcher:build                                      # Windows + Linux
+node tools/patcher/build.js --patches path/to/PATCH/KH1-UA # bundle the patch
+```
+
+It rebuilds KHPCPatchManager from source for both platforms — the upstream release
+is Windows-only, despite what its project file claims. The rebuild is verified to
+produce byte-identical archives. See [tools/patcher/README.md](tools/patcher/README.md).
+
 ### Build from source
 
 ```bash
@@ -135,6 +151,23 @@ Released under the [MIT licence](LICENSE). Kingdom Hearts is a trademark of Squa
 3. **Перекладай.** Вибери файл, редагуй рядки, зберігай. Повтори глосарій підставить сам.
 4. **«Зібрати всі файли»** і скопіюй `DONE` поверх теки патча.
 5. **Запакуй** назад через KHPCPatchManager і накоти патч.
+
+### Як віддати переклад гравцям
+
+`tools/patcher/` збирає **окремий консольний встановлювач**, який поширюють разом
+із `.pcpatch`. Він сам знаходить гру (Steam, Epic, Steam Deck, SD-картка), сам
+робить резервну копію й сам накочує патч — на машині гравця не потрібно ані .NET,
+ані mono, ані KHPCPatchManager.
+
+```bash
+npm run patcher:build                                      # Windows + Linux
+node tools/patcher/build.js --patches шлях/до/PATCH/KH1-UA # вкласти патч усередину
+```
+
+KHPCPatchManager для цього перезбирається з вихідників під обидві платформи —
+їхній реліз працює лише під Windows, хоч у `.csproj` написано інше. Перевірено,
+що перезбирання архівів дає байт у байт той самий результат. Подробиці —
+[tools/patcher/README.md](tools/patcher/README.md).
 
 ### Збірка з коду
 

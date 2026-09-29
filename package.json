@@ -22,7 +22,8 @@
     "extract": "node tools/diff-extract.js",
     "extract:batch": "node tools/batch-extract.js",
     "compose": "node tools/diff-build.js",
-    "test:smoke": "node scripts/smoke.js"
+    "test:smoke": "node scripts/smoke.js",
+    "patcher:build": "node tools/patcher/build.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -31,3 +31,15 @@ Edited_Subs/
 
 # Дослідження форматів — лише локально, не публікуємо
 docs/
+
+# Збірка окремого встановлювача (tools/patcher)
+tools/patcher/.vendor/
+tools/patcher/.build/
+tools/patcher/dist/
+tools/patcher/src/obj/
+tools/patcher/src/bin/
+
+# Кеш Python і чернетки конфігів ASI
+__pycache__/
+*.pyc
+tools/asi/kh1-name-grid/kh1font.probe*.txt
