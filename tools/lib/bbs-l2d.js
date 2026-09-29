@@ -59,6 +59,18 @@ function rebuildL2d(buf, rawByIndex, report) {
 
 // Рядок «мертвий» для англійської збірки: жодної латинської літери й жодного
 // токена {…} — тобто це японський залишок, який видно лише в JP-версії.
+// Заглушки розмітника: рядок з однієї повтореної літери («aaaa», «AAAAAAA»,
+// «WWWWWWWWWW») — це не текст гри, а «рибка», якою міряли блок у редакторі
+// розкладок. Звільняємо її місце під переклад — але лише у другому заході,
+// коли без цього текст не влазить.
+function isDeadFiller(raw) {
+  if (raw.length < 4) return false;
+  const s = raw.toString('latin1');
+  if (!/^[A-Za-z]+$/.test(s)) return false;
+  const c = s[0].toLowerCase();
+  return s.split('').every((x) => x.toLowerCase() === c);
+}
+
 function isDeadJp(raw) {
   const s = raw.toString('latin1');
   if (!raw.length) return false;
@@ -82,7 +94,7 @@ function rebuildPoolInPlace(buf, p, rawByIndex, dropDead) {
     let raw = rawByIndex.has(e.index) ? rawByIndex.get(e.index) : e.raw;
     // Другий захід: японські залишки (в англійській збірці їх не видно) кладемо
     // на один спільний порожній рядок — це звільняє місце під переклад.
-    if (dropDead && !rawByIndex.has(e.index) && isDeadJp(e.raw)) raw = EMPTY;
+    if (dropDead && !rawByIndex.has(e.index) && (isDeadJp(e.raw) || isDeadFiller(e.raw))) raw = EMPTY;
     const key = raw.toString('hex');
     if (!offOf.has(key)) {
       offOf.set(key, size);

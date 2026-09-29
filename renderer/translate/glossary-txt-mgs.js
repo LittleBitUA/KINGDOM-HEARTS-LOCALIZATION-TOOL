@@ -80,8 +80,15 @@ export function parseGlossaryTxtMgs(content, opts) {
   const flush = () => {
     if (!cur) return;
     total++;
-    // хвостові порожні рядки — роздільники блоків, не частина перекладу
-    while (cur.body.length && cur.body[cur.body.length - 1] === '') cur.body.pop();
+    // Хвостові порожні рядки: останній — роздільник блоків, але якщо сам
+    // ОРИГІНАЛ закінчується переносом, стільки ж належить перекладу. Без цього
+    // кінцевий перенос не переживав експорт→імпорт (у BBS він зсуває текст
+    // у вікні по вертикалі).
+    const tailBreaks = (/\n+$/.exec(cur.en) || [''])[0].length;
+    let blanks = 0;
+    while (blanks < cur.body.length && cur.body[cur.body.length - 1 - blanks] === '') blanks++;
+    const keep = Math.min(tailBreaks, Math.max(0, blanks - 1));
+    for (let k = 0; k < blanks - keep; k++) cur.body.pop();
     const uk = fromFileText(cur.body.join('\n'), cur.en);
     if (uk && (keepSame || uk !== cur.en)) pairs.push({ en: cur.en, uk });
     cur = null;
