@@ -22,13 +22,14 @@
 #include <string.h>
 
 #define MAX_PAGES   8
-#define MAX_ROWS    5
-#define MAX_COLS    16
+#define MAX_ROWS    8
+#define MAX_COLS    20
 #define GLYPH_KEEP  0xFFFFFFFFu   // «не чіпати цю комірку»
 
 typedef struct {
   unsigned int *table;   // початок таблиці пар у пам'яті гри
   int entries;           // скільки пар до термінатора включно
+  int capacity;          // скільки пар узагалі влазить (до наступної таблиці)
   unsigned int first;    // номер першого гліфа в оригіналі (для впізнавання)
 } Page;
 
@@ -36,6 +37,11 @@ static Page g_pages[MAX_PAGES];
 static int g_pageCount = 0;
 static unsigned int g_cfg[MAX_PAGES][MAX_ROWS][MAX_COLS];
 static int g_cfgPages = 0;
+static int g_probe = 0;                 // рядок «probe» у конфігу
+static int g_full = 0;                  // рядок «layout» — писати таблиці цілком
+static int g_cfgRows[MAX_PAGES];        // скільки рядів у кожній сторінці конфігу
+static int g_cfgCols[MAX_PAGES];        // і скільки стовпців
+static void **g_ptrArray = NULL;        // масив вказівників на сторінки
 
 // ---------------------------------------------------------------- лог ----
 static wchar_t g_logPath[MAX_PATH];
@@ -141,6 +147,19 @@ static int scanPages(void) {
     // (вони лежать упритул) проскакує повз сигнатуру.
     i += 8 * (size_t)n - 1;
   }
+  // Ємність: до початку наступної таблиці; для останньої — по набивці
+  // з пар (позиція, 0xFFF6), яку гра лишила між блоками.
+  for (int k = 0; k < g_pageCount; k++) {
+    if (k + 1 < g_pageCount) {
+      g_pages[k].capacity = (int)(g_pages[k + 1].table - g_pages[k].table) / 2;
+    } else {
+      int cap = g_pages[k].entries;
+      unsigned int *t = g_pages[k].table;
+      while (cap < 400 && t[cap * 2 + 1] == 0xFFF6) cap++;
+      g_pages[k].capacity = cap;
+    }
+    logf("сторінка %d: місткість %d пар (зайнято %d)", k + 1, g_pages[k].capacity, g_pages[k].entries);
+  }
   return g_pageCount;
 }
 
@@ -176,6 +195,8 @@ static int loadConfig(void) {
     char *nl = strpbrk(s, "\r\n");
     if (nl) *nl = 0;
     if (!*s || *s == '#' || *s == ';') continue;
+    if (!_strnicmp(s, "probe", 5)) { g_probe = 1; continue; }
+    if (!_strnicmp(s, "layout", 6)) { g_full = 1; continue; }
     if (!_strnicmp(s, "page", 4)) {
       int n = atoi(s + 4);
       page = (n >= 1 && n <= MAX_PAGES) ? n - 1 : -1;
@@ -193,11 +214,67 @@ static int loadConfig(void) {
       col++;
       tok = strtok(NULL, " \t");
     }
+    if (col - 1 > g_cfgCols[page]) g_cfgCols[page] = col - 1;
     row++;
+    if (row > g_cfgRows[page]) g_cfgRows[page] = row;
   }
   fclose(f);
-  logf("конфіг прочитано: сторінок %d", g_cfgPages);
-  return g_cfgPages;
+  logf("конфіг прочитано: сторінок %d%s", g_cfgPages, g_probe ? ", режим стеження" : "");
+  return g_cfgPages || g_probe;
+}
+
+// ---------------------------------------------------- повний запис таблиці ----
+// Гра переписує ці таблиці під західну розкладку вже після старту процесу,
+// тому одноразовий патч зі старту не тримається — застосовуємо в циклі.
+// Пишемо пари цілком: стовпець 0 = 0xFFFF («перестрибнути»), далі комірки,
+// у кінці (0, 0xFFF6). Геометрію беремо з конфігу, як це зробив чужий мод
+// (4 ряди × 17 стовпців замість японських 5 × 11).
+static int writeFull(int pi) {
+  Page *pg = &g_pages[pi];
+  int rows = g_cfgRows[pi], cols = g_cfgCols[pi];
+  if (rows <= 0 || cols <= 0) return 0;
+  int need = rows * (cols + 1) + 1;
+  if (need > pg->capacity) {
+    logf("сторінка %d: треба %d пар, а влазить %d — пропускаю", pi + 1, need, pg->capacity);
+    return 0;
+  }
+  DWORD old;
+  if (!VirtualProtect(pg->table, (SIZE_T)need * 8, PAGE_EXECUTE_READWRITE, &old)) {
+    logf("сторінка %d: VirtualProtect не вдався (%lu)", pi + 1, GetLastError());
+    return 0;
+  }
+  int k = 0;
+  for (int r = 0; r < rows; r++) {
+    pg->table[k * 2] = (unsigned int)(r << 12);
+    pg->table[k * 2 + 1] = 0xFFFF;
+    k++;
+    for (int c = 1; c <= cols; c++) {
+      unsigned int g = g_cfg[pi][r][c];
+      if (g == GLYPH_KEEP) g = 0;
+      pg->table[k * 2] = (unsigned int)((r << 12) | (c << 4));
+      pg->table[k * 2 + 1] = g;
+      k++;
+    }
+  }
+  pg->table[k * 2] = 0;
+  pg->table[k * 2 + 1] = 0xFFF6;
+  VirtualProtect(pg->table, (SIZE_T)need * 8, old, &old);
+  return k;
+}
+
+static DWORD WINAPI keepThread(LPVOID arg) {
+  (void)arg;
+  int first = 1;
+  for (;;) {
+    for (int pi = 0; pi < g_pageCount && pi < g_cfgPages; pi++) {
+      int n = writeFull(pi);
+      if (first && n) logf("сторінка %d: записано %d пар (%d×%d)",
+                           pi + 1, n, g_cfgRows[pi], g_cfgCols[pi]);
+    }
+    if (first) { logf("тримаю розкладку в циклі"); first = 0; }
+    Sleep(250);
+  }
+  return 0;
 }
 
 // -------------------------------------------------------------- застосування ----
@@ -229,6 +306,77 @@ static void applyConfig(void) {
 // --------------------------------------------------------------- запуск ----
 // Чи це взагалі KH1? У теці збірки лежать чотири гри, і dinput8.dll
 // підхопить кожна з них — чіпати таблиці можна лише в KINGDOM HEARTS FINAL MIX.
+// ------------------------------------------------------------ стеження ----
+// Західна сітка (2 сторінки, до 18 стовпців) не збігається зі статичними
+// таблицями (5 сторінок, 11 стовпців), хоч код читає той самий масив
+// `PTR[сторінка]`. Тому дивимось на нього ЖИВИМ: знаходимо масив за
+// адресами знайдених таблиць і пишемо в лог, коли його вміст змінюється.
+
+static void dumpTable(const char *tag, unsigned int *t) {
+  if (!t) { logf("  %s: NULL", tag); return; }
+  char buf[1400];
+  int len = 0, maxRow = 0, maxCol = 0, n = 0;
+  for (int k = 0; k < 120; k++) {
+    unsigned int pos = t[k * 2], g = t[k * 2 + 1];
+    if (g == 0xFFF6) break;
+    unsigned int row = pos >> 12, col = (pos >> 4) & 0xFF;
+    if (row > 9 || col > 40) break;
+    if ((int)row > maxRow) maxRow = row;
+    if ((int)col > maxCol) maxCol = col;
+    n++;
+    if (len < (int)sizeof(buf) - 24)
+      len += snprintf(buf + len, sizeof(buf) - len, "%u,%u=%X ", row, col, g);
+  }
+  buf[len] = 0;
+  logf("  %s @0x%p: пар %d, рядів %d, стовпців %d", tag, (void *)t, n, maxRow + 1, maxCol + 1);
+  logf("    %s", buf);
+}
+
+static void findPtrArray(void) {
+  if (g_pageCount < 2) return;
+  HMODULE base = GetModuleHandleW(NULL);
+  IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)base;
+  IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)((unsigned char *)base + dos->e_lfanew);
+  unsigned char *start = (unsigned char *)base;
+  size_t size = nt->OptionalHeader.SizeOfImage;
+  void *want0 = (void *)g_pages[0].table, *want1 = (void *)g_pages[1].table;
+  for (size_t i = 0; i + 16 < size; i += 8) {
+    void **q = (void **)(start + i);
+    if (q[0] == want0 && q[1] == want1) {
+      g_ptrArray = q;
+      logf("масив сторінок знайдено: 0x%p (зсув у модулі 0x%zX)", (void *)q, i);
+      return;
+    }
+  }
+  logf("масив сторінок НЕ знайдено");
+}
+
+static DWORD WINAPI probeThread(LPVOID arg) {
+  (void)arg;
+  if (!g_ptrArray) return 0;
+  void *prev[8];
+  for (int i = 0; i < 8; i++) prev[i] = (void *)(size_t)1;
+  int dumps = 0;
+  while (dumps < 60) {
+    int changed = 0;
+    for (int i = 0; i < 5; i++) if (g_ptrArray[i] != prev[i]) changed = 1;
+    if (changed) {
+      dumps++;
+      logf("--- масив змінився (знімок %d) ---", dumps);
+      for (int i = 0; i < 5; i++) {
+        prev[i] = g_ptrArray[i];
+        logf("  [%d] -> 0x%p%s", i, g_ptrArray[i],
+             (i < g_pageCount && g_ptrArray[i] == (void *)g_pages[i].table) ? " (статична)" : "");
+      }
+      dumpTable("сторінка 0", (unsigned int *)g_ptrArray[0]);
+      dumpTable("сторінка 1", (unsigned int *)g_ptrArray[1]);
+    }
+    Sleep(700);
+  }
+  logf("стеження завершено");
+  return 0;
+}
+
 static int isKh1(void) {
   wchar_t p[MAX_PATH];
   GetModuleFileNameW(NULL, p, MAX_PATH);
@@ -247,7 +395,22 @@ static DWORD WINAPI worker(LPVOID arg) {
   if (!isKh1()) { logf("не KH1 — нічого не роблю"); return 0; }
   if (!loadConfig()) return 0;
   if (!scanPages()) { logf("таблиці сітки не знайдено"); return 0; }
-  applyConfig();
+  if (g_cfgPages) {
+    if (g_full) {
+      HANDLE t = CreateThread(NULL, 0, keepThread, NULL, 0, NULL);
+      if (t) CloseHandle(t);
+      return 0;
+    }
+    applyConfig();
+  }
+  if (g_probe) {
+    findPtrArray();
+    if (g_ptrArray) {
+      logf("стежу за масивом — відкрий екран введення назви");
+      probeThread(NULL);
+      return 0;
+    }
+  }
   logf("готово");
   return 0;
 }
