@@ -364,9 +364,12 @@ namespace KhUa
             return s.Length == 0 || s == "y" || s == "т" || s == "yes" || s == "так";
         }
 
+        // Пауза наприкінці — окремо від --так. Пускач запускає програму без
+        // запитань, але вікно має дочекатись, поки людина прочитає підсумок,
+        // інакше воно просто зникне.
         static void Pause(Args a)
         {
-            if (a.Has("так", "yes", "y") || Console.IsInputRedirected) return;
+            if (a.Has("без-паузи", "no-pause") || Console.IsInputRedirected) return;
             Screen.WriteLine();
             Screen.Write("Натисніть Enter, щоб закрити…");
             try { Console.ReadLine(); } catch { }

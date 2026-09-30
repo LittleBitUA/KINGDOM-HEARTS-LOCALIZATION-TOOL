@@ -11,5 +11,7 @@ if not exist "KH-UA-Patcher.exe" (
   pause
   exit /b 1
 )
-"%~dp0KH-UA-Patcher.exe" %*
+rem --tak: ne pytajemo pidtverdzhennja pry podvijnomu kliku.
+rem Vikno vse odno chekaje Enter naprykinci (--bez-pauzy vymykaje i ce).
+"%~dp0KH-UA-Patcher.exe" --yes %*
 if errorlevel 1 pause
